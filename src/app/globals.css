@@ -1,0 +1,106 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 210 40% 98%;
+    --foreground: 222 47% 11%;
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+    --primary: 221 83% 53%;
+    --primary-foreground: 210 40% 98%;
+    --secondary: 210 40% 96%;
+    --secondary-foreground: 222 47% 11%;
+    --muted: 210 40% 96%;
+    --muted-foreground: 215 16% 47%;
+    --accent: 210 40% 96%;
+    --accent-foreground: 222 47% 11%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 214 32% 91%;
+    --input: 214 32% 91%;
+    --ring: 221 83% 53%;
+    --radius: 0.5rem;
+  }
+
+  .dark {
+    --background: 222 47% 11%;
+    --foreground: 210 40% 98%;
+    --card: 222 47% 15%;
+    --card-foreground: 210 40% 98%;
+    --popover: 222 47% 15%;
+    --popover-foreground: 210 40% 98%;
+    --primary: 217 91% 60%;
+    --primary-foreground: 222 47% 11%;
+    --secondary: 217 33% 17%;
+    --secondary-foreground: 210 40% 98%;
+    --muted: 217 33% 17%;
+    --muted-foreground: 215 20% 65%;
+    --accent: 217 33% 17%;
+    --accent-foreground: 210 40% 98%;
+    --destructive: 0 63% 31%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 217 33% 17%;
+    --input: 217 33% 17%;
+    --ring: 224 76% 48%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+}
+
+@layer components {
+  .glass {
+    @apply bg-white/70 backdrop-blur-xl border border-white/20 shadow-lg;
+  }
+  .dark .glass {
+    @apply bg-gray-900/70 backdrop-blur-xl border border-gray-700/30 shadow-lg;
+  }
+  .glass-card {
+    @apply bg-white/60 backdrop-blur-md border border-white/30 rounded-lg shadow-sm hover:shadow-md transition-all duration-300;
+  }
+  .dark .glass-card {
+    @apply bg-gray-900/60 backdrop-blur-md border border-gray-700/30 rounded-lg;
+  }
+  .glass-nav {
+    @apply bg-white/80 backdrop-blur-xl border-b border-gray-200/50 sticky top-0 z-50;
+  }
+  .dark .glass-nav {
+    @apply bg-gray-950/80 backdrop-blur-xl border-b border-gray-800/50;
+  }
+}
+
+.prose-custom h1 { @apply text-3xl font-bold mt-8 mb-4; }
+.prose-custom h2 { @apply text-2xl font-semibold mt-8 mb-4 pb-2 border-b; }
+.prose-custom h3 { @apply text-xl font-semibold mt-6 mb-3; }
+.prose-custom h4 { @apply text-lg font-medium mt-4 mb-2; }
+.prose-custom p { @apply my-4 leading-7; }
+.prose-custom ul { @apply my-4 list-disc pl-6; }
+.prose-custom ol { @apply my-4 list-decimal pl-6; }
+.prose-custom li { @apply my-1; }
+.prose-custom code { @apply bg-muted px-1.5 py-0.5 rounded text-sm font-mono; }
+.prose-custom pre { @apply bg-gray-950 text-gray-100 rounded-lg p-4 my-4 overflow-x-auto; }
+.prose-custom pre code { @apply bg-transparent p-0 text-inherit; }
+.prose-custom blockquote { @apply border-l-4 border-primary pl-4 my-4 italic text-muted-foreground; }
+.prose-custom a { @apply text-primary underline underline-offset-4 hover:text-primary/80; }
+.prose-custom img { @apply rounded-lg my-4 max-w-full; }
+.prose-custom table { @apply w-full my-4 border-collapse; }
+.prose-custom th { @apply border px-4 py-2 bg-muted font-semibold text-left; }
+.prose-custom td { @apply border px-4 py-2; }
+
+.skeleton { @apply animate-pulse bg-muted rounded; }
+
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { @apply bg-transparent; }
+::-webkit-scrollbar-thumb { @apply bg-muted-foreground/20 rounded-full; }
+::-webkit-scrollbar-thumb:hover { @apply bg-muted-foreground/40; }

@@ -1,0 +1,254 @@
+generator client {
+  provider = "prisma-client-js"
+  engineType = "library"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  emailVerified DateTime?
+  passwordHash  String?
+  image         String?
+  role          String    @default("USER")
+  bio           String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  articles      Article[]
+  questions     Question[]
+  answers       Answer[]
+  software      Software[]
+  comments      Comment[]
+  votes         Vote[]
+  bookmarks     Bookmark[]
+  notifications Notification[]
+  tags          Tag[]
+
+  @@index([email])
+  @@index([role])
+}
+
+model Tag {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  slug        String   @unique
+  description String?
+  color       String   @default("#6366f1")
+  usageCount  Int      @default(0)
+  createdAt   DateTime @default(now())
+  createdBy   String?
+  creator     User?    @relation(fields: [createdBy], references: [id])
+  articles    Article[]
+  questions   Question[]
+  software    Software[]
+  @@index([slug])
+  @@index([usageCount])
+}
+
+model Article {
+  id          String   @id @default(cuid())
+  title       String
+  slug        String   @unique
+  content     String
+  excerpt     String?
+  coverImage  String?
+  category    String   @default("tutorial")
+  status      String   @default("published")
+  source      String   @default("original")
+  sourceUrl   String?
+  viewCount   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  authorId String
+  tags     Tag[]
+  author   User      @relation(fields: [authorId], references: [id])
+
+  comments Comment[]
+
+  @@index([slug])
+  @@index([status])
+  @@index([category])
+  @@index([authorId])
+  @@index([createdAt])
+}
+
+model Question {
+  id          String   @id @default(cuid())
+  title       String
+  slug        String   @unique
+  content     String
+  status      String   @default("open")
+  viewCount   Int      @default(0)
+  answerCount Int      @default(0)
+  voteCount   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  authorId String
+  tags     Tag[]
+
+  author   User      @relation(fields: [authorId], references: [id])
+
+  answers  Answer[]
+  comments Comment[]
+
+  @@index([slug])
+  @@index([status])
+  @@index([authorId])
+  @@index([createdAt])
+}
+
+model Answer {
+  id         String   @id @default(cuid())
+  content    String
+  accepted   Boolean  @default(false)
+  voteCount  Int      @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  questionId String
+  question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  authorId   String
+  author     User     @relation(fields: [authorId], references: [id])
+
+  comments Comment[]
+
+  @@index([questionId])
+  @@index([authorId])
+}
+
+model Software {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String   @unique
+  description String
+  url         String?
+  category    String   @default("tool")
+  image       String?
+  rating      Float    @default(0)
+  ratingCount Int      @default(0)
+  status      String   @default("published")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  authorId String
+  tags     Tag[]
+
+  author   User      @relation(fields: [authorId], references: [id])
+
+  comments Comment[]
+
+  @@index([slug])
+  @@index([category])
+  @@index([status])
+}
+
+model Comment {
+  id        String   @id @default(cuid())
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  authorId String
+  author   User   @relation(fields: [authorId], references: [id])
+
+  articleId  String?
+  article    Article?  @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  questionId String?
+  question   Question? @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  answerId   String?
+  answer     Answer?   @relation(fields: [answerId], references: [id], onDelete: Cascade)
+  softwareId String?
+  software   Software? @relation(fields: [softwareId], references: [id], onDelete: Cascade)
+
+  @@index([articleId])
+  @@index([questionId])
+  @@index([authorId])
+}
+
+model Vote {
+  id         String @id @default(cuid())
+  value      Int    @default(1)
+  targetType String
+  targetId   String
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+
+  @@unique([userId, targetType, targetId])
+  @@index([targetType, targetId])
+  @@index([userId])
+}
+
+model Bookmark {
+  id         String   @id @default(cuid())
+  targetType String
+  targetId   String
+  createdAt  DateTime @default(now())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+
+  @@unique([userId, targetType, targetId])
+  @@index([userId])
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  type      String
+  message   String
+  link      String?
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+
+  @@index([userId, read])
+}
+
+model CrawlSource {
+  id        String    @id @default(cuid())
+  name      String
+  url       String
+  category  String    @default("tech")
+  enabled   Boolean   @default(true)
+  lastRun   DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@index([enabled])
+}
+
+model CrawlLog {
+  id         String   @id @default(cuid())
+  sourceId   String
+  sourceName String
+  status     String
+  itemsFound Int      @default(0)
+  itemsAdded Int      @default(0)
+  message    String?
+  createdAt  DateTime @default(now())
+
+  @@index([sourceId])
+  @@index([createdAt])
+}
+
+model SiteConfig {
+  id               String  @id @default("main")
+  siteName         String  @default("Solution")
+  siteDescription  String  @default("社区技术文档与问答平台")
+  logo             String?
+  featuredArticle  String?
+  featuredQuestion String?
+  featuredSoftware String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}

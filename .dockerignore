@@ -1,0 +1,9 @@
+﻿node_modules/
+.next/
+*.db
+*.db-journal
+.env.local
+.env.production
+dist/
+.turbo/
+coverage/
