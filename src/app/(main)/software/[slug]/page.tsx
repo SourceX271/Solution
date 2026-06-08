@@ -1,7 +1,7 @@
-import Link from "next/link"
+﻿import Link from "next/link"
 import { notFound } from "next/navigation"
 import { prisma } from "@/lib/db"
-import { formatDate, formatRelativeTime, parseTags } from "@/lib/utils"
+import { formatDate, formatRelativeTime } from "@/lib/utils"
 import { auth } from "@/lib/auth"
 import { RatingWidget } from "@/components/client/RatingWidget"
 import { CommentSection } from "@/components/client/CommentSection"
@@ -38,14 +38,14 @@ export default async function SoftwarePage({ params }: SoftwarePageProps) {
     where: { slug: params.slug },
     include: {
       author: { select: { id: true, name: true, image: true } },
-    tags: { select: { name: true, slug: true, color: true } },
+      tags: { select: { name: true, slug: true, color: true } },
       _count: { select: { comments: true } },
     },
   })
 
   if (!software || software.status !== "published") notFound()
 
-  const tags = (software.tags as any[])
+  const tags = software.tags
 
   // Get user's rating
   const userRating = userId
@@ -81,11 +81,11 @@ export default async function SoftwarePage({ params }: SoftwarePageProps) {
               </span>
               {tags.map((tag) => (
                 <span
-                  key={tag}
+                  key={tag.slug}
                   className="rounded bg-muted px-2 py-0.5 text-xs text-muted-foreground"
                 >
                   <Tag className="mr-1 inline h-3 w-3" />
-                  {tag}
+                  {tag.name}
                 </span>
               ))}
             </div>

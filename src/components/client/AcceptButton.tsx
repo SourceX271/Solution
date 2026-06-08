@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
@@ -16,8 +16,8 @@ export function AcceptButton({ answerId, questionId }: AcceptButtonProps) {
   const handleAccept = async () => {
     setLoading(true)
     try {
-      const res = await fetch(`/api/answers/${answerId}/accept`, {
-        method: "PUT",
+      const res = await fetch(`/api/answers/${answerId}`, {
+        method: "PATCH",
       })
       if (res.ok) {
         router.refresh()

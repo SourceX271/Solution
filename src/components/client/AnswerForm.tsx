@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import { useState, useCallback } from "react"
 import { useRouter } from "next/navigation"
@@ -39,7 +39,7 @@ export function AnswerForm({ questionId, userId }: AnswerFormProps) {
 
     setSubmitting(true)
     try {
-      const res = await fetch("/api/answers", {
+      const res = await fetch(`/api/questions/${questionId}/answers`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -91,7 +91,7 @@ export function AnswerForm({ questionId, userId }: AnswerFormProps) {
             onClick={() => editor.chain().focus().toggleCodeBlock().run()}
             className={`rounded px-2 py-1 text-xs ${editor.isActive("codeBlock") ? "bg-primary text-primary-foreground" : "border hover:bg-accent"}`}
           >
-            {"</>"}
+            {'<Code>'}
           </button>
           <button
             type="button"

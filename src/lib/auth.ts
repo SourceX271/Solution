@@ -1,4 +1,4 @@
-import NextAuth from "next-auth";
+﻿import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import GitHub from "next-auth/providers/github";
 import Google from "next-auth/providers/google";
@@ -14,15 +14,15 @@ export const authConfig: NextAuthConfig = {
   callbacks: {
     jwt({ token, user }) {
       if (user) {
-        token.id = user.id as string;
-        token.role = (user as any).role as string;
+        token.id = user.id!;
+        token.role = user.role as "USER" | "ADMIN";
       }
       return token;
     },
     session({ session, token }) {
       if (session.user) {
-        (session.user as any).id = token.id as string;
-        (session.user as any).role = token.role as string;
+        session.user.id = token.id;
+        session.user.role = token.role as "USER" | "ADMIN";
       }
       return session;
     },
@@ -58,7 +58,7 @@ export const authConfig: NextAuthConfig = {
           email: user.email,
           name: user.name,
           image: user.image,
-          role: user.role,
+          role: user.role as "USER" | "ADMIN",
         };
       },
     }),

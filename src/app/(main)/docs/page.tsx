@@ -1,6 +1,6 @@
-import Link from "next/link"
+﻿import Link from "next/link"
 import { prisma } from "@/lib/db"
-import { formatDate, parseTags, cn } from "@/lib/utils"
+import { formatDate, cn } from "@/lib/utils"
 import { Eye, ChevronLeft, ChevronRight } from "lucide-react"
 
 export const dynamic = "force-dynamic"
@@ -121,14 +121,14 @@ export default async function DocsPage({ searchParams }: DocsPageProps) {
                     {article.viewCount}
                   </span>
                 </div>
-                {(article.tags as any[]) && (article.tags as any[]).length > 0 && (
+                {article.tags.length > 0 && (
                   <div className="mt-2 flex flex-wrap gap-1">
-                    {(article.tags as any[]).slice(0, 3).map((tag: any) => (
+                    {article.tags.slice(0, 3).map((tag) => (
                       <span
                         key={tag.slug}
                         className="rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground"
                       >
-                        {tag}
+                        {tag.name}
                       </span>
                     ))}
                   </div>

@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import { useState } from "react"
 import { useSession } from "next-auth/react"
@@ -31,23 +31,21 @@ export function VoteButtons({ targetType, targetId, upVotes, downVotes, userVote
 
     setLoading(true)
     try {
-      const sameVote = userVote === value
       const res = await fetch("/api/votes", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          targetType,
-          targetId,
-          value: sameVote ? 0 : value,
-        }),
+        body: JSON.stringify({ targetType, targetId, value }),
       })
 
       if (res.ok) {
-        if (sameVote) {
+        const data = await res.json()
+        if (data.voted === false) {
+          // Vote was removed
           setUserVote(null)
           if (value === 1) setUp((p) => p - 1)
           else setDown((p) => p - 1)
         } else {
+          // Vote was added or changed
           if (userVote === 1) setUp((p) => p - 1)
           if (userVote === -1) setDown((p) => p - 1)
           setUserVote(value)

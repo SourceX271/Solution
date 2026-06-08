@@ -1,7 +1,38 @@
-import { NextRequest, NextResponse } from "next/server";
+﻿import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { auth } from "@/lib/auth";
 import { commentSchema } from "@/lib/validations";
+
+export async function GET(req: NextRequest) {
+  try {
+    const { searchParams } = new URL(req.url);
+    const targetType = searchParams.get("targetType");
+    const targetId = searchParams.get("targetId");
+
+    if (!targetType || !targetId) {
+      return NextResponse.json({ error: "缺少目标类型或ID" }, { status: 400 });
+    }
+
+    const where: any = {};
+    if (targetType === "article") where.articleId = targetId;
+    else if (targetType === "question") where.questionId = targetId;
+    else if (targetType === "answer") where.answerId = targetId;
+    else if (targetType === "software") where.softwareId = targetId;
+    else return NextResponse.json({ error: "无效的目标类型" }, { status: 400 });
+
+    const comments = await prisma.comment.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+      include: {
+        author: { select: { id: true, name: true, image: true } },
+      },
+    });
+
+    return NextResponse.json({ comments });
+  } catch (error) {
+    return NextResponse.json({ error: "获取评论失败" }, { status: 500 });
+  }
+}
 
 export async function POST(req: NextRequest) {
   try {

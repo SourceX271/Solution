@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+﻿import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { auth } from "@/lib/auth";
 import { articleSchema } from "@/lib/validations";
@@ -67,7 +67,12 @@ export async function POST(req: NextRequest) {
     const tagSlugs = body.tags ? (Array.isArray(body.tags) ? body.tags : JSON.parse(body.tags || "[]")) : [];
     const article = await prisma.article.create({
       data: {
-        tags: { connect: tagSlugs.map((s: string) => ({ slug: s })) },
+        tags: {
+          connectOrCreate: tagSlugs.map((s: string) => ({
+            where: { slug: s },
+            create: { name: s, slug: s },
+          })),
+        },
         title,
         slug,
         content,

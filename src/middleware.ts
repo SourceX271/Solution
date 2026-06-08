@@ -1,4 +1,4 @@
-import { auth } from "@/lib/auth";
+﻿import { auth } from "@/lib/auth";
 import { NextResponse } from "next/server";
 
 export default auth((req) => {
@@ -13,7 +13,9 @@ export default auth((req) => {
     return NextResponse.redirect(new URL("/", nextUrl));
   }
 
-  if (nextUrl.pathname.startsWith("/profile") && !isLoggedIn) {
+  // Protect routes that require authentication
+  const protectedPaths = ["/profile", "/settings", "/notifications", "/questions/ask"];
+  if (protectedPaths.some((p) => nextUrl.pathname.startsWith(p)) && !isLoggedIn) {
     return NextResponse.redirect(new URL("/login", nextUrl));
   }
 
@@ -25,5 +27,13 @@ export default auth((req) => {
 });
 
 export const config = {
-  matcher: ["/admin/:path*", "/profile/:path*", "/login", "/register"],
+  matcher: [
+    "/admin/:path*",
+    "/profile/:path*",
+    "/settings/:path*",
+    "/notifications/:path*",
+    "/questions/ask",
+    "/login",
+    "/register",
+  ],
 };

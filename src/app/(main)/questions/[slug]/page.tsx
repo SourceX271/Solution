@@ -1,7 +1,7 @@
-import Link from "next/link"
+﻿import Link from "next/link"
 import { notFound } from "next/navigation"
 import { prisma } from "@/lib/db"
-import { formatDate, formatRelativeTime, parseTags } from "@/lib/utils"
+import { formatDate, formatRelativeTime } from "@/lib/utils"
 import { auth } from "@/lib/auth"
 import { VoteButtons } from "@/components/client/VoteButtons"
 import { BookmarkButton } from "@/components/client/BookmarkButton"
@@ -46,7 +46,7 @@ export default async function QuestionPage({ params }: QuestionPageProps) {
     data: { viewCount: { increment: 1 } },
   })
 
-  const tags = (question.tags as any[])
+  const tags = question.tags
   const isAuthor = userId === question.author.id
 
   // Answers sorted: accepted first, then by votes
@@ -149,23 +149,17 @@ export default async function QuestionPage({ params }: QuestionPageProps) {
               </span>
               <span className="inline-flex items-center gap-1">
                 <Eye className="h-4 w-4" />
-                {question.viewCount + 1} 阅读
+                {question.viewCount} 次浏览
               </span>
-              {question.status === "solved" && (
-                <span className="inline-flex items-center gap-1 rounded bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700 dark:bg-green-900/30 dark:text-green-300">
-                  <CheckCircle className="h-3 w-3" />
-                  已解决
-                </span>
-              )}
             </div>
             {tags.length > 0 && (
               <div className="mt-3 flex flex-wrap gap-1.5">
                 {tags.map((tag) => (
                   <span
-                    key={tag}
+                    key={tag.slug}
                     className="rounded bg-muted px-2 py-0.5 text-xs"
                   >
-                    {tag}
+                    {tag.name}
                   </span>
                 ))}
               </div>

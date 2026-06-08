@@ -1,4 +1,4 @@
-import Link from "next/link";
+﻿import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { formatRelativeTime, cn } from "@/lib/utils";
 import { PlusCircle, ChevronLeft, ChevronRight } from "lucide-react";
@@ -41,7 +41,7 @@ export default async function QuestionsPage({ searchParams }: QuestionsPageProps
       <div className="mb-6 flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">问答社区</h1>
-          <p className="text-sm text-muted-foreground">{"共 " + total + " 个问题"}</p>
+          <p className="text-sm text-muted-foreground">共 {total} 个问题</p>
         </div>
         <Link
           href="/questions/ask"
@@ -71,7 +71,7 @@ export default async function QuestionsPage({ searchParams }: QuestionsPageProps
 
       <div className="space-y-3">
         {questions.map((q) => {
-          const tags = (q.tags && (q.tags as any).length > 0) ? (q.tags as any[]).slice(0, 4) : [];
+          const tags = q.tags.slice(0, 4);
           return (
             <Link
               key={q.id}
@@ -103,8 +103,8 @@ export default async function QuestionsPage({ searchParams }: QuestionsPageProps
                 </p>
                 <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                   {tags.map((tag) => (
-                    <span key={tag} className="rounded bg-muted px-1.5 py-0.5">
-                      {tag}
+                    <span key={tag.slug} className="rounded bg-muted px-1.5 py-0.5">
+                      {tag.name}
                     </span>
                   ))}
                   <span className="ml-auto">
