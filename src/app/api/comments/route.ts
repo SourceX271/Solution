@@ -1,4 +1,4 @@
-﻿import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { auth } from "@/lib/auth";
 import { commentSchema } from "@/lib/validations";
@@ -22,7 +22,7 @@ export async function GET(req: NextRequest) {
 
     const comments = await prisma.comment.findMany({
       where,
-      orderBy: { createdAt: "desc" },
+      orderBy: { createdAt: "asc" },
       include: {
         author: { select: { id: true, name: true, image: true } },
       },
@@ -47,7 +47,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: parsed.error.errors[0].message }, { status: 400 });
     }
 
-    const { content, targetType, targetId } = body as { content: string; targetType: string; targetId: string };
+    const { content, targetType, targetId, parentId } = body as {
+      content: string;
+      targetType: string;
+      targetId: string;
+      parentId?: string;
+    };
     if (!targetType || !targetId) {
       return NextResponse.json({ error: "缺少目标类型或ID" }, { status: 400 });
     }
@@ -62,6 +67,14 @@ export async function POST(req: NextRequest) {
     else if (targetType === "answer") data.answerId = targetId;
     else if (targetType === "software") data.softwareId = targetId;
     else return NextResponse.json({ error: "无效的目标类型" }, { status: 400 });
+
+    // Support nested replies
+    if (parentId) {
+      const parentComment = await prisma.comment.findUnique({ where: { id: parentId } });
+      if (parentComment) {
+        data.parentId = parentId;
+      }
+    }
 
     const comment = await prisma.comment.create({
       data,

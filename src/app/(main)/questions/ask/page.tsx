@@ -4,11 +4,7 @@ import { useState, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { useSession } from "next-auth/react"
 import Link from "next/link"
-import { useEditor, EditorContent } from "@tiptap/react"
-import StarterKit from "@tiptap/starter-kit"
-import Placeholder from "@tiptap/extension-placeholder"
-import ImageExtension from "@tiptap/extension-image"
-import LinkExtension from "@tiptap/extension-link"
+import { RichEditor } from "@/components/client/RichEditor"
 import { Loader2 } from "lucide-react"
 
 export default function AskQuestionPage() {
@@ -16,30 +12,16 @@ export default function AskQuestionPage() {
   const { data: session, status } = useSession()
   const [title, setTitle] = useState("")
   const [tags, setTags] = useState("")
+  const [content, setContent] = useState("")
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState("")
-
-  const editor = useEditor({
-    extensions: [
-      StarterKit,
-      Placeholder.configure({ placeholder: "详细描述你的问题..." }),
-      ImageExtension.configure({ allowBase64: true }),
-      LinkExtension.configure({ openOnClick: false }),
-    ],
-    editorProps: {
-      attributes: {
-        class:
-          "prose prose-sm max-w-none min-h-[200px] p-4 rounded-md border bg-background focus:outline-none focus:ring-2 focus:ring-ring",
-      },
-    },
-  })
 
   const handleSubmit = useCallback(async () => {
     if (!title.trim()) {
       setError("请输入问题标题")
       return
     }
-    if (!editor || editor.isEmpty) {
+    if (!content) {
       setError("请输入问题内容")
       return
     }
@@ -47,7 +29,6 @@ export default function AskQuestionPage() {
     setError("")
 
     try {
-      const content = editor.getHTML()
       const res = await fetch("/api/questions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -73,7 +54,7 @@ export default function AskQuestionPage() {
     } finally {
       setSaving(false)
     }
-  }, [title, tags, editor, router])
+  }, [title, tags, content, router])
 
   if (status === "loading") {
     return (
@@ -123,63 +104,12 @@ export default function AskQuestionPage() {
           <label className="mb-1.5 block text-sm font-medium">
             内容 <span className="text-red-500">*</span>
           </label>
-          <div className="min-h-[200px]">
-            <EditorContent editor={editor} />
-          </div>
-          {/* Toolbar */}
-          {editor && (
-            <div className="mt-2 flex flex-wrap gap-1 rounded-md border bg-muted/50 p-1">
-              <button
-                type="button"
-                onClick={() => editor.chain().focus().toggleBold().run()}
-                className={`rounded px-2 py-1 text-xs ${editor.isActive("bold") ? "bg-primary text-primary-foreground" : "hover:bg-accent"}`}
-              >
-                <strong>B</strong>
-              </button>
-              <button
-                type="button"
-                onClick={() => editor.chain().focus().toggleItalic().run()}
-                className={`rounded px-2 py-1 text-xs ${editor.isActive("italic") ? "bg-primary text-primary-foreground" : "hover:bg-accent"}`}
-              >
-                <em>I</em>
-              </button>
-              <button
-                type="button"
-                onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
-                className={`rounded px-2 py-1 text-xs ${editor.isActive("heading") ? "bg-primary text-primary-foreground" : "hover:bg-accent"}`}
-              >
-                H2
-              </button>
-              <button
-                type="button"
-                onClick={() => editor.chain().focus().toggleBulletList().run()}
-                className={`rounded px-2 py-1 text-xs ${editor.isActive("bulletList") ? "bg-primary text-primary-foreground" : "hover:bg-accent"}`}
-              >
-                • List
-              </button>
-              <button
-                type="button"
-                onClick={() => editor.chain().focus().toggleOrderedList().run()}
-                className={`rounded px-2 py-1 text-xs ${editor.isActive("orderedList") ? "bg-primary text-primary-foreground" : "hover:bg-accent"}`}
-              >
-                1. List
-              </button>
-              <button
-                type="button"
-                onClick={() => editor.chain().focus().toggleCodeBlock().run()}
-                className={`rounded px-2 py-1 text-xs ${editor.isActive("codeBlock") ? "bg-primary text-primary-foreground" : "hover:bg-accent"}`}
-              >
-                {"</>"}
-              </button>
-              <button
-                type="button"
-                onClick={() => editor.chain().focus().toggleBlockquote().run()}
-                className={`rounded px-2 py-1 text-xs ${editor.isActive("blockquote") ? "bg-primary text-primary-foreground" : "hover:bg-accent"}`}
-              >
-                &ldquo;
-              </button>
-            </div>
-          )}
+          <RichEditor
+            value={content}
+            onChange={setContent}
+            placeholder="详细描述你的问题...（支持 Markdown 切换）"
+            minHeight="250px"
+          />
         </div>
 
         {/* Tags */}

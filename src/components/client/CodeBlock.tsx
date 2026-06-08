@@ -1,45 +1,7 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useRef } from "react";
-
-// Simple code syntax highlighting using regex-based tokenization
-function highlightCode(code: string, language: string): string {
-  // Escape HTML
-  let html = code
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
-
-  // Keywords
-  const keywords = [
-    "const", "let", "var", "function", "return", "if", "else", "for", "while",
-    "class", "export", "import", "from", "default", "async", "await", "try", "catch",
-    "throw", "new", "this", "super", "extends", "static", "get", "set",
-    "interface", "type", "enum", "implements", "abstract", "public", "private", "protected",
-    "def", "True", "False", "None", "and", "or", "not", "in", "is",
-  ].join("|");
-
-  // Strings
-  html = html.replace(/([^]*|"[^"]*"|'[^']*')/g, '<span class="code-string"></span>');
-
-  // Single-line comments
-  html = html.replace(/(\/\/.*$|\#.*$)/gm, '<span class="code-comment"></span>');
-
-  // Numbers
-  html = html.replace(/\b(\d+\.?\d*)\b/g, '<span class="code-number"></span>');
-
-  // Keywords (after strings/comments to avoid matching inside them)
-  const keywordRegex = new RegExp(
-    '\\b(' + keywords + ')\\b(?![^<]*>|[^<>]*<\\/)',
-    "g"
-  );
-  html = html.replace(keywordRegex, '<span class="code-keyword"></span>');
-
-  // Function/method names
-  html = html.replace(/\b([a-zA-Z_$][\w$]*)(?=\s*\()/g, '<span class="code-function"></span>');
-
-  return html;
-}
+import { highlightCode } from "@/lib/highlight";
 
 interface CodeBlockProps {
   code: string;
@@ -47,15 +9,27 @@ interface CodeBlockProps {
 }
 
 export function CodeBlock({ code, language }: CodeBlockProps) {
-  const highlighted = highlightCode(code.trim(), language || "text");
+  const codeRef = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    if (codeRef.current) {
+      const highlighted = highlightCode(code.trim(), language);
+      codeRef.current.innerHTML = highlighted;
+    }
+  }, [code, language]);
 
   return (
-    <div className="code-block-wrapper">
+    <div className="code-block-wrapper my-4">
       {language && (
-        <div className="code-language-label">{language}</div>
+        <div className="code-language-label rounded-t-md border border-b-0 bg-muted px-4 py-1.5 text-xs font-medium text-muted-foreground">
+          {language}
+        </div>
       )}
-      <pre className="code-block">
-        <code dangerouslySetInnerHTML={{ __html: highlighted }} />
+      <pre className={`overflow-x-auto rounded-md border bg-gray-950 p-4 ${language ? "rounded-t-none" : ""}`}>
+        <code
+          ref={codeRef}
+          className="hljs text-sm leading-relaxed"
+        />
       </pre>
     </div>
   );

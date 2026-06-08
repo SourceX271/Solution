@@ -1,3 +1,5 @@
+@import "highlight.js/styles/github-dark.css";
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -97,6 +99,11 @@
 .prose-custom table { @apply w-full my-4 border-collapse; }
 .prose-custom th { @apply border px-4 py-2 bg-muted font-semibold text-left; }
 .prose-custom td { @apply border px-4 py-2; }
+
+/* Highlight.js overrides */
+.prose-custom pre code.hljs { @apply bg-transparent p-0 text-sm leading-relaxed; color: inherit; }
+.prose-custom pre { @apply bg-gray-950 text-gray-100 rounded-lg p-4 my-4 overflow-x-auto; }
+.dark .prose-custom pre { @apply bg-gray-900 border border-gray-800; }
 
 .skeleton { @apply animate-pulse bg-muted rounded; }
 

@@ -153,11 +153,15 @@ model Software {
 model Comment {
   id        String   @id @default(cuid())
   content   String
+  parentId  String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   authorId String
   author   User   @relation(fields: [authorId], references: [id])
+
+  parent   Comment?  @relation("CommentReplies", fields: [parentId], references: [id], onDelete: SetNull)
+  replies  Comment[] @relation("CommentReplies")
 
   articleId  String?
   article    Article?  @relation(fields: [articleId], references: [id], onDelete: Cascade)
@@ -168,6 +172,7 @@ model Comment {
   softwareId String?
   software   Software? @relation(fields: [softwareId], references: [id], onDelete: Cascade)
 
+  @@index([parentId])
   @@index([articleId])
   @@index([questionId])
   @@index([authorId])
