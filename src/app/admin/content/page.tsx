@@ -16,7 +16,7 @@ const PAGE_SIZE = 10
 type ContentType = "articles" | "questions" | "software"
 
 const typeLabels: Record<ContentType, { label: string; icon: React.ComponentType<{ className?: string }> }> = {
-  articles: { label: "Articles", icon: FileText },
+  articles: { label: "解决方案", icon: FileText },
   questions: { label: "Questions", icon: HelpCircle },
   software: { label: "Software", icon: Package },
 }

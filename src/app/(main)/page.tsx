@@ -70,7 +70,7 @@ export default async function HomePage({
   };
 
   const typeIcons = { article: BookOpen, question: MessageCircle, software: ExternalLink };
-  const typeLabels = { article: "文档", question: "问答", software: "软件" };
+  const typeLabels = { article: "解决方案", question: "问答", software: "软件" };
   const typeColors = {
     article: "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300",
     question: "bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300",
@@ -103,12 +103,12 @@ export default async function HomePage({
         <div className="container mx-auto px-4 py-16 text-center">
           <h1 className="mb-4 text-4xl font-bold tracking-tight">{siteConfig?.siteName || "Solution"}</h1>
           <p className="mx-auto mb-8 max-w-2xl text-lg text-muted-foreground">
-            {siteConfig?.siteDescription || "社区技术文档与问答平台"}
+            {siteConfig?.siteDescription || "社区技术解决方案与问答平台"}
           </p>
           <form action="/search" className="mx-auto flex max-w-md gap-2">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <input name="q" placeholder="搜索文档、问答、软件..." className="w-full rounded-full border bg-background py-2.5 pl-10 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
+              <input name="q" placeholder="搜索解决方案、问答、软件..." className="w-full rounded-full border bg-background py-2.5 pl-10 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
             </div>
             <button type="submit" className="rounded-full bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90">搜索</button>
           </form>
@@ -119,7 +119,7 @@ export default async function HomePage({
         <div className="container mx-auto px-4 py-6">
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
             {[
-              { label: "文档", value: stats.articles },
+              { label: "解决方案", value: stats.articles },
               { label: "问答", value: stats.questions },
               { label: "软件", value: stats.software },
               { label: "用户", value: stats.users },

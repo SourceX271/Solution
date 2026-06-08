@@ -24,7 +24,7 @@ export async function generateMetadata({ params }: QuestionPageProps) {
     where: { slug: params.slug },
     select: { title: true },
   })
-  if (!question) return { title: "Not found" }
+  if (!question) return { title: "问题未找到" }
   return { title: question.title }
 }
 
@@ -105,9 +105,9 @@ export default async function QuestionPage({ params }: QuestionPageProps) {
   return (
     <div className="container mx-auto px-4 py-8">
       <nav className="mb-6 flex items-center gap-1 text-sm text-muted-foreground">
-        <Link href="/" className="hover:text-foreground">Home</Link>
+        <Link href="/" className="hover:text-foreground">首页</Link>
         <ChevronRight className="h-3 w-3" />
-        <Link href="/questions" className="hover:text-foreground">Q&A</Link>
+        <Link href="/questions" className="hover:text-foreground">问答</Link>
         <ChevronRight className="h-3 w-3" />
         <span className="text-foreground truncate max-w-[200px]">{question.title}</span>
       </nav>
@@ -119,7 +119,7 @@ export default async function QuestionPage({ params }: QuestionPageProps) {
             <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
               <span className="inline-flex items-center gap-1"><User className="h-4 w-4" />{question.author.name}</span>
               <span className="inline-flex items-center gap-1"><Clock className="h-4 w-4" />{formatRelativeTime(question.createdAt)}</span>
-              <span className="inline-flex items-center gap-1"><Eye className="h-4 w-4" />{question.viewCount + 1} views</span>
+              <span className="inline-flex items-center gap-1"><Eye className="h-4 w-4" />{question.viewCount + 1} 次浏览</span>
             </div>
             {tags.length > 0 && (
               <div className="mt-3 flex flex-wrap gap-2">
@@ -149,36 +149,36 @@ export default async function QuestionPage({ params }: QuestionPageProps) {
           </div>
 
           <section>
-            <h2 className="mb-4 text-lg font-semibold">{answers.length} answers</h2>
+            <h2 className="mb-4 text-lg font-semibold">{answers.length} 个回答</h2>
             <div className="space-y-4">
               {answers.map((answer) => {
                 const votes = answerVotes.find((v) => v.answerId === answer.id)!
                 return <AnswerItem key={answer.id} answer={answer} votes={votes} isAuthor={isAuthor} userId={userId} questionId={question.id} />
               })}
             </div>
-            {answers.length === 0 && <p className="py-8 text-center text-muted-foreground">No answers yet</p>}
+            {answers.length === 0 && <p className="py-8 text-center text-muted-foreground">暂无回答，快来写下第一个回答吧</p>}
           </section>
 
           <section className="mt-8">
-            <h2 className="mb-4 text-lg font-semibold">Your Answer</h2>
+            <h2 className="mb-4 text-lg font-semibold">你的回答</h2>
             <AnswerForm questionId={question.id} userId={userId} />
           </section>
         </div>
 
         <aside className="sticky top-20 hidden w-60 shrink-0 self-start lg:block">
           <div className="rounded-lg border p-4">
-            <h3 className="mb-3 text-sm font-semibold">Related</h3>
+            <h3 className="mb-3 text-sm font-semibold">相关问题</h3>
             {relatedQuestions.length > 0 ? (
               <ul className="space-y-2">
                 {relatedQuestions.map((rq) => (
                   <li key={rq.id}>
                     <Link href={`/questions/${rq.slug}`} className="block text-xs text-muted-foreground hover:text-foreground line-clamp-2">{rq.title}</Link>
-                    <span className="text-[10px] text-muted-foreground">{rq.answerCount} answers, {rq.voteCount} votes</span>
+                    <span className="text-[10px] text-muted-foreground">{rq.answerCount} 回答 · {rq.voteCount} 票</span>
                   </li>
                 ))}
               </ul>
             ) : (
-              <p className="text-xs text-muted-foreground">No related</p>
+              <p className="text-xs text-muted-foreground">暂无相关问题</p>
             )}
           </div>
         </aside>

@@ -56,9 +56,10 @@ model Article {
   title       String
   slug        String   @unique
   content     String
+  problem     String?
   excerpt     String?
   coverImage  String?
-  category    String   @default("tutorial")
+  category    String   @default("solution")
   status      String   @default("published")
   source      String   @default("original")
   sourceUrl   String?
@@ -249,11 +250,20 @@ model CrawlLog {
 model SiteConfig {
   id               String  @id @default("main")
   siteName         String  @default("Solution")
-  siteDescription  String  @default("社区技术文档与问答平台")
+  siteDescription  String  @default("社区解决方案与问答平台")
   logo             String?
+  keywords         String?
+  contactEmail     String?
+  githubUrl        String?
+  twitterUrl       String?
+  footerText       String?
+  icpNumber        String?
   featuredArticle  String?
   featuredQuestion String?
   featuredSoftware String?
+  enableSolutions  Boolean @default(true)
+  enableQuestions  Boolean @default(true)
+  enableSoftware   Boolean @default(true)
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 }

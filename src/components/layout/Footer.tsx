@@ -1,4 +1,5 @@
 import Link from "next/link"
+import { prisma } from "@/lib/db"
 
 const footerLinks = [
   { href: "/about", label: "关于我们" },
@@ -7,7 +8,16 @@ const footerLinks = [
   { href: "/contact", label: "联系我们" },
 ]
 
-export function Footer() {
+export async function Footer() {
+  const config = await prisma.siteConfig.findUnique({ where: { id: "main" } })
+  const siteName = config?.siteName || "Solution"
+  const siteDescription = config?.siteDescription || "社区解决方案与问答平台"
+  const contactEmail = config?.contactEmail || ""
+  const githubUrl = config?.githubUrl || ""
+  const twitterUrl = config?.twitterUrl || ""
+  const footerText = config?.footerText || ""
+  const icpNumber = config?.icpNumber || ""
+
   const currentYear = new Date().getFullYear()
 
   return (
@@ -17,10 +27,8 @@ export function Footer() {
           <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-3">
             {/* Brand */}
             <div>
-              <h3 className="text-lg font-bold">Solution</h3>
-              <p className="mt-2 text-sm text-muted-foreground max-w-xs">
-                您的智能知识平台 — 高效管理文档、问答与软件资源，助力团队协作与知识沉淀。
-              </p>
+              <h3 className="text-lg font-bold">{siteName}</h3>
+              <p className="mt-2 text-sm text-muted-foreground max-w-xs">{siteDescription}</p>
             </div>
 
             {/* Links */}
@@ -29,10 +37,7 @@ export function Footer() {
               <ul className="mt-3 space-y-2">
                 {footerLinks.map((link) => (
                   <li key={link.href}>
-                    <Link
-                      href={link.href}
-                      className="text-sm text-muted-foreground transition-colors hover:text-foreground"
-                    >
+                    <Link href={link.href} className="text-sm text-muted-foreground transition-colors hover:text-foreground">
                       {link.label}
                     </Link>
                   </li>
@@ -40,19 +45,25 @@ export function Footer() {
               </ul>
             </div>
 
-            {/* Contact */}
+            {/* Contact & Social */}
             <div>
               <h4 className="text-sm font-semibold">联系方式</h4>
               <ul className="mt-3 space-y-2 text-sm text-muted-foreground">
-                <li>邮箱: support@solution.com</li>
-                <li>电话: 400-000-0000</li>
-                <li>地址: 北京市海淀区</li>
+                {contactEmail && <li>邮箱：{contactEmail}</li>}
+                {githubUrl && <li><a href={githubUrl} target="_blank" rel="noopener noreferrer" className="hover:text-foreground transition-colors">GitHub</a></li>}
+                {twitterUrl && <li><a href={twitterUrl} target="_blank" rel="noopener noreferrer" className="hover:text-foreground transition-colors">Twitter</a></li>}
+                {!contactEmail && !githubUrl && !twitterUrl && <li>暂无联系方式</li>}
               </ul>
             </div>
           </div>
 
-          <div className="mt-8 border-t pt-6 text-center text-sm text-muted-foreground">
-            © {currentYear} Solution. All rights reserved.
+          <div className="mt-8 border-t pt-6 text-center text-sm text-muted-foreground space-y-1">
+            {footerText ? (
+              <p>{footerText}</p>
+            ) : (
+              <p>{"\u00A9"} {currentYear} {siteName}. All rights reserved.</p>
+            )}
+            {icpNumber && <p>{icpNumber}</p>}
           </div>
         </div>
       </div>

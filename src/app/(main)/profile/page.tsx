@@ -47,7 +47,9 @@ export default function ProfilePage() {
     if (status === "authenticated") {
       fetch("/api/users/profile")
         .then((r) => r.json())
-        .then(setProfile)
+        .then((d) => {
+          if (d.success !== false) setProfile(d.data ?? d)
+        })
         .finally(() => setLoading(false))
     } else if (status === "unauthenticated") {
       setLoading(false)
@@ -89,7 +91,7 @@ export default function ProfilePage() {
 
   const getTargetLink = (type: string, slug: string | undefined) => {
     const prefix = type === "article" ? "/docs" : type === "question" ? "/questions" : "/software"
-    return `${prefix}/${slug ?? ""}`
+    return prefix + "/" + (slug ?? "")
   }
 
   const getTypeLabel = (type: string) => {
@@ -167,7 +169,7 @@ export default function ProfilePage() {
                   <BookmarkIcon className="h-4 w-4 shrink-0 text-muted-foreground" />
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-medium line-clamp-1">
-                      {bm.targetTitle ?? `${getTypeLabel(bm.targetType)} ${bm.targetId}`}
+                      {bm.targetTitle ?? getTypeLabel(bm.targetType) + " " + bm.targetId}
                     </p>
                     <p className="text-xs text-muted-foreground">{getTypeLabel(bm.targetType)}</p>
                   </div>
@@ -175,9 +177,7 @@ export default function ProfilePage() {
               ))}
             </div>
           ) : (
-            <p className="py-8 text-center text-sm text-muted-foreground">
-              暂无收藏
-            </p>
+            <p className="py-8 text-center text-sm text-muted-foreground">暂无收藏</p>
           )}
         </div>
 
@@ -193,16 +193,12 @@ export default function ProfilePage() {
                   className="glass-card block p-3 transition hover:shadow-md"
                 >
                   <p className="text-sm font-medium line-clamp-1">{activity.title}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {activity.date}
-                  </p>
+                  <p className="text-xs text-muted-foreground">{activity.date}</p>
                 </Link>
               ))}
             </div>
           ) : (
-            <p className="py-8 text-center text-sm text-muted-foreground">
-              暂无动态
-            </p>
+            <p className="py-8 text-center text-sm text-muted-foreground">暂无动态</p>
           )}
         </div>
       </div>

@@ -36,16 +36,16 @@ export default async function SettingsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold tracking-tight">Settings</h2>
-        <p className="text-muted-foreground">Configure site-wide settings</p>
+        <h2 className="text-2xl font-bold tracking-tight">网站设置</h2>
+        <p className="text-muted-foreground">管理站点名称、描述、社交媒体链接和功能开关</p>
       </div>
 
       <Card>
         <CardHeader className="flex flex-row items-center gap-2 space-y-0">
           <Settings className="h-5 w-5" />
           <div>
-            <CardTitle className="text-lg">Site Configuration</CardTitle>
-            <CardDescription>Manage your site name, description, and branding</CardDescription>
+            <CardTitle className="text-lg">站点配置</CardTitle>
+            <CardDescription>管理网站基本信息和功能</CardDescription>
           </div>
         </CardHeader>
         <CardContent>

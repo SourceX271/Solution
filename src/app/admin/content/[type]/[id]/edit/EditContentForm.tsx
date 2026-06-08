@@ -7,7 +7,6 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select"
@@ -24,8 +23,12 @@ interface EditContentFormProps {
   item: any
 }
 
-const articleCategories = ["tutorial", "guide", "reference", "news", "opinion"]
+const articleCategories = ["solution", "tutorial", "guide", "reference", "news"]
 const softwareCategories = ["tool", "library", "framework", "service", "platform", "other"]
+
+const categoryLabels: Record<string, string> = {
+  solution: "解决方案", tutorial: "教程", guide: "指南", reference: "参考", news: "资讯",
+}
 
 export function EditContentForm({ type, item }: EditContentFormProps) {
   const router = useRouter()
@@ -35,6 +38,7 @@ export function EditContentForm({ type, item }: EditContentFormProps) {
 
   const [title, setTitle] = useState(item.title || item.name || "")
   const [content, setContent] = useState(item.content || item.description || "")
+  const [problem, setProblem] = useState(item.problem || "")
   const [excerpt, setExcerpt] = useState(item.excerpt || "")
   const [category, setCategory] = useState(item.category || "tutorial")
   const [status, setStatus] = useState(item.status || "draft")
@@ -51,6 +55,7 @@ export function EditContentForm({ type, item }: EditContentFormProps) {
       if (type === "articles") {
         body.title = title
         body.content = content
+        body.problem = problem || null
         body.excerpt = excerpt || null
         body.category = category
         body.tags = tags
@@ -68,7 +73,7 @@ export function EditContentForm({ type, item }: EditContentFormProps) {
         body.image = image || null
       }
 
-      const res = await fetch(`/api/admin/content/${type}/${item.id}`, {
+      const res = await fetch("/api/admin/content/" + type + "/" + item.id, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
@@ -76,7 +81,7 @@ export function EditContentForm({ type, item }: EditContentFormProps) {
 
       if (res.ok) {
         router.refresh()
-        router.push(`/admin/content?type=${type}`)
+        router.push("/admin/content?type=" + type)
       }
     } finally {
       setSaving(false)
@@ -86,206 +91,122 @@ export function EditContentForm({ type, item }: EditContentFormProps) {
   async function handleDelete() {
     setDeleting(true)
     try {
-      const res = await fetch(`/api/admin/content/${type}/${item.id}`, { method: "DELETE" })
-      if (res.ok) {
-        router.push(`/admin/content?type=${type}`)
-      }
-    } finally {
-      setDeleting(false)
-    }
+      const res = await fetch("/api/admin/content/" + type + "/" + item.id, { method: "DELETE" })
+      if (res.ok) router.push("/admin/content?type=" + type)
+    } finally { setDeleting(false) }
   }
 
   return (
     <div className="space-y-6">
-      {/* Header actions */}
       <div className="flex items-center justify-between">
-        <Link
-          href={`/admin/content?type=${type}`}
-          className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Back to {type}
+        <Link href={"/admin/content?type=" + type} className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground">
+          <ArrowLeft className="h-4 w-4" />返回
         </Link>
         <div className="flex items-center gap-3">
           <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
             <DialogTrigger asChild>
-              <Button variant="outline" size="sm">
-                <Trash2 className="h-4 w-4 mr-2" />
-                Delete
-              </Button>
+              <Button variant="outline" size="sm"><Trash2 className="h-4 w-4 mr-2" />删除</Button>
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>Confirm Delete</DialogTitle>
-                <DialogDescription>
-                  Are you sure? This action cannot be undone.
-                </DialogDescription>
+                <DialogTitle>确认删除</DialogTitle>
+                <DialogDescription>此操作不可撤销，确定要删除吗？</DialogDescription>
               </DialogHeader>
               <DialogFooter>
-                <Button variant="outline" onClick={() => setDeleteOpen(false)}>Cancel</Button>
-                <Button variant="destructive" onClick={handleDelete} disabled={deleting}>
-                  {deleting ? "Deleting..." : "Delete"}
-                </Button>
+                <Button variant="outline" onClick={() => setDeleteOpen(false)}>取消</Button>
+                <Button variant="destructive" onClick={handleDelete} disabled={deleting}>{deleting ? "删除中..." : "删除"}</Button>
               </DialogFooter>
             </DialogContent>
           </Dialog>
           <Button onClick={handleSave} disabled={saving}>
-            <Save className="h-4 w-4 mr-2" />
-            {saving ? "Saving..." : "Save"}
+            <Save className="h-4 w-4 mr-2" />{saving ? "保存中..." : "保存"}
           </Button>
         </div>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
-        {/* Main */}
         <div className="lg:col-span-2 space-y-6">
           <Card>
-            <CardHeader>
-              <CardTitle>
-                {type === "software" ? "Software Details" : "Content"}
-              </CardTitle>
-            </CardHeader>
+            <CardHeader><CardTitle className="text-lg">内容编辑</CardTitle></CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="title">
-                  {type === "software" ? "Name" : "Title"}
-                </Label>
-                <Input
-                  id="title"
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  placeholder={type === "software" ? "Software name" : "Content title"}
-                />
+                <Label htmlFor="title">{type === "software" ? "名称" : "标题"}</Label>
+                <Input id="title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder={type === "software" ? "软件名称" : "标题"} />
               </div>
+
+              {type === "articles" && (
+                <div className="space-y-2">
+                  <Label htmlFor="problem">遇到的问题</Label>
+                  <Textarea id="problem" value={problem} onChange={(e) => setProblem(e.target.value)} placeholder="描述这篇文章要解决的问题..." rows={3} />
+                </div>
+              )}
 
               {type === "software" && (
                 <div className="space-y-2">
-                  <Label htmlFor="url">URL</Label>
-                  <Input
-                    id="url"
-                    value={url}
-                    onChange={(e) => setUrl(e.target.value)}
-                    placeholder="https://..."
-                  />
+                  <Label htmlFor="url">网站地址</Label>
+                  <Input id="url" value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://..." />
                 </div>
               )}
 
               {type === "articles" && (
                 <div className="space-y-2">
-                  <Label htmlFor="excerpt">Excerpt</Label>
-                  <Textarea
-                    id="excerpt"
-                    value={excerpt}
-                    onChange={(e) => setExcerpt(e.target.value)}
-                    placeholder="Brief description..."
-                    rows={3}
-                  />
+                  <Label htmlFor="excerpt">摘要</Label>
+                  <Textarea id="excerpt" value={excerpt} onChange={(e) => setExcerpt(e.target.value)} placeholder="简短描述..." rows={2} />
                 </div>
               )}
 
               <div className="space-y-2">
-                <Label>
-                  {type === "software" ? "Description" : "Content"}
-                </Label>
+                <Label>{type === "software" ? "描述" : "内容"}</Label>
                 <RichTextEditor content={content} onChange={setContent} />
               </div>
             </CardContent>
           </Card>
         </div>
 
-        {/* Sidebar */}
         <div className="space-y-6">
           <Card>
-            <CardHeader>
-              <CardTitle className="text-sm">Status</CardTitle>
-            </CardHeader>
+            <CardHeader><CardTitle className="text-sm">状态</CardTitle></CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Label>Status</Label>
+                <Label>状态</Label>
                 <Select value={status} onValueChange={setStatus}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    {type === "articles" && (
-                      <>
-                        <SelectItem value="published">Published</SelectItem>
-                        <SelectItem value="draft">Draft</SelectItem>
-                      </>
-                    )}
-                    {type === "questions" && (
-                      <>
-                        <SelectItem value="open">Open</SelectItem>
-                        <SelectItem value="closed">Closed</SelectItem>
-                        <SelectItem value="resolved">Resolved</SelectItem>
-                      </>
-                    )}
-                    {type === "software" && (
-                      <>
-                        <SelectItem value="published">Published</SelectItem>
-                        <SelectItem value="pending">Pending</SelectItem>
-                      </>
-                    )}
+                    {type === "articles" && (<><SelectItem value="published">已发布</SelectItem><SelectItem value="draft">草稿</SelectItem></>)}
+                    {type === "questions" && (<><SelectItem value="open">开放</SelectItem><SelectItem value="closed">关闭</SelectItem><SelectItem value="resolved">已解决</SelectItem></>)}
+                    {type === "software" && (<><SelectItem value="published">已发布</SelectItem><SelectItem value="pending">待审核</SelectItem></>)}
                   </SelectContent>
                 </Select>
               </div>
-
               <div className="space-y-2">
-                <Label>Category</Label>
+                <Label>分类</Label>
                 <Select value={category} onValueChange={setCategory}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {(type === "software" ? softwareCategories : articleCategories).map((cat) => (
-                      <SelectItem key={cat} value={cat}>
-                        {cat.charAt(0).toUpperCase() + cat.slice(1)}
-                      </SelectItem>
+                      <SelectItem key={cat} value={cat}>{categoryLabels[cat] || cat}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
-
               <div className="space-y-2">
-                <Label>Tags (JSON array)</Label>
-                <Input
-                  value={tags}
-                  onChange={(e) => setTags(e.target.value)}
-                  placeholder='["tag1", "tag2"]'
-                />
+                <Label>标签（JSON数组）</Label>
+                <Input value={tags} onChange={(e) => setTags(e.target.value)} placeholder='["tag1", "tag2"]' />
               </div>
-
               {(type === "articles" || type === "software") && (
                 <div className="space-y-2">
-                  <Label>{type === "articles" ? "Cover Image URL" : "Image URL"}</Label>
-                  <Input
-                    value={type === "articles" ? coverImage : image}
-                    onChange={(e) => type === "articles" ? setCoverImage(e.target.value) : setImage(e.target.value)}
-                    placeholder="https://..."
-                  />
+                  <Label>{type === "articles" ? "封面图 URL" : "图片 URL"}</Label>
+                  <Input value={type === "articles" ? coverImage : image} onChange={(e) => type === "articles" ? setCoverImage(e.target.value) : setImage(e.target.value)} placeholder="https://..." />
                 </div>
               )}
             </CardContent>
           </Card>
-
-          {/* Metadata */}
           <Card>
-            <CardHeader>
-              <CardTitle className="text-sm">Info</CardTitle>
-            </CardHeader>
+            <CardHeader><CardTitle className="text-sm">信息</CardTitle></CardHeader>
             <CardContent className="space-y-2 text-sm">
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Author</span>
-                <span>{item.author?.name || "Unknown"}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Created</span>
-                <span>{new Date(item.createdAt).toLocaleDateString("zh-CN")}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Updated</span>
-                <span>{new Date(item.updatedAt).toLocaleDateString("zh-CN")}</span>
-              </div>
+              <div className="flex justify-between"><span className="text-muted-foreground">作者</span><span>{item.author?.name || "未知"}</span></div>
+              <div className="flex justify-between"><span className="text-muted-foreground">创建时间</span><span>{new Date(item.createdAt).toLocaleDateString("zh-CN")}</span></div>
+              <div className="flex justify-between"><span className="text-muted-foreground">更新时间</span><span>{new Date(item.updatedAt).toLocaleDateString("zh-CN")}</span></div>
             </CardContent>
           </Card>
         </div>
