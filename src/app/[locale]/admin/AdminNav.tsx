@@ -21,7 +21,7 @@ export function AdminNav() {
   return (
     <aside
       className={cn(
-        "glass fixed left-0 top-0 z-40 flex h-screen flex-col border-r transition-all duration-300",
+        "glass fixed left-0 top-0 z-[60] flex h-screen flex-col border-r transition-all duration-300",
         collapsed ? "w-16" : "w-64"
       )}
     >

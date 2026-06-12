@@ -11,9 +11,10 @@ import { CommentSection } from "@/components/client/CommentSection"
 import { ReadingProgress } from "@/components/client/ReadingProgress"
 import { TableOfContents } from "@/components/client/TableOfContents"
 import { CodeBlock } from "@/components/client/CodeBlock"
+import { ArticleEditButton } from "@/components/client/ArticleEditButton"
 import { ChevronRight, Eye, Clock, User, Tag, AlertCircle, CheckCircle2, ArrowLeft } from "lucide-react"
 
-export const dynamic = "force-dynamic"
+export const revalidate = 3600;
 
 interface ArticlePageProps {
   params: Promise<{ slug: string }>
@@ -80,6 +81,7 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
   const { slug } = await params
   const session = await auth()
   const userId = (session?.user as any)?.id
+  const userRole = (session?.user as any)?.role
 
   const article = await prisma.article.findUnique({
     where: { slug },
@@ -97,7 +99,8 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
     data: { viewCount: { increment: 1 } },
   })
 
-  const processedContent = addIdsToHeadings(highlightHtmlContent(article.content))
+  const highlightedContent = await highlightHtmlContent(article.content)
+  const processedContent = addIdsToHeadings(highlightedContent)
   const headings = extractHeadings(processedContent)
   const tags = article.tags
 
@@ -117,6 +120,22 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
       }))
     : false
 
+  const isAuthor = userId === article.author.id
+  const canEdit = isAuthor || userRole === "ADMIN"
+
+  // Related solutions by tags
+  const tagIds = article.tags.map(t => t.slug)
+  const relatedArticles = tagIds.length > 0 ? await prisma.article.findMany({
+    where: {
+      status: "published",
+      id: { not: article.id },
+      tags: { some: { slug: { in: tagIds } } },
+    },
+    orderBy: { viewCount: "desc" },
+    take: 5,
+    select: { id: true, slug: true, title: true, viewCount: true, createdAt: true },
+  }) : []
+
   return (
     <>
       <ReadingProgress />
@@ -132,8 +151,25 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
 
         <div className="flex gap-8 lg:gap-10">
           {/* TOC Sidebar */}
-          <aside className="sticky top-20 hidden w-56 shrink-0 self-start lg:block">
+          <aside className="sticky top-20 hidden w-56 shrink-0 self-start lg:block space-y-4">
             <TableOfContents headings={headings} title="目录" />
+
+            {relatedArticles.length > 0 && (
+              <div className="glass-card rounded-xl p-4">
+                <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">相关方案</h3>
+                <div className="space-y-2">
+                  {relatedArticles.map((ra) => (
+                    <Link
+                      key={ra.id}
+                      href={`/docs/${ra.slug}`}
+                      className="block text-xs text-muted-foreground hover:text-primary transition-colors line-clamp-2"
+                    >
+                      {ra.title}
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            )}
           </aside>
 
           {/* Main Content */}
@@ -188,6 +224,21 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
                 </a>
               )}
             </header>
+
+            {/* Edit Button */}
+            {canEdit && (
+              <div className="mb-6 animate-fade-in-up stagger-1">
+                <ArticleEditButton
+                  articleId={article.id}
+                  initialTitle={article.title}
+                  initialContent={article.content}
+                  initialExcerpt={article.excerpt || ""}
+                  initialProblem={article.problem || ""}
+                  initialCategory={article.category}
+                  userId={userId}
+                />
+              </div>
+            )}
 
             {/* Problem Statement */}
             {article.problem && (

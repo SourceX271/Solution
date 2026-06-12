@@ -1,9 +1,15 @@
 import Link from "next/link"
+import type { Metadata } from "next"
 import { prisma } from "@/lib/db"
 import { formatDate, cn } from "@/lib/utils"
-import { Star, ExternalLink, ChevronLeft, ChevronRight, Package, Globe, Wrench, Gamepad2, MoreHorizontal } from "lucide-react"
+import { Star, ExternalLink, ChevronLeft, ChevronRight, Package, Globe, Wrench, Gamepad2, MoreHorizontal, PlusCircle } from "lucide-react"
 
-export const dynamic = "force-dynamic"
+export const revalidate = 60
+
+export const metadata: Metadata = {
+  title: "软件推荐",
+  description: "发现优秀的开发工具、库、框架和服务。浏览评分最高的软件推荐。",
+};
 
 const CATEGORIES = [
   { value: "", label: "全部", icon: Package },
@@ -54,9 +60,17 @@ export default async function SoftwarePage({ searchParams }: SoftwarePageProps) 
   return (
     <div className="container mx-auto px-4 py-10">
       {/* Header */}
-      <div className="mb-8 animate-fade-in-up">
-        <h1 className="text-3xl font-bold gradient-text">软件推荐</h1>
-        <p className="mt-2 text-muted-foreground">共 {total} 款软件</p>
+      <div className="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 animate-fade-in-up">
+        <div>
+          <h1 className="text-3xl font-bold gradient-text">软件推荐</h1>
+          <p className="mt-2 text-muted-foreground">共 {total} 款软件</p>
+        </div>
+        <Link
+          href="/software/new"
+          className="btn-gradient inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-medium shadow-lg shadow-primary/25"
+        >
+          <PlusCircle className="h-4 w-4" /> 提交软件
+        </Link>
       </div>
 
       {/* Category Filters */}

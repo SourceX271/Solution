@@ -1,16 +1,29 @@
 import Link from "next/link"
+import type { Metadata } from "next"
 import { prisma } from "@/lib/db"
-import { formatDate } from "@/lib/utils"
+import { formatDate, cn } from "@/lib/utils"
 import { Search, FileText, MessageCircle, Package, ArrowRight } from "lucide-react"
 
-export const dynamic = "force-dynamic"
+export const revalidate = 60;
+
+export const metadata: Metadata = {
+  title: "搜索",
+  description: "搜索解决方案、问答和软件推荐。",
+};
+
+const TYPE_FILTERS = [
+  { value: "", label: "全部", icon: Search },
+  { value: "article", label: "文章", icon: FileText },
+  { value: "question", label: "问答", icon: MessageCircle },
+  { value: "software", label: "软件", icon: Package },
+]
 
 interface SearchPageProps {
-  searchParams: Promise<{ q?: string }>
+  searchParams: Promise<{ q?: string; type?: string }>
 }
 
 export default async function SearchPage({ searchParams }: SearchPageProps) {
-  const { q } = await searchParams
+  const { q, type: filterType } = await searchParams
   const query = (q ?? "").trim()
 
   if (!query) {
@@ -39,7 +52,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
   }
 
   const [articles, questions, software] = await Promise.all([
-    prisma.article.findMany({
+    filterType && filterType !== "article" ? [] : prisma.article.findMany({
       where: {
         status: "published",
         OR: [
@@ -52,7 +65,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
       orderBy: { createdAt: "desc" },
       include: { tags: { select: { name: true, slug: true, color: true } }, author: { select: { name: true } } },
     }),
-    prisma.question.findMany({
+    filterType && filterType !== "question" ? [] : prisma.question.findMany({
       where: {
         OR: [
           { title: { contains: query } },
@@ -63,7 +76,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
       orderBy: { createdAt: "desc" },
       include: { tags: { select: { name: true, slug: true, color: true } }, author: { select: { name: true } } },
     }),
-    prisma.software.findMany({
+    filterType && filterType !== "software" ? [] : prisma.software.findMany({
       where: {
         status: "published",
         OR: [
@@ -93,6 +106,29 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
           关于 &ldquo;<span className="font-medium text-foreground">{query}</span>&rdquo; 的搜索结果，共 <span className="font-semibold text-primary">{totalResults}</span> 条
         </p>
       </div>
+
+      {/* Type filter tabs */}
+      {query && (
+        <div className="mb-6 flex flex-wrap gap-2">
+          {TYPE_FILTERS.map((f) => {
+            const active = filterType === f.value || (!filterType && f.value === "")
+            const Icon = f.icon
+            return (
+              <Link
+                key={f.value}
+                href={`/search?q=${encodeURIComponent(query)}${f.value ? `&type=${f.value}` : ""}`}
+                className={cn(
+                  "pill inline-flex items-center gap-1.5 transition-all",
+                  active ? "active shadow-md" : "hover:bg-primary/15"
+                )}
+              >
+                <Icon className="h-3.5 w-3.5" />
+                {f.label}
+              </Link>
+            )
+          })}
+        </div>
+      )}
 
       {totalResults === 0 ? (
         <div className="py-20 text-center">

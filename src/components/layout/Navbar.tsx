@@ -1,13 +1,15 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
+import { useState, useEffect, useCallback, memo } from "react"
+import { useRouter, usePathname } from "@/i18n/routing"
 import { useSession, signOut } from "next-auth/react"
+import { useLocale } from "next-intl"
 import { cn } from "@/lib/utils"
 import {
-  Moon, Sun, Search, Menu, X, User, Settings, LogOut, Shield,
+  Moon, Sun, Search, Menu, X, User, Settings, LogOut, Shield, Bell,
   Globe, ChevronDown, BookOpen, MessageCircle, ExternalLink,
 } from "lucide-react"
+import { NotificationBell } from "@/components/client/NotificationBell"
 import { useTheme } from "next-themes"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -25,10 +27,12 @@ const navLinks = [
   { href: "/software", label: "软件", labelEn: "Software", icon: ExternalLink },
 ]
 
-export function Navbar() {
+export const Navbar = memo(function Navbar() {
   const { data: session } = useSession()
   const { theme, setTheme, resolvedTheme } = useTheme()
   const router = useRouter()
+  const pathname = usePathname()
+  const locale = useLocale()
   const [mobileOpen, setMobileOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
   const [mounted, setMounted] = useState(false)
@@ -44,14 +48,20 @@ export function Navbar() {
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
     if (searchQuery.trim()) {
-      router.push("/search?q=" + encodeURIComponent(searchQuery.trim()))
+      router.push(`/search?q=${encodeURIComponent(searchQuery.trim())}`)
       setSearchQuery("")
       setMobileOpen(false)
     }
   }
 
+  const switchLocale = useCallback((nextLocale: string) => {
+    router.replace(pathname, { locale: nextLocale as "zh" | "en" })
+  }, [router, pathname])
+
   const user = session?.user
-  const locale = typeof window !== "undefined" && window.location.pathname.startsWith("/en") ? "en" : "zh"
+
+  // Hide navbar on admin pages
+  if (pathname.includes("/admin")) return null
 
   return (
     <header
@@ -75,19 +85,16 @@ export function Navbar() {
 
         {/* Desktop Nav */}
         <nav className="hidden md:flex items-center gap-0.5">
-          {navLinks.map((link) => {
-            const Icon = link.icon
-            return (
-              <Link
-                key={link.href}
-                href={link.href}
-                className="relative px-3 py-2 text-sm font-medium rounded-lg transition-colors hover:bg-accent hover:text-accent-foreground group/nav"
-              >
-                {link.label}
-                <span className="absolute bottom-1 left-1/2 -translate-x-1/2 h-0.5 w-0 rounded-full bg-primary transition-all duration-300 group-hover/nav:w-4" />
-              </Link>
-            )
-          })}
+          {navLinks.map((link) => (
+            <Link
+              key={link.href}
+              href={link.href}
+              className="relative px-3 py-2 text-sm font-medium rounded-lg transition-colors hover:bg-accent hover:text-accent-foreground group/nav"
+            >
+              {locale === "en" ? link.labelEn : link.label}
+              <span className="absolute bottom-1 left-1/2 -translate-x-1/2 h-0.5 w-0 rounded-full bg-primary transition-all duration-300 group-hover/nav:w-4" />
+            </Link>
+          ))}
         </nav>
 
         {/* Desktop Search */}
@@ -96,7 +103,7 @@ export function Navbar() {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground transition-colors group-focus-within/search:text-primary" />
             <Input
               type="search"
-              placeholder="搜索..."
+              placeholder={locale === "en" ? "Search..." : "搜索..."}
               className="pl-9 h-9 rounded-full border-muted-foreground/20 bg-muted/50 focus:bg-background transition-all"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
@@ -113,7 +120,7 @@ export function Navbar() {
               size="icon"
               className="rounded-full"
               onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
-              aria-label="切换主题"
+              aria-label={locale === "en" ? "Toggle theme" : "切换主题"}
             >
               <Sun className="h-[18px] w-[18px] rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
               <Moon className="absolute h-[18px] w-[18px] rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
@@ -125,17 +132,27 @@ export function Navbar() {
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="icon" className="rounded-full hidden sm:flex">
                 <Globe className="h-[18px] w-[18px]" />
+                <span className="sr-only">{locale === "en" ? "Switch language" : "切换语言"}</span>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-36">
-              <DropdownMenuItem onClick={() => router.push("/")} className={cn(locale === "zh" && "bg-accent")}>
+              <DropdownMenuItem
+                onClick={() => switchLocale("zh")}
+                className={cn(locale === "zh" && "bg-accent font-medium")}
+              >
                 中文
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => router.push("/en")} className={cn(locale === "en" && "bg-accent")}>
+              <DropdownMenuItem
+                onClick={() => switchLocale("en")}
+                className={cn(locale === "en" && "bg-accent font-medium")}
+              >
                 English
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
+
+          {/* Notification Bell */}
+          {user && <NotificationBell />}
 
           {/* User Menu */}
           <div className="hidden md:flex items-center gap-1">
@@ -162,29 +179,29 @@ export function Navbar() {
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={() => router.push("/profile")}>
-                    <User className="mr-2 h-4 w-4" />个人资料
+                    <User className="mr-2 h-4 w-4" />{locale === "en" ? "Profile" : "个人资料"}
                   </DropdownMenuItem>
                   {user.role === "ADMIN" && (
                     <DropdownMenuItem onClick={() => router.push("/admin")}>
-                      <Shield className="mr-2 h-4 w-4" />管理后台
+                      <Shield className="mr-2 h-4 w-4" />{locale === "en" ? "Admin" : "管理后台"}
                     </DropdownMenuItem>
                   )}
                   <DropdownMenuItem onClick={() => router.push("/settings")}>
-                    <Settings className="mr-2 h-4 w-4" />设置
+                    <Settings className="mr-2 h-4 w-4" />{locale === "en" ? "Settings" : "设置"}
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={() => signOut()} className="text-destructive focus:text-destructive">
-                    <LogOut className="mr-2 h-4 w-4" />退出登录
+                    <LogOut className="mr-2 h-4 w-4" />{locale === "en" ? "Sign Out" : "退出登录"}
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             ) : (
               <div className="flex items-center gap-2">
                 <Button variant="ghost" size="sm" className="rounded-full" onClick={() => router.push("/login")}>
-                  登录
+                  {locale === "en" ? "Login" : "登录"}
                 </Button>
                 <Button size="sm" className="rounded-full btn-gradient" onClick={() => router.push("/register")}>
-                  注册
+                  {locale === "en" ? "Register" : "注册"}
                 </Button>
               </div>
             )}
@@ -196,7 +213,7 @@ export function Navbar() {
             size="icon"
             className="md:hidden rounded-full"
             onClick={() => setMobileOpen(!mobileOpen)}
-            aria-label="菜单"
+            aria-label={locale === "en" ? "Menu" : "菜单"}
           >
             {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </Button>
@@ -211,7 +228,7 @@ export function Navbar() {
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 type="search"
-                placeholder="搜索..."
+                placeholder={locale === "en" ? "Search..." : "搜索..."}
                 className="pl-9 rounded-full"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
@@ -228,12 +245,38 @@ export function Navbar() {
                     onClick={() => setMobileOpen(false)}
                   >
                     {Icon && <Icon className="h-4 w-4 text-muted-foreground" />}
-                    {link.label}
+                    {locale === "en" ? link.labelEn : link.label}
                   </Link>
                 )
               })}
             </div>
-            <div className="border-t pt-3 space-y-2">
+            {/* Language switch in mobile */}
+            <div className="flex gap-2">
+              <button
+                onClick={() => { switchLocale("zh"); setMobileOpen(false) }}
+                className={cn(
+                  "flex-1 rounded-lg px-3 py-2 text-xs font-medium border transition-colors",
+                  locale === "zh" ? "bg-primary text-primary-foreground border-primary" : "hover:bg-accent"
+                )}
+              >
+                中文
+              </button>
+              <button
+                onClick={() => { switchLocale("en"); setMobileOpen(false) }}
+                className={cn(
+                  "flex-1 rounded-lg px-3 py-2 text-xs font-medium border transition-colors",
+                  locale === "en" ? "bg-primary text-primary-foreground border-primary" : "hover:bg-accent"
+                )}
+              >
+                English
+              </button>
+            </div>
+                <div className="border-t pt-3 space-y-2">
+                  {user && (
+                    <Link href="/notifications" className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm hover:bg-accent" onClick={() => setMobileOpen(false)}>
+                      <Bell className="h-4 w-4 text-muted-foreground" />通知
+                    </Link>
+                  )}
               {user ? (
                 <>
                   <div className="flex items-center gap-3 px-3">
@@ -249,27 +292,27 @@ export function Navbar() {
                     </div>
                   </div>
                   <Link href="/profile" className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm hover:bg-accent" onClick={() => setMobileOpen(false)}>
-                    <User className="h-4 w-4 text-muted-foreground" />个人资料
+                    <User className="h-4 w-4 text-muted-foreground" />{locale === "en" ? "Profile" : "个人资料"}
                   </Link>
                   {user.role === "ADMIN" && (
                     <Link href="/admin" className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm hover:bg-accent" onClick={() => setMobileOpen(false)}>
-                      <Shield className="h-4 w-4 text-muted-foreground" />管理后台
+                      <Shield className="h-4 w-4 text-muted-foreground" />{locale === "en" ? "Admin" : "管理后台"}
                     </Link>
                   )}
                   <Link href="/settings" className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm hover:bg-accent" onClick={() => setMobileOpen(false)}>
-                    <Settings className="h-4 w-4 text-muted-foreground" />设置
+                    <Settings className="h-4 w-4 text-muted-foreground" />{locale === "en" ? "Settings" : "设置"}
                   </Link>
                   <button className="flex w-full items-center gap-3 px-3 py-2 rounded-lg text-sm hover:bg-destructive/10 text-destructive transition-colors" onClick={() => { signOut(); setMobileOpen(false); }}>
-                    <LogOut className="h-4 w-4" />退出登录
+                    <LogOut className="h-4 w-4" />{locale === "en" ? "Sign Out" : "退出登录"}
                   </button>
                 </>
               ) : (
                 <div className="flex gap-2 px-3">
                   <Button variant="outline" size="sm" className="flex-1 rounded-full" onClick={() => { router.push("/login"); setMobileOpen(false); }}>
-                    登录
+                    {locale === "en" ? "Login" : "登录"}
                   </Button>
                   <Button size="sm" className="flex-1 rounded-full btn-gradient" onClick={() => { router.push("/register"); setMobileOpen(false); }}>
-                    注册
+                    {locale === "en" ? "Register" : "注册"}
                   </Button>
                 </div>
               )}
@@ -279,4 +322,4 @@ export function Navbar() {
       )}
     </header>
   )
-}
+})

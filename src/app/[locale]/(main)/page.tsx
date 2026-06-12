@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { prisma } from "@/lib/db";
@@ -7,7 +8,12 @@ import {
   TrendingUp, ArrowRight, Sparkles, Users, FileText, HelpCircle, Package,
 } from "lucide-react";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 300;
+
+export const metadata: Metadata = {
+  title: "首页",
+  description: "发现技术方案，连接开发者社区。浏览高质量解决方案、提问答疑、发现最佳开发工具。",
+};
 
 interface HomePageProps {
   searchParams: Promise<{ type?: string; tag?: string }>;
@@ -137,7 +143,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground transition-colors group-focus-within/search:text-primary z-10" />
               <input
                 name="q"
-                placeholder={t("searchPlaceholder") || "搜索..."}
+                placeholder={tc("searchPlaceholder")}
                 className="w-full h-12 rounded-full border-2 border-muted-foreground/10 bg-card pl-12 pr-4 text-sm shadow-lg transition-all focus:border-primary/40 focus:ring-4 focus:ring-primary/10 focus:outline-none hover:shadow-xl"
               />
             </div>

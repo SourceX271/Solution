@@ -1,9 +1,15 @@
 import Link from "next/link"
+import type { Metadata } from "next"
 import { prisma } from "@/lib/db"
 import { formatDate, cn } from "@/lib/utils"
-import { Eye, ChevronLeft, ChevronRight, Lightbulb, FileText, BookOpen, GraduationCap, Search } from "lucide-react"
+import { Eye, ChevronLeft, ChevronRight, Lightbulb, FileText, BookOpen, GraduationCap, Search, PlusCircle } from "lucide-react"
 
-export const dynamic = "force-dynamic"
+export const revalidate = 60
+
+export const metadata: Metadata = {
+  title: "解决方案",
+  description: "浏览技术解决方案、教程、指南和参考资料。",
+};
 
 const CATEGORIES = [
   { value: "", label: "全部", icon: FileText },
@@ -45,9 +51,17 @@ export default async function DocsPage({ searchParams }: DocsPageProps) {
   return (
     <div className="container mx-auto px-4 py-10">
       {/* Header */}
-      <div className="mb-8 animate-fade-in-up">
-        <h1 className="text-3xl font-bold gradient-text">解决方案</h1>
-        <p className="mt-2 text-muted-foreground">共 {total} 个方案</p>
+      <div className="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 animate-fade-in-up">
+        <div>
+          <h1 className="text-3xl font-bold gradient-text">解决方案</h1>
+          <p className="mt-2 text-muted-foreground">共 {total} 个方案</p>
+        </div>
+        <Link
+          href="/docs/new"
+          className="btn-gradient inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-medium shadow-lg shadow-primary/25"
+        >
+          <PlusCircle className="h-4 w-4" /> 发布方案
+        </Link>
       </div>
 
       <div className="flex gap-8">

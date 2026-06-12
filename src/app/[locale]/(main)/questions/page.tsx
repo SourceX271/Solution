@@ -1,9 +1,15 @@
 ﻿import Link from "next/link";
+import type { Metadata } from "next";
 import { prisma } from "@/lib/db";
 import { formatRelativeTime, cn } from "@/lib/utils";
 import { PlusCircle, ChevronLeft, ChevronRight, MessageCircle, CheckCircle2, Clock } from "lucide-react";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 60;
+
+export const metadata: Metadata = {
+  title: "问答社区",
+  description: "提出你的技术问题，获得专业解答。浏览待解决和已解决的问题。",
+};
 
 const STATUS_FILTERS = [
   { value: "", label: "全部", icon: MessageCircle },

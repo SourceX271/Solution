@@ -13,7 +13,7 @@ import { QuestionEditButton } from "@/components/client/QuestionEditButton"
 import { ReadingProgress } from "@/components/client/ReadingProgress"
 import { Eye, Clock, User, ChevronRight, MessageCircle, CheckCircle2, Clock4 } from "lucide-react"
 
-export const dynamic = "force-dynamic"
+export const revalidate = 1800;
 
 interface QuestionPageProps {
   params: Promise<{ slug: string }>
@@ -102,6 +102,8 @@ export default async function QuestionPage({ params }: QuestionPageProps) {
     select: { id: true, slug: true, title: true, answerCount: true, voteCount: true, status: true },
   })
 
+  const questionContentHtml = await highlightHtmlContent(question.content)
+
   return (
     <>
       <ReadingProgress />
@@ -177,7 +179,7 @@ export default async function QuestionPage({ params }: QuestionPageProps) {
             {/* Question Content */}
             <div
               className="mb-6 prose-custom max-w-none"
-              dangerouslySetInnerHTML={{ __html: highlightHtmlContent(question.content) }}
+              dangerouslySetInnerHTML={{ __html: questionContentHtml }}
             />
 
             {/* Vote & Actions */}

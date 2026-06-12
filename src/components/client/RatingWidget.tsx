@@ -4,6 +4,7 @@ import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { Star } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { toast } from "sonner"
 
 interface RatingWidgetProps {
   softwareId: string
@@ -35,10 +36,21 @@ export function RatingWidget({ softwareId, currentRating, userId }: RatingWidget
           value,
         }),
       })
+      const data = await res.json()
       if (res.ok) {
-        setRating(value)
+        if (data.voted === false) {
+          setRating(0)
+          toast.success(data.message || "已取消评分")
+        } else {
+          setRating(value)
+          toast.success(data.message || "评分成功")
+        }
         router.refresh()
+      } else {
+        toast.error(data.error || "评分失败")
       }
+    } catch {
+      toast.error("评分操作失败，请重试")
     } finally {
       setLoading(false)
     }
@@ -52,22 +64,26 @@ export function RatingWidget({ softwareId, currentRating, userId }: RatingWidget
           type="button"
           disabled={loading}
           onClick={() => handleRate(star)}
-          onMouseEnter={() => setHover(star)}
+          onMouseEnter={() => !loading && setHover(star)}
           onMouseLeave={() => setHover(0)}
           className="transition-transform hover:scale-110 disabled:cursor-default"
+          aria-label={`Rate ${star} stars`}
         >
           <Star
             className={cn(
-              "h-5 w-5",
+              "h-5 w-5 transition-colors",
               (hover || rating) >= star
                 ? "fill-yellow-500 text-yellow-500"
-                : "text-muted-foreground"
+                : "text-muted-foreground hover:text-yellow-400"
             )}
           />
         </button>
       ))}
       {!userId && (
         <span className="ml-2 text-xs text-muted-foreground">登录即可评分</span>
+      )}
+      {loading && (
+        <span className="ml-2 text-xs text-muted-foreground animate-pulse">提交中...</span>
       )}
     </div>
   )

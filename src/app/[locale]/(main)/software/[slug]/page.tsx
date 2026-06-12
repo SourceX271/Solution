@@ -8,9 +8,10 @@ import { CommentSection } from "@/components/client/CommentSection"
 import { ReadingProgress } from "@/components/client/ReadingProgress"
 import { BookmarkButton } from "@/components/client/BookmarkButton"
 import { ShareButton } from "@/components/client/ShareButton"
+import { SoftwareEditButton } from "@/components/client/SoftwareEditButton"
 import { Star, ExternalLink, Clock, User, ChevronRight, Globe, Package } from "lucide-react"
 
-export const dynamic = "force-dynamic"
+export const revalidate = 3600;
 
 interface SoftwarePageProps {
   params: Promise<{ slug: string }>
@@ -38,6 +39,7 @@ export default async function SoftwarePage({ params }: SoftwarePageProps) {
   const { slug } = await params
   const session = await auth()
   const userId = (session?.user as any)?.id
+  const userRole = (session?.user as any)?.role
 
   const software = await prisma.software.findUnique({
     where: { slug },
@@ -57,6 +59,17 @@ export default async function SoftwarePage({ params }: SoftwarePageProps) {
         where: { userId_targetType_targetId: { userId, targetType: "software", targetId: software.id } },
       })
     : null
+
+  const isAuthor = userId === software.author.id
+  const canEdit = isAuthor || userRole === "ADMIN"
+
+  // Related software by category
+  const relatedSoftware = await prisma.software.findMany({
+    where: { status: "published", id: { not: software.id }, category: software.category },
+    orderBy: { rating: "desc" },
+    take: 5,
+    select: { id: true, slug: true, name: true, rating: true },
+  })
 
   return (
     <>
@@ -138,6 +151,20 @@ export default async function SoftwarePage({ params }: SoftwarePageProps) {
               />
             </div>
 
+            {/* Edit Button */}
+            {canEdit && (
+              <div className="mb-6 animate-fade-in-up stagger-1">
+                <SoftwareEditButton
+                  softwareId={software.id}
+                  initialName={software.name}
+                  initialDescription={software.description}
+                  initialUrl={software.url || ""}
+                  initialCategory={software.category}
+                  userId={userId}
+                />
+              </div>
+            )}
+
             {/* Description */}
             <div className="mb-8 animate-fade-in-up stagger-1">
               <h2 className="mb-3 text-lg font-semibold flex items-center gap-2">
@@ -172,7 +199,7 @@ export default async function SoftwarePage({ params }: SoftwarePageProps) {
           </div>
 
           {/* Sidebar */}
-          <aside className="sticky top-20 hidden w-60 shrink-0 self-start lg:block">
+          <aside className="sticky top-20 hidden w-60 shrink-0 self-start lg:block space-y-4">
             <div className="glass-card rounded-xl p-4">
               <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">软件信息</h3>
               <dl className="space-y-2.5 text-xs">
@@ -200,19 +227,29 @@ export default async function SoftwarePage({ params }: SoftwarePageProps) {
                   <div>
                     <dt className="text-muted-foreground mb-1">官网</dt>
                     <dd>
-                      <a
-                        href={software.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-primary hover:underline break-all"
-                      >
-                        {software.url}
-                      </a>
+                      <a href={software.url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline break-all">{software.url}</a>
                     </dd>
                   </div>
                 )}
               </dl>
             </div>
+
+            {relatedSoftware.length > 0 && (
+              <div className="glass-card rounded-xl p-4">
+                <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">相关软件</h3>
+                <div className="space-y-2.5">
+                  {relatedSoftware.map((rs) => (
+                    <Link key={rs.id} href={`/software/${rs.slug}`} className="block text-xs text-muted-foreground hover:text-primary transition-colors">
+                      <span className="line-clamp-1">{rs.name}</span>
+                      <span className="text-[10px] flex items-center gap-1 mt-0.5">
+                        <Star className="h-2.5 w-2.5 fill-amber-500 text-amber-500" />
+                        {rs.rating.toFixed(1)}
+                      </span>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            )}
           </aside>
         </div>
       </div>
