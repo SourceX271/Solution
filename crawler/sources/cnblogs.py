@@ -1,8 +1,6 @@
 ﻿import logging
 from typing import List, Dict
-
 from bs4 import BeautifulSoup
-
 from crawler.sources.base import BaseSource
 
 logger = logging.getLogger(__name__)
@@ -13,12 +11,11 @@ class CnblogsSource(BaseSource):
     base_url = "https://www.cnblogs.com"
 
     def fetch(self, limit: int = 5) -> List[Dict]:
-        """Fetches articles from the 博客园 pick/essence page."""
+        """Fetches featured articles from 博客园 pick page."""
         url = f"{self.base_url}/pick/"
         try:
-            logger.info("Fetching %s", url)
-            resp = self.client.get(url)
-            resp.raise_for_status()
+            logger.info("Fetching Cnblogs: %s", url)
+            resp = self._get(url)
         except Exception:
             logger.exception("Cnblogs request failed")
             return []
@@ -28,8 +25,10 @@ class CnblogsSource(BaseSource):
 
         for item in soup.select(".post_item, .post-item, article")[:limit * 2]:
             try:
-                title_el = item.select_one("h2 a, h3 a, .title a, .post-item-title a, a.title")
-                excerpt_el = item.select_one(".post_item_summary, .post-item-summary, .entry-summary, p")
+                title_el = item.select_one("h2 a, h3 a, .title a, a.title")
+                excerpt_el = item.select_one(
+                    ".post_item_summary, .post-item-summary, .entry-summary, p"
+                )
 
                 if not title_el:
                     continue
@@ -46,11 +45,14 @@ class CnblogsSource(BaseSource):
                     "content": content,
                     "source_url": href,
                     "tags": ["cnblogs", "技术"],
+                    "category": "tech",
+                    "author": "",
                 })
                 if len(results) >= limit:
                     break
             except Exception:
                 continue
 
+        logger.info("Cnblogs: got %d articles", len(results))
         self._delay()
         return results

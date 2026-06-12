@@ -1,18 +1,9 @@
 ﻿import { MetadataRoute } from "next";
 import { prisma } from "@/lib/db";
 
-// Simple in-memory cache with TTL
-let cachedSitemap: MetadataRoute.Sitemap | null = null;
-let cacheTimestamp = 0;
-const CACHE_TTL = 60 * 60 * 1000; // 1 hour
-
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const now = Date.now();
-  if (cachedSitemap && now - cacheTimestamp < CACHE_TTL) {
-    return cachedSitemap;
-  }
-
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+  const locales = ["zh", "en"];
 
   const [articles, questions, software] = await Promise.all([
     prisma.article.findMany({
@@ -31,37 +22,46 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     }),
   ]);
 
-  const staticPages: MetadataRoute.Sitemap = [
-    { url: siteUrl, lastModified: new Date(), changeFrequency: "daily", priority: 1 },
-    { url: siteUrl + "/docs", lastModified: new Date(), changeFrequency: "daily", priority: 0.8 },
-    { url: siteUrl + "/questions", lastModified: new Date(), changeFrequency: "daily", priority: 0.8 },
-    { url: siteUrl + "/software", lastModified: new Date(), changeFrequency: "daily", priority: 0.7 },
-    { url: siteUrl + "/search", lastModified: new Date(), changeFrequency: "weekly", priority: 0.5 },
-  ];
+  const entries: MetadataRoute.Sitemap = [];
 
-  const articlePages: MetadataRoute.Sitemap = articles.map((a) => ({
-    url: siteUrl + "/docs/" + a.slug,
-    lastModified: a.updatedAt,
-    changeFrequency: "weekly" as const,
-    priority: 0.6,
-  }));
+  for (const locale of locales) {
+    const prefix = locale === "zh" ? "" : `/${locale}`;
 
-  const questionPages: MetadataRoute.Sitemap = questions.map((q) => ({
-    url: siteUrl + "/questions/" + q.slug,
-    lastModified: q.updatedAt,
-    changeFrequency: "weekly" as const,
-    priority: 0.6,
-  }));
+    entries.push(
+      { url: `${siteUrl}${prefix}`, lastModified: new Date(), changeFrequency: "daily", priority: 1 },
+      { url: `${siteUrl}${prefix}/docs`, lastModified: new Date(), changeFrequency: "daily", priority: 0.8 },
+      { url: `${siteUrl}${prefix}/questions`, lastModified: new Date(), changeFrequency: "daily", priority: 0.8 },
+      { url: `${siteUrl}${prefix}/software`, lastModified: new Date(), changeFrequency: "daily", priority: 0.7 },
+      { url: `${siteUrl}${prefix}/search`, lastModified: new Date(), changeFrequency: "weekly", priority: 0.5 },
+    );
 
-  const softwarePages: MetadataRoute.Sitemap = software.map((s) => ({
-    url: siteUrl + "/software/" + s.slug,
-    lastModified: s.updatedAt,
-    changeFrequency: "monthly" as const,
-    priority: 0.5,
-  }));
+    for (const a of articles) {
+      entries.push({
+        url: `${siteUrl}${prefix}/docs/${a.slug}`,
+        lastModified: a.updatedAt,
+        changeFrequency: "weekly",
+        priority: 0.6,
+      });
+    }
 
-  cachedSitemap = [...staticPages, ...articlePages, ...questionPages, ...softwarePages];
-  cacheTimestamp = now;
+    for (const q of questions) {
+      entries.push({
+        url: `${siteUrl}${prefix}/questions/${q.slug}`,
+        lastModified: q.updatedAt,
+        changeFrequency: "weekly",
+        priority: 0.6,
+      });
+    }
 
-  return cachedSitemap;
+    for (const s of software) {
+      entries.push({
+        url: `${siteUrl}${prefix}/software/${s.slug}`,
+        lastModified: s.updatedAt,
+        changeFrequency: "monthly",
+        priority: 0.5,
+      });
+    }
+  }
+
+  return entries;
 }

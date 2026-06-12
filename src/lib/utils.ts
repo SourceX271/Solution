@@ -17,15 +17,15 @@ export function slugify(text: string): string {
     .replace(/-+$/, "");
 }
 
-export function formatDate(date: Date | string): string {
-  return new Date(date).toLocaleDateString("zh-CN", {
+export function formatDate(date: Date | string, locale: string = "zh-CN"): string {
+  return new Date(date).toLocaleDateString(locale === "zh" ? "zh-CN" : "en-US", {
     year: "numeric",
     month: "long",
     day: "numeric",
   });
 }
 
-export function formatRelativeTime(date: Date | string): string {
+export function formatRelativeTime(date: Date | string, locale: string = "zh"): string {
   const now = new Date();
   const target = new Date(date);
   const diff = now.getTime() - target.getTime();
@@ -33,11 +33,19 @@ export function formatRelativeTime(date: Date | string): string {
   const hours = Math.floor(diff / 3600000);
   const days = Math.floor(diff / 86400000);
 
+  if (locale === "en") {
+    if (minutes < 1) return "just now";
+    if (minutes < 60) return `${minutes}m ago`;
+    if (hours < 24) return `${hours}h ago`;
+    if (days < 30) return `${days}d ago`;
+    return formatDate(date, "en");
+  }
+
   if (minutes < 1) return "刚刚";
   if (minutes < 60) return `${minutes}分钟前`;
   if (hours < 24) return `${hours}小时前`;
   if (days < 30) return `${days}天前`;
-  return formatDate(date);
+  return formatDate(date, "zh");
 }
 
 export function truncate(text: string, length: number): string {

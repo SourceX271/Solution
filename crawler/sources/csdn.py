@@ -1,8 +1,6 @@
 ﻿import logging
 from typing import List, Dict
-
 from bs4 import BeautifulSoup
-
 from crawler.sources.base import BaseSource
 
 logger = logging.getLogger(__name__)
@@ -13,12 +11,11 @@ class CsdnSource(BaseSource):
     base_url = "https://blog.csdn.net"
 
     def fetch(self, limit: int = 5) -> List[Dict]:
-        """Fetches articles from the CSDN AI listing page."""
+        """Fetches articles from CSDN AI/tech listing page."""
         url = f"{self.base_url}/nav/ai"
         try:
-            logger.info("Fetching %s", url)
-            resp = self.client.get(url)
-            resp.raise_for_status()
+            logger.info("Fetching CSDN: %s", url)
+            resp = self._get(url)
         except Exception:
             logger.exception("CSDN request failed")
             return []
@@ -39,12 +36,15 @@ class CsdnSource(BaseSource):
                         "title": title,
                         "content": title,
                         "source_url": href,
-                        "tags": ["csdn", "ai"],
+                        "tags": ["csdn", "ai", "技术"],
+                        "category": "tech",
+                        "author": "",
                     })
                 if len(results) >= limit:
                     break
             except Exception:
                 continue
 
+        logger.info("CSDN: got %d articles", len(results))
         self._delay()
         return results
