@@ -2,9 +2,14 @@ import { NextResponse } from "next/server";
 import { hash } from "bcryptjs";
 import { prisma } from "@/lib/db";
 import { registerSchema } from "@/lib/validations";
+import { checkRateLimit, getRateLimitKey } from "@/lib/rate-limit";
 
 export async function POST(req: Request) {
   try {
+    const { allowed } = checkRateLimit(getRateLimitKey(req, "register"), { windowMs: 60000, maxRequests: 5 });
+    if (!allowed) {
+      return NextResponse.json({ error: "请求过于频繁，请稍后重试" }, { status: 429 });
+    }
     const body = await req.json();
     const parsed = registerSchema.safeParse(body);
     if (!parsed.success) {
@@ -15,7 +20,7 @@ export async function POST(req: Request) {
 
     const existing = await prisma.user.findUnique({ where: { email } });
     if (existing) {
-      return NextResponse.json({ error: "该邮箱已被注册" }, { status: 409 });
+      return NextResponse.json({ error: "注册请求无效" }, { status: 400 });
     }
 
     const passwordHash = await hash(password, 12);

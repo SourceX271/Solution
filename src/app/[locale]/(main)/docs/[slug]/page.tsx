@@ -3,6 +3,7 @@ import { notFound } from "next/navigation"
 import { prisma } from "@/lib/db"
 import { formatDate, formatRelativeTime } from "@/lib/utils"
 import { highlightHtmlContent } from "@/lib/highlight"
+import { sanitizeHtml } from "@/lib/sanitize"
 import { auth } from "@/lib/auth"
 import { VoteButtons } from "@/components/client/VoteButtons"
 import { BookmarkButton } from "@/components/client/BookmarkButton"
@@ -12,6 +13,7 @@ import { ReadingProgress } from "@/components/client/ReadingProgress"
 import { TableOfContents } from "@/components/client/TableOfContents"
 import { CodeBlock } from "@/components/client/CodeBlock"
 import { ArticleEditButton } from "@/components/client/ArticleEditButton"
+import { ArticleJsonLd } from "@/components/JsonLd"
 import { ChevronRight, Eye, Clock, User, Tag, AlertCircle, CheckCircle2, ArrowLeft } from "lucide-react"
 
 export const revalidate = 3600;
@@ -101,7 +103,8 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
 
   const highlightedContent = await highlightHtmlContent(article.content)
   const processedContent = addIdsToHeadings(highlightedContent)
-  const headings = extractHeadings(processedContent)
+  const safeContent = await sanitizeHtml(processedContent)
+  const headings = extractHeadings(safeContent)
   const tags = article.tags
 
   const [upVotes, downVotes, userVote] = await Promise.all([
@@ -136,8 +139,18 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
     select: { id: true, slug: true, title: true, viewCount: true, createdAt: true },
   }) : []
 
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3456"
+
   return (
     <>
+      <ArticleJsonLd
+        title={article.title}
+        description={article.excerpt}
+        authorName={article.author.name || "Unknown"}
+        datePublished={article.createdAt.toISOString()}
+        dateModified={article.updatedAt.toISOString()}
+        url={`${siteUrl}/docs/${article.slug}`}
+      />
       <ReadingProgress />
       <div className="container mx-auto px-4 py-8">
         {/* Breadcrumb */}
@@ -264,7 +277,7 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
             )}
 
             {/* Content */}
-            <div className="prose-custom max-w-none mb-10" dangerouslySetInnerHTML={{ __html: processedContent }} />
+            <div className="prose-custom max-w-none mb-10" dangerouslySetInnerHTML={{ __html: safeContent }} />
 
             {/* Actions */}
             <div className="flex items-center gap-3 border-t pt-6 pb-4 animate-fade-in-up">

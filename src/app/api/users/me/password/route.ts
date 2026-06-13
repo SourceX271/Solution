@@ -10,8 +10,8 @@ export const PUT = apiHandler({ auth: "required" }, async (req, ctx) => {
     throw new AppError(400, "请填写当前密码和新密码");
   }
 
-  if (newPassword.length < 6) {
-    throw new AppError(400, "新密码至少6位");
+  if (newPassword.length < 8) {
+    throw new AppError(400, "新密码至少8位");
   }
 
   const user = await prisma.user.findUnique({

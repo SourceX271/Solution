@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { auth } from "@/lib/auth";
 import { commentSchema } from "@/lib/validations";
+import { checkRateLimit, getRateLimitKey } from "@/lib/rate-limit";
 
 export async function GET(req: NextRequest) {
   try {
@@ -39,6 +40,11 @@ export async function POST(req: NextRequest) {
     const session = await auth();
     if (!session) {
       return NextResponse.json({ error: "请先登录" }, { status: 401 });
+    }
+
+    const { allowed } = checkRateLimit(getRateLimitKey(req, "comment"), { windowMs: 30000, maxRequests: 10 });
+    if (!allowed) {
+      return NextResponse.json({ error: "评论过于频繁，请稍后再试" }, { status: 429 });
     }
 
     const body = await req.json();

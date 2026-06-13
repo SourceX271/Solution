@@ -9,6 +9,7 @@ import { ReadingProgress } from "@/components/client/ReadingProgress"
 import { BookmarkButton } from "@/components/client/BookmarkButton"
 import { ShareButton } from "@/components/client/ShareButton"
 import { SoftwareEditButton } from "@/components/client/SoftwareEditButton"
+import { SoftwareJsonLd } from "@/components/JsonLd"
 import { Star, ExternalLink, Clock, User, ChevronRight, Globe, Package } from "lucide-react"
 
 export const revalidate = 3600;
@@ -71,8 +72,17 @@ export default async function SoftwarePage({ params }: SoftwarePageProps) {
     select: { id: true, slug: true, name: true, rating: true },
   })
 
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3456"
+
   return (
     <>
+      <SoftwareJsonLd
+        name={software.name}
+        description={software.description}
+        rating={software.rating}
+        ratingCount={software.ratingCount}
+        url={`${siteUrl}/software/${software.slug}`}
+      />
       <ReadingProgress />
       <div className="container mx-auto px-4 py-8">
         {/* Breadcrumb */}

@@ -67,7 +67,7 @@ export async function POST(req: NextRequest) {
       "-" +
       Date.now().toString(36);
 
-    const tagSlugs = body.tags ? (Array.isArray(body.tags) ? body.tags : JSON.parse(body.tags || "[]")) : [];
+    const tagSlugs = tags ? (Array.isArray(tags) ? tags : typeof tags === "string" ? JSON.parse(tags || "[]") : []) : [];
     const question = await prisma.question.create({
       data: {
         tags: {

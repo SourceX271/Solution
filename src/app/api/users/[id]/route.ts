@@ -7,12 +7,16 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
+    const session = await auth();
+    const isOwner = session && (session.user as any).id === params.id;
+    const isAdmin = session && (session.user as any).role === "ADMIN";
+
     const user = await prisma.user.findUnique({
       where: { id: params.id },
       select: {
         id: true,
         name: true,
-        email: true,
+        email: !!(isOwner || isAdmin), // Only return email to owner or admin
         image: true,
         role: true,
         bio: true,

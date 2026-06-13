@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { Loader2, Send, Trash2, Pencil, Reply, Eye, EyeOff, Bold, Italic, Code, Link, Quote } from "lucide-react"
 import { marked } from "marked"
+import DOMPurify from "dompurify"
 import { formatRelativeTime } from "@/lib/utils"
 
 marked.setOptions({ breaks: true, gfm: true })
@@ -11,7 +12,12 @@ marked.setOptions({ breaks: true, gfm: true })
 function renderMarkdown(content: string): string {
   if (!content) return ""
   try {
-    return marked.parse(content) as string
+    const raw = marked.parse(content) as string
+    return DOMPurify.sanitize(raw, {
+      ALLOWED_TAGS: ["h1", "h2", "h3", "h4", "p", "br", "strong", "b", "em", "i", "s", "a", "code", "pre", "ul", "ol", "li", "blockquote", "img", "table", "thead", "tbody", "tr", "th", "td", "div", "span", "input"],
+      ALLOWED_ATTR: ["href", "target", "rel", "src", "alt", "class", "type", "checked", "disabled"],
+      ALLOWED_URI_REGEXP: /^(?:(?:https?|ftp):\/\/|mailto:|tel:|\/|#)/i,
+    })
   } catch {
     return content.replace(/</g, "&lt;").replace(/>/g, "&gt;")
   }

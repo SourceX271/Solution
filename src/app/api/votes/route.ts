@@ -1,12 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { auth } from "@/lib/auth";
+import { checkRateLimit, getRateLimitKey } from "@/lib/rate-limit";
 
 export async function POST(req: NextRequest) {
   try {
     const session = await auth();
     if (!session) {
       return NextResponse.json({ error: "请先登录" }, { status: 401 });
+    }
+
+    const { allowed } = checkRateLimit(getRateLimitKey(req, "vote"), { windowMs: 60000, maxRequests: 30 });
+    if (!allowed) {
+      return NextResponse.json({ error: "操作过于频繁" }, { status: 429 });
     }
 
     const body = await req.json();
@@ -130,8 +136,7 @@ export async function POST(req: NextRequest) {
 
       return NextResponse.json({ voted: true, vote, message: "投票成功" }, { status: 201 });
     }
-  } catch (error) {
-    console.error("Vote error:", error);
+  } catch {
     return NextResponse.json({ error: "操作失败" }, { status: 500 });
   }
 }
@@ -140,7 +145,8 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const targetType = searchParams.get("targetType");
   const targetId = searchParams.get("targetId");
-  const userId = searchParams.get("userId");
+  const session = await auth();
+  const userId = (session?.user as any)?.id;
 
   if (!targetType || !targetId) {
     return NextResponse.json({ error: "Missing params" }, { status: 400 });

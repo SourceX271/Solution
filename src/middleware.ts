@@ -24,7 +24,7 @@ export default auth((req) => {
   const isLoggedIn = !!req.auth;
   const isAdmin = (req.auth?.user as any)?.role === "ADMIN";
 
-  if (pathname.includes("/admin") && !isAdmin) {
+  if (pathname.startsWith("/admin") && !isAdmin) {
     const base = pathname.startsWith("/en") ? "/en" : "";
     if (!isLoggedIn) {
       return NextResponse.redirect(new URL(`${base}/login`, req.nextUrl));

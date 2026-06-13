@@ -111,7 +111,7 @@ export default function RegisterPage() {
                 <input
                   id="password" type="password" value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="至少6位" minLength={6}
+                  placeholder="至少6位" minLength={8}
                   className="w-full rounded-xl border bg-background pl-10 pr-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/40 transition-all"
                 />
               </div>
@@ -125,7 +125,7 @@ export default function RegisterPage() {
                 <input
                   id="confirmPassword" type="password" value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
-                  placeholder="再次输入密码" minLength={6}
+                  placeholder="再次输入密码" minLength={8}
                   className="w-full rounded-xl border bg-background pl-10 pr-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/40 transition-all"
                 />
               </div>

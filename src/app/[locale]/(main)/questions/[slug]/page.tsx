@@ -3,6 +3,7 @@ import { notFound } from "next/navigation"
 import { prisma } from "@/lib/db"
 import { formatRelativeTime } from "@/lib/utils"
 import { highlightHtmlContent } from "@/lib/highlight"
+import { sanitizeHtml } from "@/lib/sanitize"
 import { auth } from "@/lib/auth"
 import { VoteButtons } from "@/components/client/VoteButtons"
 import { BookmarkButton } from "@/components/client/BookmarkButton"
@@ -103,6 +104,7 @@ export default async function QuestionPage({ params }: QuestionPageProps) {
   })
 
   const questionContentHtml = await highlightHtmlContent(question.content)
+  const safeContent = await sanitizeHtml(questionContentHtml)
 
   return (
     <>
@@ -179,7 +181,7 @@ export default async function QuestionPage({ params }: QuestionPageProps) {
             {/* Question Content */}
             <div
               className="mb-6 prose-custom max-w-none"
-              dangerouslySetInnerHTML={{ __html: questionContentHtml }}
+              dangerouslySetInnerHTML={{ __html: safeContent }}
             />
 
             {/* Vote & Actions */}
