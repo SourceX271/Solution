@@ -10,7 +10,7 @@ export const metadata: Metadata = {
   keywords: ["技术", "解决方案", "问答", "软件推荐", "开发者社区", "编程", "tech", "solutions", "Q&A"],
   authors: [{ name: "Solution Team" }],
   creator: "Solution",
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3456"),
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"),
   openGraph: {
     type: "website",
     locale: "zh_CN",

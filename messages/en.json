@@ -71,7 +71,6 @@
     "name": "Name",
     "confirmPassword": "Confirm Password",
     "githubLogin": "Sign in with GitHub",
-    "googleLogin": "Sign in with Google",
     "orEmail": "Or continue with email",
     "loginBtn": "Sign In",
     "loginLoading": "Signing in...",

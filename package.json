@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev": "next dev -p 3456",
+    "dev": "next dev -p 3000",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
@@ -12,7 +12,7 @@
     "db:push": "prisma db push",
     "db:seed": "tsx prisma/seed.ts",
     "db:studio": "prisma studio",
-    "crawler:run": "python crawler/main.py",
+    "crawler:run": "python -m crawler.main",
     "postinstall": "prisma generate"
   },
   "dependencies": {

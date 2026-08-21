@@ -105,34 +105,51 @@ export async function POST(req: NextRequest) {
       where: { userId_targetType_targetId: { userId, targetType, targetId } },
     });
 
+    // Only question/answer carry a denormalized voteCount; article's votes are
+    // counted via the Vote table directly, so nothing to sync there.
+    const adjustVoteCount = (delta: number) => {
+      if (targetType === "question") {
+        return prisma.question.update({
+          where: { id: targetId },
+          data: { voteCount: { increment: delta } },
+        });
+      }
+      if (targetType === "answer") {
+        return prisma.answer.update({
+          where: { id: targetId },
+          data: { voteCount: { increment: delta } },
+        });
+      }
+      return null;
+    };
+
     if (existing) {
       if (existing.value === value) {
-        await prisma.vote.delete({ where: { id: existing.id } });
+        // Cancel vote: remove the vote and roll back the count it contributed.
+        await prisma.$transaction([
+          prisma.vote.delete({ where: { id: existing.id } }),
+          ...(targetType === "question" || targetType === "answer"
+            ? [adjustVoteCount(-existing.value) as any]
+            : []),
+        ]);
         return NextResponse.json({ voted: false, message: "已取消投票" });
       } else {
-        const updated = await prisma.vote.update({
-          where: { id: existing.id },
-          data: { value },
-        });
-        return NextResponse.json({ voted: true, vote: updated, message: "已更新投票" });
+        // Switch vote direction: adjust count by the difference (e.g. +1 -> -1 is -2).
+        await prisma.$transaction([
+          prisma.vote.update({ where: { id: existing.id }, data: { value } }),
+          ...(targetType === "question" || targetType === "answer"
+            ? [adjustVoteCount(value - existing.value) as any]
+            : []),
+        ]);
+        return NextResponse.json({ voted: true, message: "已更新投票" });
       }
     } else {
-      const vote = await prisma.vote.create({
-        data: { userId, targetType, targetId, value },
-      });
-
-      // Update vote counts on target
-      if (targetType === "question") {
-        await prisma.question.update({
-          where: { id: targetId },
-          data: { voteCount: { increment: value > 0 ? 1 : -1 } },
-        });
-      } else if (targetType === "answer") {
-        await prisma.answer.update({
-          where: { id: targetId },
-          data: { voteCount: { increment: value > 0 ? 1 : -1 } },
-        });
-      }
+      const [vote] = await prisma.$transaction([
+        prisma.vote.create({ data: { userId, targetType, targetId, value } }),
+        ...(targetType === "question" || targetType === "answer"
+          ? [adjustVoteCount(value) as any]
+          : []),
+      ]);
 
       return NextResponse.json({ voted: true, vote, message: "投票成功" }, { status: 201 });
     }

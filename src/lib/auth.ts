@@ -1,13 +1,13 @@
-﻿import NextAuth from "next-auth";
+import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import GitHub from "next-auth/providers/github";
-import Google from "next-auth/providers/google";
 import { compare } from "bcryptjs";
 import { prisma } from "@/lib/db";
 import { loginSchema } from "@/lib/validations";
 import type { NextAuthConfig } from "next-auth";
 
 export const authConfig: NextAuthConfig = {
+  trustHost: true,
   pages: {
     signIn: "/login",
   },
@@ -31,10 +31,6 @@ export const authConfig: NextAuthConfig = {
     GitHub({
       clientId: process.env.AUTH_GITHUB_ID!,
       clientSecret: process.env.AUTH_GITHUB_SECRET!,
-    }),
-    Google({
-      clientId: process.env.AUTH_GOOGLE_ID!,
-      clientSecret: process.env.AUTH_GOOGLE_SECRET!,
     }),
     Credentials({
       name: "credentials",

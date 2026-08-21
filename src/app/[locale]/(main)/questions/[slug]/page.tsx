@@ -5,6 +5,7 @@ import { formatRelativeTime } from "@/lib/utils"
 import { highlightHtmlContent } from "@/lib/highlight"
 import { sanitizeHtml } from "@/lib/sanitize"
 import { auth } from "@/lib/auth"
+import { resolveSlugRedirect } from "@/lib/slug-redirect"
 import { VoteButtons } from "@/components/client/VoteButtons"
 import { BookmarkButton } from "@/components/client/BookmarkButton"
 import { ShareButton } from "@/components/client/ShareButton"
@@ -12,6 +13,7 @@ import { AnswerForm } from "@/components/client/AnswerForm"
 import { AnswerItem } from "@/components/client/AnswerItem"
 import { QuestionEditButton } from "@/components/client/QuestionEditButton"
 import { ReadingProgress } from "@/components/client/ReadingProgress"
+import { ViewTracker } from "@/components/client/ViewTracker"
 import { Eye, Clock, User, ChevronRight, MessageCircle, CheckCircle2, Clock4 } from "lucide-react"
 
 export const revalidate = 1800;
@@ -45,12 +47,10 @@ export default async function QuestionPage({ params }: QuestionPageProps) {
     },
   })
 
-  if (!question) notFound()
-
-  await prisma.question.update({
-    where: { id: question.id },
-    data: { viewCount: { increment: 1 } },
-  })
+  if (!question) {
+    await resolveSlugRedirect("question", slug)
+    notFound()
+  }
 
   const tags = question.tags
   const isAuthor = userId === question.author.id
@@ -65,20 +65,41 @@ export default async function QuestionPage({ params }: QuestionPageProps) {
     },
   })
 
-  const answerVotes = await Promise.all(
-    answers.map(async (answer) => {
-      const [up, down, userVote] = await Promise.all([
-        prisma.vote.count({ where: { targetType: "answer", targetId: answer.id, value: 1 } }),
-        prisma.vote.count({ where: { targetType: "answer", targetId: answer.id, value: -1 } }),
-        userId
-          ? prisma.vote.findUnique({
-              where: { userId_targetType_targetId: { userId, targetType: "answer", targetId: answer.id } },
-            })
-          : null,
-      ])
-      return { answerId: answer.id, up, down, userVote: userVote?.value ?? null }
-    })
-  )
+  const answerVotes = await (async () => {
+    const answerIds = answers.map((a) => a.id);
+    if (answerIds.length === 0) return [];
+
+    // Batched queries instead of one query per answer (N+1 fix)
+    const [upGroups, downGroups, userVotes] = await Promise.all([
+      prisma.vote.groupBy({
+        by: ["targetId"],
+        where: { targetType: "answer", targetId: { in: answerIds }, value: 1 },
+        _count: { _all: true },
+      }),
+      prisma.vote.groupBy({
+        by: ["targetId"],
+        where: { targetType: "answer", targetId: { in: answerIds }, value: -1 },
+        _count: { _all: true },
+      }),
+      userId
+        ? prisma.vote.findMany({
+            where: { userId, targetType: "answer", targetId: { in: answerIds } },
+            select: { targetId: true, value: true },
+          })
+        : [],
+    ]);
+
+    const upMap = new Map(upGroups.map((g) => [g.targetId, g._count._all]));
+    const downMap = new Map(downGroups.map((g) => [g.targetId, g._count._all]));
+    const userVoteMap = new Map(userVotes.map((v) => [v.targetId, v.value]));
+
+    return answerIds.map((answerId) => ({
+      answerId,
+      up: upMap.get(answerId) ?? 0,
+      down: downMap.get(answerId) ?? 0,
+      userVote: userVoteMap.get(answerId) ?? null,
+    }));
+  })()
 
   const [qUpVotes, qDownVotes, qUserVote] = await Promise.all([
     prisma.vote.count({ where: { targetType: "question", targetId: question.id, value: 1 } }),
@@ -108,6 +129,7 @@ export default async function QuestionPage({ params }: QuestionPageProps) {
 
   return (
     <>
+      <ViewTracker targetType="question" targetId={question.id} />
       <ReadingProgress />
       <div className="container mx-auto px-4 py-8">
         {/* Breadcrumb */}

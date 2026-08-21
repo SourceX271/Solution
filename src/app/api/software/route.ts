@@ -1,7 +1,9 @@
-﻿import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { auth } from "@/lib/auth";
 import { softwareSchema } from "@/lib/validations";
+import { generateSlug } from "@/lib/utils";
+import { resolveTags, parseTagInput } from "@/lib/tags";
 
 export async function GET(req: NextRequest) {
   try {
@@ -48,21 +50,15 @@ export async function POST(req: NextRequest) {
     }
 
     const { name, description, url, category, tags } = parsed.data;
-    const slug =
-      name
-        .toLowerCase()
-        .replace(/[^a-z0-9\u4e00-\u9fa5]+/g, "-")
-        .replace(/^-+|-+$/g, "") +
-      "-" +
-      Date.now().toString(36);
+    const slug = generateSlug();
 
-    const tagSlugs = tags ? (Array.isArray(tags) ? tags : typeof tags === "string" ? JSON.parse(tags || "[]") : []) : [];
+    const tagConnections = await resolveTags(parseTagInput(tags));
     const software = await prisma.software.create({
       data: {
         tags: {
-          connectOrCreate: tagSlugs.map((s: string) => ({
-            where: { slug: s },
-            create: { name: s, slug: s },
+          connectOrCreate: tagConnections.map((t) => ({
+            where: { slug: t.slug },
+            create: { name: t.name, slug: t.slug },
           })),
         },
         name,

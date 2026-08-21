@@ -1,4 +1,4 @@
-﻿from abc import ABC, abstractmethod
+from abc import ABC, abstractmethod
 from typing import List, Dict, Optional
 import httpx
 import random
@@ -34,6 +34,15 @@ class BaseSource(ABC):
     base_url: str = ""
 
     def __init__(self):
+        # http2 requires the optional `h2` package (httpx[http2]); degrade to
+        # HTTP/1.1 gracefully when it is not installed so a single missing
+        # dependency cannot take down every source.
+        try:
+            import h2  # noqa: F401
+
+            http2 = True
+        except ImportError:
+            http2 = False
         self.client = httpx.Client(
             headers={
                 "User-Agent": random.choice(USER_AGENTS),
@@ -41,7 +50,7 @@ class BaseSource(ABC):
             },
             timeout=30,
             follow_redirects=True,
-            http2=True,
+            http2=http2,
             limits=httpx.Limits(max_keepalive_connections=5, max_connections=10),
         )
 

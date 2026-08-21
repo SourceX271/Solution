@@ -1,4 +1,4 @@
-﻿import type { Metadata } from "next";
+import type { Metadata } from "next";
 
 export const metadata: Metadata = { title: "隐私政策" };
 
@@ -11,7 +11,7 @@ export default function PrivacyPage() {
         <h2>信息收集</h2>
         <ul>
           <li>注册时需要提供邮箱地址和密码</li>
-          <li>通过 GitHub / Google 登录时获取基本资料</li>
+          <li>通过 GitHub 登录时获取基本资料</li>
           <li>发布内容时自动记录时间戳</li>
         </ul>
         <h2>信息使用</h2>

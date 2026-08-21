@@ -17,6 +17,19 @@ export function slugify(text: string): string {
     .replace(/-+$/, "");
 }
 
+/**
+ * 生成 URL 安全的唯一 slug（纯 id 风格，类似 CSDN 的数字 id）。
+ *
+ * URL 中不允许出现中文字符，否则链接在部分场景（nginx 配置、缓存、
+ * 第三方平台分享等）会失效或报错。无论标题是中文还是英文，统一生成
+ * 不含任何标题文字的随机 id，保证 URL 永远只包含 ASCII 字符。
+ *
+ * 由时间戳（base36）+ 随机段组成，配合数据库 unique 约束，冲突概率可忽略。
+ */
+export function generateSlug(): string {
+  return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+}
+
 export function formatDate(date: Date | string, locale: string = "zh-CN"): string {
   return new Date(date).toLocaleDateString(locale === "zh" ? "zh-CN" : "en-US", {
     year: "numeric",

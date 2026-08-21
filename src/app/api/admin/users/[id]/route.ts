@@ -4,7 +4,7 @@ import { NextResponse } from "next/server"
 import { z } from "zod"
 
 const userUpdateSchema = z.object({
-  role: z.enum(["USER", "ADMIN", "AUTHOR", "MODERATOR"]).optional(),
+  role: z.enum(["USER", "ADMIN"]),
 })
 
 export async function PUT(

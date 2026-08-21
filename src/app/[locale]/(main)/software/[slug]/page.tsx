@@ -1,8 +1,9 @@
-﻿import Link from "next/link"
+import Link from "next/link"
 import { notFound } from "next/navigation"
 import { prisma } from "@/lib/db"
 import { formatDate, formatRelativeTime } from "@/lib/utils"
 import { auth } from "@/lib/auth"
+import { resolveSlugRedirect } from "@/lib/slug-redirect"
 import { RatingWidget } from "@/components/client/RatingWidget"
 import { CommentSection } from "@/components/client/CommentSection"
 import { ReadingProgress } from "@/components/client/ReadingProgress"
@@ -51,7 +52,10 @@ export default async function SoftwarePage({ params }: SoftwarePageProps) {
     },
   })
 
-  if (!software || software.status !== "published") notFound()
+  if (!software || software.status !== "published") {
+    await resolveSlugRedirect("software", slug)
+    notFound()
+  }
 
   const tags = software.tags
 
@@ -72,7 +76,7 @@ export default async function SoftwarePage({ params }: SoftwarePageProps) {
     select: { id: true, slug: true, name: true, rating: true },
   })
 
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3456"
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"
 
   return (
     <>

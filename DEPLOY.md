@@ -1,4 +1,4 @@
-﻿# Solution 网站部署文档
+# Solution 网站部署文档
 
 ## 环境要求
 
@@ -30,8 +30,6 @@ nano .env
 | `AUTH_SECRET` | 认证密钥 (必须修改) | 运行 `openssl rand -base64 32` 生成 |
 | `AUTH_GITHUB_ID` | GitHub OAuth App Client ID | 在 GitHub Developer Settings 获取 |
 | `AUTH_GITHUB_SECRET` | GitHub OAuth App Secret | 同上 |
-| `AUTH_GOOGLE_ID` | Google OAuth Client ID | 在 Google Cloud Console 获取 |
-| `AUTH_GOOGLE_SECRET` | Google OAuth Client Secret | 同上 |
 | `NEXT_PUBLIC_SITE_URL` | 网站公开 URL | `https://yourdomain.com` |
 | `CRAWLER_INTERVAL_HOURS` | 爬虫运行间隔 (小时) | `24` |
 
@@ -137,13 +135,6 @@ sudo certbot renew --dry-run
 3. 填写信息:
    - Homepage URL: `https://yourdomain.com`
    - Authorization callback URL: `https://yourdomain.com/api/auth/callback/github`
-4. 获取 Client ID 和 Client Secret，填入 `.env`
-
-### Google OAuth
-
-1. 访问 https://console.cloud.google.com/apis/credentials
-2. 创建 OAuth 2.0 客户端 ID
-3. 已授权的重定向 URI: `https://yourdomain.com/api/auth/callback/google`
 4. 获取 Client ID 和 Client Secret，填入 `.env`
 
 ## 数据库备份

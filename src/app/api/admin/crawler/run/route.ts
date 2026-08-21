@@ -1,46 +1,26 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { exec } from "child_process";
-import { promisify } from "util";
-import path from "path";
+import { runCrawler } from "@/lib/crawler-ingest";
 
-const execAsync = promisify(exec);
-
-export async function POST() {
+export async function POST(req: NextRequest) {
   try {
     const session = await auth();
     if (!session || (session.user as any).role !== "ADMIN") {
       return NextResponse.json({ error: "无权访问" }, { status: 403 });
     }
 
-    const crawlerPath = path.join(process.cwd(), "crawler", "main.py");
+    const source = new URL(req.url).searchParams.get("source") || undefined;
 
-    try {
-      const { stdout } = await execAsync(`python "${crawlerPath}"`, {
-        timeout: 120000,
-        maxBuffer: 1024 * 500,
-      });
+    const result = await runCrawler({ source });
 
-      // Parse JSON output, don't leak raw stdout
-      let result;
-      try {
-        result = JSON.parse(stdout);
-      } catch {
-        result = { status: "success", message: "爬虫任务已完成", total: 0 };
-      }
-
-      return NextResponse.json({
-        status: "success",
-        message: result.message || "爬虫任务已完成",
-        total: result.total || 0,
-        sourcesProcessed: result.sources_processed || 0,
-      });
-    } catch (execError: any) {
-      return NextResponse.json({
-        status: "error",
-        message: "爬虫任务执行失败",
-      }, { status: 500 });
-    }
+    return NextResponse.json({
+      status: result.status,
+      message: result.message,
+      total: result.total,
+      added: result.added,
+      skipped: result.skipped,
+      sourcesProcessed: result.sourcesProcessed,
+    });
   } catch {
     return NextResponse.json({ error: "触发爬虫失败" }, { status: 500 });
   }

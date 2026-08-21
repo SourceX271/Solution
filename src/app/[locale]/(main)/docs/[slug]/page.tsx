@@ -5,6 +5,7 @@ import { formatDate, formatRelativeTime } from "@/lib/utils"
 import { highlightHtmlContent } from "@/lib/highlight"
 import { sanitizeHtml } from "@/lib/sanitize"
 import { auth } from "@/lib/auth"
+import { resolveSlugRedirect } from "@/lib/slug-redirect"
 import { VoteButtons } from "@/components/client/VoteButtons"
 import { BookmarkButton } from "@/components/client/BookmarkButton"
 import { ShareButton } from "@/components/client/ShareButton"
@@ -12,6 +13,7 @@ import { CommentSection } from "@/components/client/CommentSection"
 import { ReadingProgress } from "@/components/client/ReadingProgress"
 import { TableOfContents } from "@/components/client/TableOfContents"
 import { CodeBlock } from "@/components/client/CodeBlock"
+import { ViewTracker } from "@/components/client/ViewTracker"
 import { ArticleEditButton } from "@/components/client/ArticleEditButton"
 import { ArticleJsonLd } from "@/components/JsonLd"
 import { ChevronRight, Eye, Clock, User, Tag, AlertCircle, CheckCircle2, ArrowLeft } from "lucide-react"
@@ -94,12 +96,10 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
     },
   })
 
-  if (!article || article.status !== "published") notFound()
-
-  await prisma.article.update({
-    where: { id: article.id },
-    data: { viewCount: { increment: 1 } },
-  })
+  if (!article || article.status !== "published") {
+    await resolveSlugRedirect("article", slug)
+    notFound()
+  }
 
   const highlightedContent = await highlightHtmlContent(article.content)
   const processedContent = addIdsToHeadings(highlightedContent)
@@ -139,7 +139,7 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
     select: { id: true, slug: true, title: true, viewCount: true, createdAt: true },
   }) : []
 
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3456"
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"
 
   return (
     <>
@@ -151,6 +151,7 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
         dateModified={article.updatedAt.toISOString()}
         url={`${siteUrl}/docs/${article.slug}`}
       />
+      <ViewTracker targetType="article" targetId={article.id} />
       <ReadingProgress />
       <div className="container mx-auto px-4 py-8">
         {/* Breadcrumb */}

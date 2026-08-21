@@ -71,7 +71,6 @@
     "name": "名称",
     "confirmPassword": "确认密码",
     "githubLogin": "GitHub 登录",
-    "googleLogin": "Google 登录",
     "orEmail": "或使用邮箱",
     "loginBtn": "登录",
     "loginLoading": "登录中...",
