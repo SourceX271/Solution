@@ -84,6 +84,7 @@ export function CommentSection({ targetType, targetId, userId }: CommentSectionP
   const [replyingTo, setReplyingTo] = useState<string | null>(null)
   const [replyContent, setReplyContent] = useState("")
   const [replyPreview, setReplyPreview] = useState(false)
+  const [error, setError] = useState("")
 
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const editTextareaRef = useRef<HTMLTextAreaElement>(null)
@@ -115,7 +116,11 @@ export function CommentSection({ targetType, targetId, userId }: CommentSectionP
         attachReplies(topLevel)
         setComments(topLevel)
         setTotalCount(rawComments.length)
+      } else {
+        setError("评论加载失败，请刷新页面重试")
       }
+    } catch {
+      setError("评论加载失败，请检查网络后重试")
     } finally { setLoading(false) }
   }, [targetType, targetId])
 
@@ -127,6 +132,7 @@ export function CommentSection({ targetType, targetId, userId }: CommentSectionP
     const text = parentId ? replyContent.trim() : content.trim()
     if (!text || submitting) return
     setSubmitting(true)
+    setError("")
     try {
       const body: Record<string, string> = { targetType, targetId, content: text }
       if (parentId) body.parentId = parentId
@@ -139,15 +145,28 @@ export function CommentSection({ targetType, targetId, userId }: CommentSectionP
         if (parentId) { setReplyContent(""); setReplyingTo(null); setReplyPreview(false) }
         else { setContent(""); setPreviewContent(false) }
         fetchComments()
+      } else {
+        // Surface why it failed instead of silently doing nothing.
+        const data = await res.json().catch(() => null)
+        setError(data?.error || "评论发送失败，请稍后重试")
       }
+    } catch {
+      setError("评论发送失败，请检查网络后重试")
     } finally { setSubmitting(false) }
   }
 
   const handleDelete = async (commentId: string) => {
+    if (!window.confirm("确认删除此评论？")) return
     try {
       const res = await fetch("/api/comments/" + commentId, { method: "DELETE" })
-      if (res.ok) fetchComments()
-    } catch {}
+      if (!res.ok) {
+        setError("删除评论失败，请稍后重试")
+        return
+      }
+      fetchComments()
+    } catch {
+      setError("删除评论失败，请检查网络后重试")
+    }
   }
 
   const handleSaveEdit = async (commentId: string) => {
@@ -158,8 +177,15 @@ export function CommentSection({ targetType, targetId, userId }: CommentSectionP
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ content: editContent.trim() }),
       })
-      if (res.ok) { setEditingId(null); setEditContent(""); setEditPreview(false); fetchComments() }
-    } catch {}
+      if (res.ok) {
+        setEditingId(null); setEditContent(""); setEditPreview(false); fetchComments()
+      } else {
+        const data = await res.json().catch(() => null)
+        setError(data?.error || "保存失败，请稍后重试")
+      }
+    } catch {
+      setError("保存失败，请检查网络后重试")
+    }
   }
 
   const insertMD = (ref: React.RefObject<HTMLTextAreaElement | null>, syntax: typeof MD_SYNTAX[number]) => {
@@ -334,6 +360,9 @@ export function CommentSection({ targetType, targetId, userId }: CommentSectionP
             {submitting ? "发送中..." : "发表评论"}
           </button>
         </div>
+        {error && (
+          <p role="alert" className="mt-2 text-xs text-destructive">{error}</p>
+        )}
       </form>
 
       {loading ? (

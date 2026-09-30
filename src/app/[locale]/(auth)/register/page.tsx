@@ -20,7 +20,10 @@ export default function RegisterPage() {
     const errs: Record<string, string> = {}
     if (!name.trim() || name.trim().length < 2) errs.name = "名称至少2个字符"
     if (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) errs.email = "请输入有效的邮箱地址"
-    if (!password || password.length < 6) errs.password = "密码至少6位"
+    // Keep in sync with registerSchema in src/lib/validations.ts
+    if (!password || password.length < 8) errs.password = "密码至少8位"
+    else if (!/[a-zA-Z]/.test(password)) errs.password = "密码需包含字母"
+    else if (!/[0-9]/.test(password)) errs.password = "密码需包含数字"
     if (password !== confirmPassword) errs.confirmPassword = "两次密码不一致"
     setErrors(errs)
     return Object.keys(errs).length === 0
@@ -111,7 +114,7 @@ export default function RegisterPage() {
                 <input
                   id="password" type="password" value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="至少6位" minLength={8}
+                  placeholder="至少8位，含字母和数字" minLength={8}
                   className="w-full rounded-xl border bg-background pl-10 pr-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/40 transition-all"
                 />
               </div>

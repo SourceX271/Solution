@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { auth } from "@/lib/auth";
 import { answerSchema } from "@/lib/validations";
+import { sanitizeHtml } from "@/lib/sanitize";
+import { createNotification } from "@/lib/notifications";
 
 export async function PUT(
   req: NextRequest,
@@ -32,7 +34,7 @@ export async function PUT(
 
     const updated = await prisma.answer.update({
       where: { id: params.id },
-      data: { content: parsed.data.content },
+      data: { content: await sanitizeHtml(parsed.data.content) },
       include: {
         author: { select: { id: true, name: true, image: true } },
       },
@@ -65,11 +67,24 @@ export async function DELETE(
       return NextResponse.json({ error: "无权删除此回答" }, { status: 403 });
     }
 
-    await prisma.answer.delete({ where: { id: params.id } });
+    // Keep the denormalised counters and the question status consistent with
+    // the deleted answer, in a single transaction.
+    await prisma.$transaction(async (tx) => {
+      await tx.answer.delete({ where: { id: params.id } });
 
-    await prisma.question.update({
-      where: { id: answer.questionId },
-      data: { answerCount: { decrement: 1 } },
+      const question = await tx.question.findUnique({
+        where: { id: answer.questionId },
+        select: { answerCount: true, status: true },
+      });
+
+      await tx.question.update({
+        where: { id: answer.questionId },
+        data: {
+          answerCount: Math.max(0, (question?.answerCount ?? 1) - 1),
+          // Deleting the accepted answer reopens the question.
+          ...(answer.accepted && question?.status === "solved" ? { status: "open" } : {}),
+        },
+      });
     });
 
     return NextResponse.json({ message: "回答已删除" });
@@ -90,7 +105,7 @@ export async function PATCH(
 
     const answer = await prisma.answer.findUnique({
       where: { id: params.id },
-      include: { question: { select: { authorId: true } } },
+      include: { question: { select: { id: true, authorId: true, title: true, slug: true } } },
     });
     if (!answer) {
       return NextResponse.json({ error: "回答不存在" }, { status: 404 });
@@ -101,17 +116,36 @@ export async function PATCH(
       return NextResponse.json({ error: "只有提问者可以采纳回答" }, { status: 403 });
     }
 
-    await prisma.answer.updateMany({
-      where: { questionId: answer.questionId },
-      data: { accepted: false },
+    const updated = await prisma.$transaction(async (tx) => {
+      await tx.answer.updateMany({
+        where: { questionId: answer.questionId },
+        data: { accepted: false },
+      });
+
+      const accepted = await tx.answer.update({
+        where: { id: params.id },
+        data: { accepted: true },
+        include: {
+          author: { select: { id: true, name: true, image: true } },
+        },
+      });
+
+      // Accepting an answer marks the question as solved — without this the
+      // "已解决" badge and the solved filter could never light up.
+      await tx.question.update({
+        where: { id: answer.questionId },
+        data: { status: "solved" },
+      });
+
+      return accepted;
     });
 
-    const updated = await prisma.answer.update({
-      where: { id: params.id },
-      data: { accepted: true },
-      include: {
-        author: { select: { id: true, name: true, image: true } },
-      },
+    await createNotification({
+      userId: answer.authorId,
+      actorId: userId,
+      type: "accepted",
+      message: `${session.user?.name || "提问者"} 采纳了你在「${answer.question.title}」下的回答`,
+      link: `/questions/${answer.question.slug}`,
     });
 
     return NextResponse.json(updated);

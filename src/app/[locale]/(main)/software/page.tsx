@@ -14,6 +14,7 @@ export const metadata: Metadata = {
 const CATEGORIES = [
   { value: "", label: "全部", icon: Package },
   { value: "development", label: "开发", icon: Wrench },
+  { value: "library", label: "库/框架", icon: Package },
   { value: "tool", label: "工具", icon: Wrench },
   { value: "website", label: "网站", icon: Globe },
   { value: "game", label: "游戏", icon: Gamepad2 },
@@ -22,10 +23,26 @@ const CATEGORIES = [
 
 const CATEGORY_LABELS: Record<string, string> = {
   development: "开发",
+  library: "库/框架",
   tool: "工具",
   website: "网站",
   game: "游戏",
   other: "其他",
+}
+
+/** Software descriptions are rich HTML; cards show a plain-text preview. */
+function plainText(html: string, max = 200): string {
+  return html
+    .replace(/<[^>]*>/g, " ")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#x27;/g, "'")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, max)
 }
 
 const PAGE_SIZE = 12
@@ -122,7 +139,7 @@ export default async function SoftwarePage({ searchParams }: SoftwarePageProps) 
 
             {/* Description */}
             <p className="mb-3 text-sm text-muted-foreground line-clamp-2 leading-relaxed">
-              {s.description}
+              {plainText(s.description)}
             </p>
 
             {/* Footer */}

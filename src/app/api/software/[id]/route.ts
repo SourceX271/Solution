@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { auth } from "@/lib/auth";
 import { softwareSchema } from "@/lib/validations";
+import { bumpTagUsage } from "@/lib/tags";
 
 export async function GET(
   req: NextRequest,
@@ -88,7 +89,10 @@ export async function DELETE(
       return NextResponse.json({ error: "请先登录" }, { status: 401 });
     }
 
-    const software = await prisma.software.findUnique({ where: { id: params.id } });
+    const software = await prisma.software.findUnique({
+      where: { id: params.id },
+      include: { tags: { select: { slug: true } } },
+    });
     if (!software) {
       return NextResponse.json({ error: "软件条目不存在" }, { status: 404 });
     }
@@ -100,6 +104,7 @@ export async function DELETE(
     }
 
     await prisma.software.delete({ where: { id: params.id } });
+    await bumpTagUsage(software.tags.map((t) => t.slug), -1);
 
     return NextResponse.json({ message: "软件条目已删除" });
   } catch (error) {

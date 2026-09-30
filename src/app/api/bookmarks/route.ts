@@ -21,6 +21,21 @@ export async function GET(req: NextRequest) {
   }
 }
 
+const BOOKMARK_TARGETS = ["article", "question", "software"] as const;
+
+async function targetExists(targetType: string, targetId: string): Promise<boolean> {
+  switch (targetType) {
+    case "article":
+      return !!(await prisma.article.findUnique({ where: { id: targetId }, select: { id: true } }));
+    case "question":
+      return !!(await prisma.question.findUnique({ where: { id: targetId }, select: { id: true } }));
+    case "software":
+      return !!(await prisma.software.findUnique({ where: { id: targetId }, select: { id: true } }));
+    default:
+      return false;
+  }
+}
+
 export async function POST(req: NextRequest) {
   try {
     const session = await auth();
@@ -35,6 +50,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "缺少目标类型或ID" }, { status: 400 });
     }
 
+    if (!(BOOKMARK_TARGETS as readonly string[]).includes(targetType)) {
+      return NextResponse.json({ error: "无效的目标类型" }, { status: 400 });
+    }
+
     const userId = (session.user as any).id;
 
     const existing = await prisma.bookmark.findUnique({
@@ -46,6 +65,10 @@ export async function POST(req: NextRequest) {
     if (existing) {
       await prisma.bookmark.delete({ where: { id: existing.id } });
       return NextResponse.json({ bookmarked: false, message: "已取消收藏" });
+    }
+
+    if (!(await targetExists(targetType, targetId))) {
+      return NextResponse.json({ error: "收藏目标不存在" }, { status: 404 });
     }
 
     const bookmark = await prisma.bookmark.create({

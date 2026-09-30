@@ -82,7 +82,7 @@
     "loginFailed": "Login failed, please try again",
     "registerError": "Registration failed, please try again",
     "nameMin": "Name must be at least 2 characters",
-    "passwordMin": "Password must be at least 6 characters",
+    "passwordMin": "Password must be at least 8 characters and include a letter and a digit",
     "invalidEmail": "Please enter a valid email address"
   },
   "docs": {

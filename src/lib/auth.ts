@@ -4,6 +4,7 @@ import GitHub from "next-auth/providers/github";
 import { compare } from "bcryptjs";
 import { prisma } from "@/lib/db";
 import { loginSchema } from "@/lib/validations";
+import { checkRateLimit, getRateLimitKey } from "@/lib/rate-limit";
 import type { NextAuthConfig } from "next-auth";
 
 export const authConfig: NextAuthConfig = {
@@ -38,11 +39,22 @@ export const authConfig: NextAuthConfig = {
         email: { label: "邮箱", type: "email" },
         password: { label: "密码", type: "password" },
       },
-      async authorize(credentials) {
+      async authorize(credentials, request) {
         const parsed = loginSchema.safeParse(credentials);
         if (!parsed.success) return null;
 
         const { email, password } = parsed.data;
+
+        // Throttle credential guessing per IP + account. Without this the
+        // credentials endpoint accepted unlimited attempts.
+        if (request) {
+          const { allowed } = checkRateLimit(
+            getRateLimitKey(request as Request, `login:${email.toLowerCase()}`),
+            { windowMs: 10 * 60 * 1000, maxRequests: 10 }
+          );
+          if (!allowed) return null;
+        }
+
         const user = await prisma.user.findUnique({ where: { email } });
         if (!user || !user.passwordHash) return null;
 

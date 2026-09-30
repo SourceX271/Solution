@@ -9,7 +9,14 @@ import { Loader2, Github, Mail, ArrowRight, Lock } from "lucide-react";
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const callbackUrl = searchParams.get("callbackUrl") ?? "/";
+  // Only allow same-site relative paths: an attacker could otherwise craft
+  // /login?callbackUrl=https://evil.example to bounce users off-site after
+  // a successful login (open redirect / phishing).
+  const rawCallbackUrl = searchParams.get("callbackUrl") ?? "/";
+  const callbackUrl =
+    rawCallbackUrl.startsWith("/") && !rawCallbackUrl.startsWith("//") && !rawCallbackUrl.startsWith("/\\")
+      ? rawCallbackUrl
+      : "/";
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");

@@ -44,7 +44,7 @@ export function ArticleEditButton({
       const res = await fetch(`/api/articles/${articleId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title: title.trim(), content, excerpt: excerpt.trim() || undefined, problem: problem.trim() || undefined, category }),
+        body: JSON.stringify({ title: title.trim(), content, excerpt: excerpt.trim() || undefined, problem: problem.trim(), category }),
       })
       if (!res.ok) {
         const data = await res.json()

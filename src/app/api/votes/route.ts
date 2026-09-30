@@ -3,6 +3,24 @@ import { prisma } from "@/lib/db";
 import { auth } from "@/lib/auth";
 import { checkRateLimit, getRateLimitKey } from "@/lib/rate-limit";
 
+const VOTE_TARGETS = ["article", "question", "answer", "software"] as const;
+type VoteTarget = (typeof VOTE_TARGETS)[number];
+
+async function targetExists(targetType: string, targetId: string): Promise<boolean> {
+  switch (targetType) {
+    case "article":
+      return !!(await prisma.article.findUnique({ where: { id: targetId }, select: { id: true } }));
+    case "question":
+      return !!(await prisma.question.findUnique({ where: { id: targetId }, select: { id: true } }));
+    case "answer":
+      return !!(await prisma.answer.findUnique({ where: { id: targetId }, select: { id: true } }));
+    case "software":
+      return !!(await prisma.software.findUnique({ where: { id: targetId }, select: { id: true } }));
+    default:
+      return false;
+  }
+}
+
 export async function POST(req: NextRequest) {
   try {
     const session = await auth();
@@ -22,6 +40,16 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "缺少目标类型或ID" }, { status: 400 });
     }
 
+    // Whitelist the target type: an arbitrary string used to be accepted and
+    // written into the Vote table, creating orphan rows nothing could clean up.
+    if (!(VOTE_TARGETS as readonly string[]).includes(targetType)) {
+      return NextResponse.json({ error: "无效的目标类型" }, { status: 400 });
+    }
+
+    if (!(await targetExists(targetType, targetId))) {
+      return NextResponse.json({ error: "投票目标不存在" }, { status: 404 });
+    }
+
     const userId = (session.user as any).id;
 
     // Software rating: allow values 1-5
@@ -30,69 +58,43 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "评分值必须为1-5的整数" }, { status: 400 });
       }
 
-      const existing = await prisma.vote.findUnique({
-        where: { userId_targetType_targetId: { userId, targetType, targetId } },
-      });
-
-      let oldValue = 0;
-      if (existing) {
-        oldValue = existing.value;
-        if (existing.value === value) {
-          // Cancel rating
-          await prisma.vote.delete({ where: { id: existing.id } });
-          // Recalculate software rating
-          const agg = await prisma.vote.aggregate({
-            where: { targetType: "software", targetId },
-            _sum: { value: true },
-            _count: true,
-          });
-          const newCount = agg._count;
-          const newRating = newCount > 0 ? (agg._sum?.value ?? 0) / newCount : 0;
-          await prisma.software.update({
-            where: { id: targetId },
-            data: { rating: Math.round(newRating * 10) / 10, ratingCount: newCount },
-          });
-          return NextResponse.json({
-            voted: false,
-            message: "已取消评分",
-            rating: Math.round(newRating * 10) / 10,
-            ratingCount: newCount,
-          });
-        } else {
-          // Update rating
-          await prisma.vote.update({
-            where: { id: existing.id },
-            data: { value },
-          });
-        }
-      } else {
-        // New rating
-        await prisma.vote.create({
-          data: { userId, targetType, targetId, value },
+      // Write the rating and the denormalised aggregates atomically, otherwise
+      // two concurrent raters can leave Software.rating out of sync.
+      const { rating, ratingCount, cancelled, isUpdate } = await prisma.$transaction(async (tx) => {
+        const existing = await tx.vote.findUnique({
+          where: { userId_targetType_targetId: { userId, targetType, targetId } },
         });
-      }
 
-      // Recalculate with transaction correctness
-      const agg = await prisma.vote.aggregate({
-        where: { targetType: "software", targetId },
-        _sum: { value: true },
-        _count: true,
+        const cancel = !!existing && existing.value === value;
+        if (cancel) {
+          await tx.vote.delete({ where: { id: existing!.id } });
+        } else if (existing) {
+          await tx.vote.update({ where: { id: existing.id }, data: { value } });
+        } else {
+          await tx.vote.create({ data: { userId, targetType, targetId, value } });
+        }
+
+        const agg = await tx.vote.aggregate({
+          where: { targetType: "software", targetId },
+          _sum: { value: true },
+          _count: true,
+        });
+        const count = agg._count;
+        const nextRating = count > 0 ? Math.round(((agg._sum?.value ?? 0) / count) * 10) / 10 : 0;
+
+        await tx.software.update({
+          where: { id: targetId },
+          data: { rating: nextRating, ratingCount: count },
+        });
+
+        return { rating: nextRating, ratingCount: count, cancelled: cancel, isUpdate: !!existing };
       });
-      const newCount = agg._count;
-      const newRating = newCount > 0 ? (agg._sum?.value ?? 0) / newCount : 0;
-      const roundedRating = Math.round(newRating * 10) / 10;
 
-      await prisma.software.update({
-        where: { id: targetId },
-        data: { rating: roundedRating, ratingCount: newCount },
-      });
-
-      const isUpdate = existing ? true : false;
       return NextResponse.json({
-        voted: true,
-        message: isUpdate ? "已更新评分" : "评分成功",
-        rating: roundedRating,
-        ratingCount: newCount,
+        voted: !cancelled,
+        message: cancelled ? "已取消评分" : isUpdate ? "已更新评分" : "评分成功",
+        rating,
+        ratingCount,
       });
     }
 

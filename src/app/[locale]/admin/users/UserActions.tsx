@@ -7,8 +7,11 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select"
 import { MoreHorizontal } from "lucide-react"
+import { toast } from "sonner"
 
-const roles = ["USER", "AUTHOR", "MODERATOR", "ADMIN"]
+// Keep in sync with z.enum(["USER","ADMIN"]) in api/admin/users/[id]/route.ts:
+// AUTHOR/MODERATOR were offered but always rejected with 400.
+const roles = ["USER", "ADMIN"]
 
 interface UserActionsProps {
   userId: string
@@ -21,7 +24,12 @@ export function UserActions({ userId, currentRole }: UserActionsProps) {
   const [loading, setLoading] = useState(false)
 
   async function handleRoleChange(newRole: string) {
+    if (newRole === role) return
+    if (!window.confirm(`确定将用户角色修改为 ${newRole} 吗？`)) return
+
     setLoading(true)
+    const previous = role
+    setRole(newRole)
     try {
       const res = await fetch(`/api/admin/users/${userId}`, {
         method: "PUT",
@@ -29,9 +37,16 @@ export function UserActions({ userId, currentRole }: UserActionsProps) {
         body: JSON.stringify({ role: newRole }),
       })
       if (res.ok) {
-        setRole(newRole)
+        toast.success("角色已更新")
         router.refresh()
+      } else {
+        const data = await res.json().catch(() => null)
+        setRole(previous)
+        toast.error(data?.error || "角色更新失败")
       }
+    } catch {
+      setRole(previous)
+      toast.error("角色更新失败，请检查网络")
     } finally {
       setLoading(false)
     }

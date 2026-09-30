@@ -6,11 +6,13 @@ import { SettingsForm } from "./SettingsForm"
 export const dynamic = "force-dynamic"
 
 export default async function SettingsPage() {
-  let config = await prisma.siteConfig.findUnique({ where: { id: "main" } })
-
-  if (!config) {
-    config = await prisma.siteConfig.create({ data: { id: "main" } })
-  }
+  // A GET must not create rows; upsert also removes the concurrent-first-hit
+  // race that made two simultaneous visits throw P2002.
+  const config = await prisma.siteConfig.upsert({
+    where: { id: "main" },
+    update: {},
+    create: { id: "main" },
+  })
 
   const [articles, questions, software] = await Promise.all([
     prisma.article.findMany({

@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -80,8 +80,13 @@ export function SettingsForm({ user }: { user: UserData }) {
 
   const handlePasswordChange = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (newPassword.length < 6) {
-      toast.error("新密码至少6位");
+    // Mirror passwordChangeSchema in src/lib/validations.ts (8+ chars, letter + digit).
+    if (newPassword.length < 8) {
+      toast.error("新密码至少8位");
+      return;
+    }
+    if (!/[a-zA-Z]/.test(newPassword) || !/[0-9]/.test(newPassword)) {
+      toast.error("新密码需同时包含字母和数字");
       return;
     }
     if (newPassword !== confirmPassword) {
@@ -160,7 +165,7 @@ export function SettingsForm({ user }: { user: UserData }) {
             </div>
             <div>
               <Label htmlFor="new-password">新密码</Label>
-              <Input id="new-password" type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} required minLength={6} />
+              <Input id="new-password" type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} required minLength={8} />
             </div>
             <div>
               <Label htmlFor="confirm-password">确认新密码</Label>

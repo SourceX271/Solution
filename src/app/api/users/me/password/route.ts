@@ -1,18 +1,25 @@
-﻿import { NextRequest } from "next/server";
 import { hash, compare } from "bcryptjs";
 import { prisma } from "@/lib/db";
 import { apiHandler, successResponse, AppError } from "@/lib/errors";
+import { passwordChangeSchema } from "@/lib/validations";
+import { checkRateLimit, getRateLimitKey } from "@/lib/rate-limit";
 
 export const PUT = apiHandler({ auth: "required" }, async (req, ctx) => {
-  const { currentPassword, newPassword } = await req.json();
-
-  if (!currentPassword || !newPassword) {
-    throw new AppError(400, "请填写当前密码和新密码");
+  // Throttle password attempts: without this, a stolen session (or a shoulder
+  // surfer) could brute-force the current password without limit.
+  const { allowed } = checkRateLimit(getRateLimitKey(req, "password-change"), {
+    windowMs: 15 * 60 * 1000,
+    maxRequests: 5,
+  });
+  if (!allowed) {
+    throw new AppError(429, "尝试过于频繁，请稍后再试");
   }
 
-  if (newPassword.length < 8) {
-    throw new AppError(400, "新密码至少8位");
+  const parsed = passwordChangeSchema.safeParse(await req.json());
+  if (!parsed.success) {
+    throw new AppError(400, parsed.error.errors[0].message);
   }
+  const { currentPassword, newPassword } = parsed.data;
 
   const user = await prisma.user.findUnique({
     where: { id: ctx.session!.user.id },
@@ -26,6 +33,10 @@ export const PUT = apiHandler({ auth: "required" }, async (req, ctx) => {
   const isValid = await compare(currentPassword, user.passwordHash);
   if (!isValid) {
     throw new AppError(400, "当前密码错误");
+  }
+
+  if (await compare(newPassword, user.passwordHash)) {
+    throw new AppError(400, "新密码不能与当前密码相同");
   }
 
   const newHash = await hash(newPassword, 12);

@@ -1,9 +1,12 @@
-﻿node_modules/
+node_modules/
 .next/
 *.db
 *.db-journal
-.env.local
-.env.production
+# Never bake secrets into image layers: this repo has a committed .env.
+.env
+.env.*
+!.env.example
 dist/
 .turbo/
 coverage/
+.git/

@@ -1,4 +1,10 @@
-﻿import { prisma } from "@/lib/db";
+import { prisma } from "@/lib/db";
+
+// Without a dynamic marker this route was prerendered at build time, so the
+// published feed never changed after deployment (and in Docker it baked the
+// empty build-time database). Request-time generation + the Cache-Control
+// header below keeps it fresh without hitting the DB on every request.
+export const dynamic = "force-dynamic";
 
 export async function GET() {
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";

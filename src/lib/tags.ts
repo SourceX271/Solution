@@ -60,3 +60,32 @@ export function parseTagInput(tags: unknown): string[] {
   }
   return [];
 }
+
+/**
+ * Keep Tag.usageCount in sync with the number of content items carrying the tag.
+ *
+ * Nothing used to update this column, so every tag showed "0" and the
+ * "热门标签" ordering was meaningless. Failures are logged, never thrown:
+ * the counter is a convenience, not the source of truth.
+ */
+export async function bumpTagUsage(slugs: string[], delta: 1 | -1): Promise<void> {
+  const unique = [...new Set(slugs.filter(Boolean))];
+  if (unique.length === 0) return;
+
+  try {
+    if (delta > 0) {
+      await prisma.tag.updateMany({
+        where: { slug: { in: unique } },
+        data: { usageCount: { increment: delta } },
+      });
+    } else {
+      // Never decrement below zero (e.g. content created before this counter existed).
+      await prisma.tag.updateMany({
+        where: { slug: { in: unique }, usageCount: { gt: 0 } },
+        data: { usageCount: { increment: delta } },
+      });
+    }
+  } catch (error) {
+    console.error("[tags] failed to update usageCount", unique, error);
+  }
+}

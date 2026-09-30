@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { auth } from "@/lib/auth";
 import { articleSchema } from "@/lib/validations";
+import { bumpTagUsage } from "@/lib/tags";
 
 export async function GET(
   req: NextRequest,
@@ -70,6 +71,7 @@ export async function PUT(
         title: parsed.data.title,
         content: parsed.data.content,
         excerpt: parsed.data.excerpt,
+        problem: parsed.data.problem,
         category: parsed.data.category,
         status: parsed.data.status,
       },
@@ -94,7 +96,10 @@ export async function DELETE(
       return NextResponse.json({ error: "请先登录" }, { status: 401 });
     }
 
-    const article = await prisma.article.findUnique({ where: { id: params.id } });
+    const article = await prisma.article.findUnique({
+      where: { id: params.id },
+      include: { tags: { select: { slug: true } } },
+    });
     if (!article) {
       return NextResponse.json({ error: "文章不存在" }, { status: 404 });
     }
@@ -106,6 +111,7 @@ export async function DELETE(
     }
 
     await prisma.article.delete({ where: { id: params.id } });
+    await bumpTagUsage(article.tags.map((t) => t.slug), -1);
 
     return NextResponse.json({ message: "文章已删除" });
   } catch (error) {

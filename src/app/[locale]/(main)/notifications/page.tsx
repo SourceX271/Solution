@@ -1,10 +1,11 @@
-﻿import type { Metadata } from "next";
+import type { Metadata } from "next";
 import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { auth } from "@/lib/auth";
 import { cn, formatRelativeTime } from "@/lib/utils";
 import { redirect } from "next/navigation";
 import { Bell, CheckCheck, MessageCircle, MessageSquare, ThumbsUp, UserPlus } from "lucide-react";
+import { MarkAllReadButton } from "./MarkAllReadButton";
 
 export const metadata: Metadata = { title: "通知中心" };
 export const dynamic = "force-dynamic";
@@ -15,6 +16,10 @@ const typeConfig: Record<string, { icon: typeof Bell; color: string; bg: string 
   new_comment: { icon: MessageSquare, color: "text-violet-500", bg: "bg-violet-50 dark:bg-violet-950/30" },
   vote: { icon: ThumbsUp, color: "text-amber-500", bg: "bg-amber-50 dark:bg-amber-950/30" },
   new_follower: { icon: UserPlus, color: "text-pink-500", bg: "bg-pink-50 dark:bg-pink-950/30" },
+  // Aliases written by createNotification() in src/lib/notifications.ts
+  comment: { icon: MessageSquare, color: "text-violet-500", bg: "bg-violet-50 dark:bg-violet-950/30" },
+  answer: { icon: MessageCircle, color: "text-blue-500", bg: "bg-blue-50 dark:bg-blue-950/30" },
+  accepted: { icon: CheckCheck, color: "text-emerald-500", bg: "bg-emerald-50 dark:bg-emerald-950/30" },
 };
 
 export default async function NotificationsPage() {
@@ -41,17 +46,7 @@ export default async function NotificationsPage() {
             {unreadCount > 0 ? `${unreadCount} 条未读通知` : "全部已读"}
           </p>
         </div>
-        {unreadCount > 0 && (
-          <form action="/api/notifications/mark-all" method="POST">
-            <button
-              type="submit"
-              className="inline-flex items-center gap-1.5 rounded-full border px-4 py-2 text-xs font-medium hover:bg-accent transition-all shadow-sm"
-            >
-              <CheckCheck className="h-3.5 w-3.5" />
-              全部已读
-            </button>
-          </form>
-        )}
+        {unreadCount > 0 && <MarkAllReadButton />}
       </div>
 
       {/* Notifications */}

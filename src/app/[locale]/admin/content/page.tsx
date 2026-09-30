@@ -8,6 +8,7 @@ import {
 import { FileText, HelpCircle, Package } from "lucide-react"
 import { ContentActions } from "./ContentActions"
 import { StatusFilter } from "./StatusFilter"
+import { toPositiveInt } from "@/lib/errors"
 
 export const dynamic = "force-dynamic"
 
@@ -67,9 +68,15 @@ export default async function ContentPage({
 }: {
   searchParams: { type?: string; status?: string; page?: string }
 }) {
-  const type = (searchParams.type as ContentType) || "articles"
+  // `?type=` comes straight from the URL: an unknown value used to crash the
+  // page (`typeLabels[type].icon` on undefined). Normalise it instead.
+  const requestedType = searchParams.type
+  const type: ContentType =
+    requestedType && Object.prototype.hasOwnProperty.call(typeLabels, requestedType)
+      ? (requestedType as ContentType)
+      : "articles"
   const status = searchParams.status || "all"
-  const page = Math.max(1, parseInt(searchParams.page || "1"))
+  const page = toPositiveInt(searchParams.page ?? null, 1)
   const { items, total } = await getContent(type, status, page)
   const totalPages = Math.ceil(total / PAGE_SIZE)
   const Icon = typeLabels[type].icon
@@ -141,7 +148,7 @@ export default async function ContentPage({
                       {new Date(item.createdAt).toLocaleDateString("zh-CN")}
                     </TableCell>
                     <TableCell className="text-right">
-                      <ContentActions type={type} id={item.id} status={item.status} />
+                      <ContentActions type={type} id={item.id} slug={item.slug} status={item.status} />
                     </TableCell>
                   </TableRow>
                 ))

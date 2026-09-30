@@ -17,6 +17,7 @@ import {
 import { RichTextEditor } from "./RichTextEditor"
 import { ArrowLeft, Save, Trash2 } from "lucide-react"
 import Link from "next/link"
+import { toast } from "sonner"
 
 interface EditContentFormProps {
   type: string
@@ -42,7 +43,12 @@ export function EditContentForm({ type, item }: EditContentFormProps) {
   const [excerpt, setExcerpt] = useState(item.excerpt || "")
   const [category, setCategory] = useState(item.category || "tutorial")
   const [status, setStatus] = useState(item.status || "draft")
-  const [tags, setTags] = useState(item.tags || "[]")
+  const [tags, setTags] = useState(
+    // The API returns the tag relation; a raw array used to render as "[object Object]".
+    Array.isArray(item.tags)
+      ? item.tags.map((t: { name?: string }) => t.name).filter(Boolean).join(", ")
+      : item.tags || ""
+  )
   const [url, setUrl] = useState(item.url || "")
   const [coverImage, setCoverImage] = useState(item.coverImage || "")
   const [image, setImage] = useState(item.image || "")
@@ -80,9 +86,15 @@ export function EditContentForm({ type, item }: EditContentFormProps) {
       })
 
       if (res.ok) {
+        toast.success("保存成功")
         router.refresh()
         router.push("/admin/content?type=" + type)
+      } else {
+        const data = await res.json().catch(() => null)
+        toast.error(data?.error || "保存失败")
       }
+    } catch {
+      toast.error("保存失败，请检查网络")
     } finally {
       setSaving(false)
     }
@@ -92,7 +104,15 @@ export function EditContentForm({ type, item }: EditContentFormProps) {
     setDeleting(true)
     try {
       const res = await fetch("/api/admin/content/" + type + "/" + item.id, { method: "DELETE" })
-      if (res.ok) router.push("/admin/content?type=" + type)
+      if (res.ok) {
+        toast.success("已删除")
+        router.push("/admin/content?type=" + type)
+      } else {
+        const data = await res.json().catch(() => null)
+        toast.error(data?.error || "删除失败")
+      }
+    } catch {
+      toast.error("删除失败，请检查网络")
     } finally { setDeleting(false) }
   }
 
@@ -190,8 +210,8 @@ export function EditContentForm({ type, item }: EditContentFormProps) {
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label>标签（JSON数组）</Label>
-                <Input value={tags} onChange={(e) => setTags(e.target.value)} placeholder='["tag1", "tag2"]' />
+                <Label>标签（逗号分隔）</Label>
+                <Input value={tags} onChange={(e) => setTags(e.target.value)} placeholder="windows, 性能优化" />
               </div>
               {(type === "articles" || type === "software") && (
                 <div className="space-y-2">

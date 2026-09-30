@@ -1,4 +1,4 @@
-﻿export default function HomeLoading() {
+export default function HomeLoading() {
   return (
     <div className="min-h-screen">
       {/* Hero skeleton */}
@@ -50,8 +50,10 @@
           </div>
           <aside className="w-full lg:w-64 lg:shrink-0">
             <div className="rounded-xl border p-5 space-y-2">
-              {[...Array(12)].map((_, i) => (
-                <div key={i} className="skeleton h-7 rounded-full" style={{ width: `${60 + Math.random() * 40}%` }} />
+              {[75, 55, 88, 62, 95, 70, 82, 58, 90, 66, 78, 85].map((width, i) => (
+                // Deterministic widths: Math.random() here rendered differently
+                // on the server and the client → hydration mismatch.
+                <div key={i} className="skeleton h-7 rounded-full" style={{ width: `${width}%` }} />
               ))}
             </div>
           </aside>

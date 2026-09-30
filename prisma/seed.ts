@@ -28,16 +28,26 @@ async function main() {
   console.log("Tags created");
 
   // Create users
+  // Seed credentials: override in production (SEED_ADMIN_PASSWORD / SEED_USER_PASSWORD).
+  // The built-in defaults are well-known and must not be used on a public site.
+  const adminPassword = process.env.SEED_ADMIN_PASSWORD || "admin123";
+  const userPassword = process.env.SEED_USER_PASSWORD || "user1234";
+  if (!process.env.SEED_ADMIN_PASSWORD) {
+    console.warn(
+      "[seed] WARNING: using the default admin password. Set SEED_ADMIN_PASSWORD and change it after the first login."
+    );
+  }
+
   const admin = await prisma.user.upsert({
     where: { email: "admin@solution.local" },
     update: {},
-    create: { name: "管理员", email: "admin@solution.local", passwordHash: await hash("admin123", 12), role: "ADMIN", bio: "网站管理员" },
+    create: { name: "管理员", email: "admin@solution.local", passwordHash: await hash(adminPassword, 12), role: "ADMIN", bio: "网站管理员" },
   });
 
   const user = await prisma.user.upsert({
     where: { email: "user@solution.local" },
     update: {},
-    create: { name: "测试用户", email: "user@solution.local", passwordHash: await hash("user123", 12), role: "USER", bio: "一个热爱技术的普通用户" },
+    create: { name: "测试用户", email: "user@solution.local", passwordHash: await hash(userPassword, 12), role: "USER", bio: "一个热爱技术的普通用户" },
   });
   console.log("Users created");
 
@@ -102,13 +112,26 @@ async function main() {
     },
   });
 
-  await prisma.answer.create({
-    data: {
-      content: "Windows Defender 对于普通用户来说已经足够用了。它内置于 Windows 10/11，不占用额外资源，防护能力在独立测试中表现优秀。如果需要更强的保护，可以考虑 Bitdefender Free 或 Kaspersky Free。",
-      questionId: q1.id,
-      authorId: admin.id,
-    },
-  });
+  // Answers are seeded idempotently: creating them unconditionally added a
+  // duplicate answer on every re-run while Question.answerCount stayed 0.
+  const seedAnswer = async (
+    questionId: string,
+    content: string,
+    authorId: string
+  ) => {
+    const existing = await prisma.answer.findFirst({ where: { questionId, content } });
+    if (!existing) {
+      await prisma.answer.create({ data: { content, questionId, authorId } });
+    }
+    const count = await prisma.answer.count({ where: { questionId } });
+    await prisma.question.update({ where: { id: questionId }, data: { answerCount: count } });
+  };
+
+  await seedAnswer(
+    q1.id,
+    "Windows Defender 对于普通用户来说已经足够用了。它内置于 Windows 10/11，不占用额外资源，防护能力在独立测试中表现优秀。如果需要更强的保护，可以考虑 Bitdefender Free 或 Kaspersky Free。",
+    admin.id
+  );
 
   const q2 = await prisma.question.upsert({
     where: { slug: "chrome-memory-issue" },
@@ -123,13 +146,11 @@ async function main() {
     },
   });
 
-  await prisma.answer.create({
-    data: {
-      content: "可以尝试以下方法：1) 启用 Chrome 的内存节省模式；2) 关闭不用的标签页；3) 使用 OneTab 等标签管理扩展。如果还是不行，可以考虑换用 Microsoft Edge（同样是 Chromium 内核但内存管理更好）或 Firefox。",
-      questionId: q2.id,
-      authorId: admin.id,
-    },
-  });
+  await seedAnswer(
+    q2.id,
+    "可以尝试以下方法：1) 启用 Chrome 的内存节省模式；2) 关闭不用的标签页；3) 使用 OneTab 等标签管理扩展。如果还是不行，可以考虑换用 Microsoft Edge（同样是 Chromium 内核但内存管理更好）或 Firefox。",
+    admin.id
+  );
   console.log("Questions and answers created");
 
   // Software

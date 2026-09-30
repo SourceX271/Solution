@@ -1,10 +1,27 @@
-import { exec } from "child_process";
+import { execFile } from "child_process";
 import { promisify } from "util";
 import { prisma } from "@/lib/db";
 import { generateSlug } from "@/lib/utils";
-import { resolveTags } from "@/lib/tags";
+import { resolveTags, bumpTagUsage } from "@/lib/tags";
 
-const execAsync = promisify(exec);
+const execFileAsync = promisify(execFile);
+
+/** Must stay in sync with SOURCES in crawler/main.py */
+const CRAWLER_SOURCES = [
+  "devto",
+  "stackoverflow_blog",
+  "csdn",
+  "zhihu",
+  "cnblogs",
+  "hashnode",
+  "hackernews",
+] as const;
+
+export type CrawlerSourceKey = (typeof CRAWLER_SOURCES)[number];
+
+export function isCrawlerSource(value: string): value is CrawlerSourceKey {
+  return (CRAWLER_SOURCES as readonly string[]).includes(value);
+}
 
 export interface CrawlResult {
   status: "success" | "error";
@@ -34,6 +51,9 @@ interface CrawlerRunOutput {
 
 const CRAWLER_EMAIL = "crawler@solution.local";
 
+/** Guards against overlapping crawls (cron + manual trigger at the same time). */
+let inFlight = false;
+
 /** 确保存在一个系统爬虫账号，抓取的文章挂在该账号下 */
 async function ensureCrawlerUser() {
   let user = await prisma.user.findUnique({ where: { email: CRAWLER_EMAIL } });
@@ -60,15 +80,69 @@ async function ensureCrawlerUser() {
  * 可在管理后台手动触发，也可由 instrumentation.ts 中的 node-cron 定时调用。
  */
 export async function runCrawler(opts: { source?: string; limit?: number } = {}): Promise<CrawlResult> {
-  const { source, limit = 5 } = opts;
+  const { source } = opts;
+  const limit = Math.min(Math.max(1, Math.trunc(opts.limit ?? 5) || 5), 50);
 
+  if (inFlight) {
+    return {
+      status: "error",
+      total: 0,
+      added: 0,
+      skipped: 0,
+      sourcesProcessed: 0,
+      message: "已有爬虫任务正在运行",
+    };
+  }
+
+  inFlight = true;
+  try {
+    return await runCrawlerUnsafe({ source, limit });
+  } finally {
+    inFlight = false;
+  }
+}
+
+async function runCrawlerUnsafe({ source, limit }: { source?: string; limit: number }): Promise<CrawlResult> {
   let stdout: string;
   try {
-    const sourceArg = source ? ` --source ${source}` : "";
-    const { stdout: out } = await execAsync(
-      `python -m crawler.main${sourceArg} --limit ${limit}`,
-      { timeout: 120000, maxBuffer: 1024 * 500 }
-    );
+    // Never interpolate user input into a shell command: pass an explicit
+    // argument vector to execFile and validate the source against the
+    // whitelist that crawler/main.py actually understands.
+    const args = ["-m", "crawler.main"];
+    if (source) {
+      if (!isCrawlerSource(source)) {
+        await prisma.crawlLog.create({
+          data: {
+            sourceId: source,
+            sourceName: source,
+            status: "error",
+            message: `未知的数据源: ${source}`,
+          },
+        });
+        return {
+          status: "error",
+          total: 0,
+          added: 0,
+          skipped: 0,
+          sourcesProcessed: 0,
+          message: `未知的数据源: ${source}`,
+        };
+      }
+      args.push("--source", source);
+    }
+    args.push("--limit", String(limit));
+
+    // Alpine's python3 package does not provide a bare `python` binary, while
+    // the Windows launcher usually has no `python3`.
+    const pythonBin =
+      process.env.PYTHON_BIN || (process.platform === "win32" ? "python" : "python3");
+
+    const { stdout: out } = await execFileAsync(pythonBin, args, {
+      timeout: 120000,
+      maxBuffer: 1024 * 1024 * 8,
+      windowsHide: true,
+      cwd: process.cwd(),
+    });
     stdout = out;
   } catch (err: any) {
     // Log the failure so it shows up in the admin panel
@@ -122,11 +196,17 @@ export async function runCrawler(opts: { source?: string; limit?: number } = {})
 
     const content = (item.content || title).slice(0, 100000);
     const tags = await resolveTags(item.tags ?? []);
-    const category = ["solution", "tutorial", "guide", "reference", "news"].includes(
-      item.category || ""
-    )
-      ? item.category!
-      : "news";
+    // Crawler sources emit their own categories ("tech"); map them onto the
+    // categories the site actually understands instead of discarding them.
+    const CATEGORY_MAP: Record<string, string> = {
+      tech: "news",
+      news: "news",
+      solution: "solution",
+      tutorial: "tutorial",
+      guide: "guide",
+      reference: "reference",
+    };
+    const category = CATEGORY_MAP[(item.category || "").toLowerCase()] ?? "news";
 
     try {
       await prisma.article.create({
@@ -148,6 +228,7 @@ export async function runCrawler(opts: { source?: string; limit?: number } = {})
           },
         },
       });
+      await bumpTagUsage(tags.map((t) => t.slug), 1);
       added++;
     } catch (err: any) {
       skipped++;

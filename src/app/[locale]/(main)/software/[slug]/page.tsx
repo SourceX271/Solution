@@ -2,6 +2,8 @@ import Link from "next/link"
 import { notFound } from "next/navigation"
 import { prisma } from "@/lib/db"
 import { formatDate, formatRelativeTime } from "@/lib/utils"
+import { sanitizeHtml } from "@/lib/sanitize"
+import { toRenderableHtml } from "@/lib/render"
 import { auth } from "@/lib/auth"
 import { resolveSlugRedirect } from "@/lib/slug-redirect"
 import { RatingWidget } from "@/components/client/RatingWidget"
@@ -26,11 +28,16 @@ export async function generateMetadata({ params }: SoftwarePageProps) {
     select: { name: true, description: true },
   })
   if (!software) return { title: "软件未找到" }
-  return { title: software.name, description: software.description }
+  return {
+    title: software.name,
+    // Descriptions are rich HTML; strip markup for the meta description.
+    description: software.description.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim().slice(0, 200),
+  }
 }
 
 const CATEGORY_LABELS: Record<string, string> = {
   development: "开发",
+  library: "库/框架",
   tool: "工具",
   website: "网站",
   game: "游戏",
@@ -64,6 +71,16 @@ export default async function SoftwarePage({ params }: SoftwarePageProps) {
         where: { userId_targetType_targetId: { userId, targetType: "software", targetId: software.id } },
       })
     : null
+
+  // The bookmark button used to be hardcoded to "not bookmarked", so clicking
+  // it on an already-saved item silently *removed* the bookmark.
+  const isBookmarked = userId
+    ? !!(await prisma.bookmark.findUnique({
+        where: { userId_targetType_targetId: { userId, targetType: "software", targetId: software.id } },
+      }))
+    : false
+
+  const descriptionHtml = await sanitizeHtml(toRenderableHtml(software.description))
 
   const isAuthor = userId === software.author.id
   const canEdit = isAuthor || userRole === "ADMIN"
@@ -184,14 +201,15 @@ export default async function SoftwarePage({ params }: SoftwarePageProps) {
               <h2 className="mb-3 text-lg font-semibold flex items-center gap-2">
                 简介
               </h2>
-              <p className="text-muted-foreground leading-relaxed whitespace-pre-wrap">
-                {software.description}
-              </p>
+              <div
+                className="prose-custom max-w-none text-muted-foreground leading-relaxed"
+                dangerouslySetInnerHTML={{ __html: descriptionHtml }}
+              />
             </div>
 
             {/* Actions */}
             <div className="flex items-center gap-3 border-t pt-6 pb-4 animate-fade-in-up stagger-2">
-              <BookmarkButton targetType="software" targetId={software.id} isBookmarked={false} />
+              <BookmarkButton targetType="software" targetId={software.id} isBookmarked={isBookmarked} />
               <ShareButton title={software.name} />
               {software.url && (
                 <a

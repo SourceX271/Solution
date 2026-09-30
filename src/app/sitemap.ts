@@ -1,5 +1,9 @@
-﻿import { MetadataRoute } from "next";
+import { MetadataRoute } from "next";
 import { prisma } from "@/lib/db";
+
+// Generate at request time: a static sitemap made `next build` require a
+// reachable, migrated database and broke clean Docker builds.
+export const dynamic = "force-dynamic";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";

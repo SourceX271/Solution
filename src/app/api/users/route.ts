@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { auth } from "@/lib/auth";
+import { toPositiveInt } from "@/lib/errors";
 
 export async function GET(req: NextRequest) {
   try {
@@ -10,8 +11,8 @@ export async function GET(req: NextRequest) {
     }
 
     const { searchParams } = new URL(req.url);
-    const page = parseInt(searchParams.get("page") || "1");
-    const limit = parseInt(searchParams.get("limit") || "20");
+    const page = toPositiveInt(searchParams.get("page"), 1);
+    const limit = toPositiveInt(searchParams.get("limit"), 20, 100);
     const search = searchParams.get("search");
     const skip = (page - 1) * limit;
 

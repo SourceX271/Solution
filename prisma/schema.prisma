@@ -78,6 +78,8 @@ model Article {
   @@index([category])
   @@index([authorId])
   @@index([createdAt])
+  // Crawler dedupe looks articles up by sourceUrl on every run.
+  @@index([sourceUrl])
 }
 
 model Question {
@@ -149,6 +151,8 @@ model Software {
   @@index([slug])
   @@index([category])
   @@index([status])
+  // The software list/search sort by rating then creation date.
+  @@index([rating, createdAt])
 }
 
 model Comment {
@@ -176,6 +180,8 @@ model Comment {
   @@index([parentId])
   @@index([articleId])
   @@index([questionId])
+  @@index([answerId])
+  @@index([softwareId])
   @@index([authorId])
 }
 

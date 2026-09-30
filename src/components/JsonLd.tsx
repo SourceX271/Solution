@@ -1,3 +1,18 @@
+/**
+ * Serialise structured data for a <script type="application/ld+json"> tag.
+ *
+ * JSON.stringify does not escape `<`, so a title/description containing
+ * `</script><script>…</script>` would close the tag and inject markup
+ * (stored XSS). Escape the HTML-sensitive characters to a JSON-escaped form,
+ * which parsers decode back to the original text.
+ */
+function serializeJsonLd(data: unknown): string {
+  return JSON.stringify(data)
+    .replace(/</g, "\\u003c")
+    .replace(/>/g, "\\u003e")
+    .replace(/&/g, "\\u0026");
+}
+
 export function ArticleJsonLd({
   title,
   description,
@@ -34,7 +49,7 @@ export function ArticleJsonLd({
   return (
     <script
       type="application/ld+json"
-      dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      dangerouslySetInnerHTML={{ __html: serializeJsonLd(jsonLd) }}
     />
   );
 }
@@ -74,7 +89,7 @@ export function SoftwareJsonLd({
   return (
     <script
       type="application/ld+json"
-      dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      dangerouslySetInnerHTML={{ __html: serializeJsonLd(jsonLd) }}
     />
   );
 }

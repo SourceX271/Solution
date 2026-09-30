@@ -74,7 +74,14 @@ class BaseSource(ABC):
                 return resp
             except (httpx.RequestError, httpx.HTTPStatusError) as exc:
                 last_exception = exc
-                if attempt < MAX_RETRIES:
+                # Retry transport errors and the transient statuses above, but
+                # fail fast on 4xx such as 403/404 (previously retried 3x).
+                retryable = isinstance(exc, httpx.RequestError) or (
+                    isinstance(exc, httpx.HTTPStatusError)
+                    and exc.response is not None
+                    and exc.response.status_code in RETRY_STATUSES
+                )
+                if retryable and attempt < MAX_RETRIES:
                     wait = RETRY_BACKOFF ** (attempt - 1)
                     logger.warning(
                         "Request to %s failed (attempt %d/%d): %s. Retrying in %.1fs...",
@@ -84,9 +91,12 @@ class BaseSource(ABC):
                     self.client.headers["User-Agent"] = random.choice(USER_AGENTS)
                 else:
                     logger.error(
-                        "All %d retries exhausted for %s: %s",
-                        MAX_RETRIES, url, exc,
+                        "Request to %s failed%s: %s",
+                        url,
+                        " (non-retryable)" if not retryable else f" after {attempt} attempts",
+                        exc,
                     )
+                    break
 
         raise last_exception or RuntimeError(f"Failed to fetch {url}")
 

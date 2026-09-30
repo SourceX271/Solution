@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env python3
+#!/usr/bin/env python3
 """Tech community article crawler with retry, rate-limiting and parallel execution.
 
 Fetches articles from multiple tech community sites and outputs
@@ -39,15 +39,22 @@ SOURCES = {
 
 def run_source(source_name: str, source_cls, limit: int) -> dict:
     logger.info("Running source: %s (limit=%d)", source_name, limit)
+    instance = None
     try:
         instance = source_cls()
         articles = instance.fetch(limit=limit)
-        instance.close()
         logger.info("Source %s returned %d articles", source_name, len(articles))
         return {"source": source_name, "status": "ok", "articles": articles, "count": len(articles)}
     except Exception:
         logger.exception("Source %s failed", source_name)
         return {"source": source_name, "status": "error", "articles": [], "count": 0, "error": str(sys.exc_info()[1])}
+    finally:
+        # Always release the HTTP connection pool, even when fetch() raised.
+        if instance is not None:
+            try:
+                instance.close()
+            except Exception:
+                logger.warning("Failed to close client for source %s", source_name)
 
 
 def main():
@@ -130,10 +137,15 @@ def main():
         if r["status"] == "ok":
             all_articles.extend(r["articles"])
 
+    succeeded = sum(1 for r in results if r["status"] == "ok")
+
     output = {
-        "status": "success",
+        # Report the real outcome: a run where every source failed used to be
+        # reported as "success", so operators could not tell "nothing new" from
+        # "the crawler is broken".
+        "status": "success" if succeeded > 0 else "error",
         "sources_processed": len(results),
-        "sources_succeeded": sum(1 for r in results if r["status"] == "ok"),
+        "sources_succeeded": succeeded,
         "total": len(all_articles),
         "results": results if args.format == "json" else [],
         "articles": all_articles,

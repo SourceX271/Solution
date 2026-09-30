@@ -1,8 +1,38 @@
 import Link from "next/link"
+import { redirect } from "next/navigation"
 import { ArrowLeft } from "lucide-react"
+import { auth } from "@/lib/auth"
+import { prisma } from "@/lib/db"
 import { AdminNav } from "./AdminNav"
 
-export default function AdminLayout({ children }: { children: React.ReactNode }) {
+/**
+ * Defense in depth: the middleware also guards /admin, but this layout is the
+ * last line of defence for every admin page. Without it a middleware matcher
+ * change (or the locale-prefixed /en/admin path) would expose the whole panel.
+ *
+ * The role is re-read from the database because the JWT keeps the role it was
+ * issued with, so a revoked admin would otherwise stay privileged until the
+ * token expires.
+ */
+export default async function AdminLayout({
+  children,
+  params,
+}: {
+  children: React.ReactNode
+  params: Promise<{ locale: string }>
+}) {
+  const session = await auth()
+  const userId = (session?.user as any)?.id as string | undefined
+
+  const currentUser = userId
+    ? await prisma.user.findUnique({ where: { id: userId }, select: { role: true } })
+    : null
+
+  if (!session || currentUser?.role !== "ADMIN") {
+    const { locale } = await params
+    redirect(locale === "en" ? "/en/login" : "/login")
+  }
+
   return (
     <div className="flex min-h-screen">
       <AdminNav />

@@ -11,9 +11,11 @@ export async function register() {
   const { default: cron } = await import("node-cron");
   const { runCrawler } = await import("@/lib/crawler-ingest");
 
-  const hours = Math.max(
-    1,
-    parseInt(process.env.CRAWLER_INTERVAL_HOURS || "24", 10) || 24
+  // node-cron rejects intervals above 23 (`0 */100 * * *` is invalid and would
+  // throw during startup), and 0 would schedule nothing.
+  const hours = Math.min(
+    23,
+    Math.max(1, parseInt(process.env.CRAWLER_INTERVAL_HOURS || "24", 10) || 24)
   );
   const cronExpr = `0 */${hours} * * *`; // every N hours at minute 0
 

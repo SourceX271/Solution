@@ -1,0 +1,6 @@
+# Shell scripts must keep LF endings: CRLF makes `sh` fail inside Linux
+# containers ("no such file or directory" / stray \r).
+*.sh text eol=lf
+Dockerfile text eol=lf
+*.py text eol=lf
+*.prisma text eol=lf

@@ -3,6 +3,7 @@ import { notFound } from "next/navigation"
 import { prisma } from "@/lib/db"
 import { formatDate, formatRelativeTime } from "@/lib/utils"
 import { highlightHtmlContent } from "@/lib/highlight"
+import { toRenderableHtml } from "@/lib/render"
 import { sanitizeHtml } from "@/lib/sanitize"
 import { auth } from "@/lib/auth"
 import { resolveSlugRedirect } from "@/lib/slug-redirect"
@@ -12,7 +13,6 @@ import { ShareButton } from "@/components/client/ShareButton"
 import { CommentSection } from "@/components/client/CommentSection"
 import { ReadingProgress } from "@/components/client/ReadingProgress"
 import { TableOfContents } from "@/components/client/TableOfContents"
-import { CodeBlock } from "@/components/client/CodeBlock"
 import { ViewTracker } from "@/components/client/ViewTracker"
 import { ArticleEditButton } from "@/components/client/ArticleEditButton"
 import { ArticleJsonLd } from "@/components/JsonLd"
@@ -45,40 +45,40 @@ const categoryLabels: Record<string, string> = {
   news: "资讯",
 }
 
+/** Slugify a heading and make it unique within the document. */
+function headingId(text: string, seen: Map<string, number>) {
+  const base =
+    text
+      .toLowerCase()
+      .replace(/[^a-z0-9\u4e00-\u9fff]+/g, "-")
+      .replace(/^-|-$/g, "") || "section";
+  const count = seen.get(base) ?? 0;
+  seen.set(base, count + 1);
+  return count === 0 ? base : `${base}-${count}`;
+}
+
 function extractHeadings(content: string) {
   const headings: { id: string; text: string; level: number }[] = []
+  const seen = new Map<string, number>()
   const regex = /<(h[2-4])[^>]*>(.*?)<\/h[2-4]>/gi
   let match
   while ((match = regex.exec(content)) !== null) {
     const level = parseInt(match[1].replace("h", ""))
     const text = match[2].replace(/<[^>]*>/g, "").trim()
-    const id = text.toLowerCase().replace(/[^a-z0-9\u4e00-\u9fff]+/g, "-").replace(/^-|-$/g, "")
-    headings.push({ id, text, level })
+    // Duplicate headings must get distinct ids, otherwise the TOC keys collide
+    // and every anchor jumps to the first occurrence.
+    headings.push({ id: headingId(text, seen), text, level })
   }
   return headings
 }
 
 function addIdsToHeadings(content: string): string {
+  const seen = new Map<string, number>()
   return content.replace(/<(h[2-4])([^>]*)>(.*?)<\/h[2-4]>/gi, (_, tag, attrs, text) => {
     const plainText = text.replace(/<[^>]*>/g, "").trim()
-    const id = plainText.toLowerCase().replace(/[^a-z0-9\u4e00-\u9fff]+/g, "-").replace(/^-|-$/g, "")
-    return `<${tag}${attrs} id="${id}">${text}</${tag}>`
+    const cleanAttrs = attrs.replace(/\s+id="[^"]*"/gi, "")
+    return `<${tag}${cleanAttrs} id="${headingId(plainText, seen)}">${text}</${tag}>`
   })
-}
-
-function injectCodeBlocks(html: string): string {
-  return html.replace(
-    /<pre><code class="hljs(?: language-([^"]*))?">([\s\S]*?)<\/code><\/pre>/g,
-    (_match, lang, code) => {
-      const escaped = code
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;")
-      const langAttr = lang ? ` data-lang="${lang}"` : ""
-      return `<div class="code-block-wrapper"${langAttr} data-code="${escaped}"></div>`
-    }
-  )
 }
 
 export default async function ArticlePage({ params }: ArticlePageProps) {
@@ -101,7 +101,7 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
     notFound()
   }
 
-  const highlightedContent = await highlightHtmlContent(article.content)
+  const highlightedContent = await highlightHtmlContent(toRenderableHtml(article.content))
   const processedContent = addIdsToHeadings(highlightedContent)
   const safeContent = await sanitizeHtml(processedContent)
   const headings = extractHeadings(safeContent)

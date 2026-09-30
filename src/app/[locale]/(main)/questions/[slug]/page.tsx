@@ -3,6 +3,7 @@ import { notFound } from "next/navigation"
 import { prisma } from "@/lib/db"
 import { formatRelativeTime } from "@/lib/utils"
 import { highlightHtmlContent } from "@/lib/highlight"
+import { toRenderableHtml } from "@/lib/render"
 import { sanitizeHtml } from "@/lib/sanitize"
 import { auth } from "@/lib/auth"
 import { resolveSlugRedirect } from "@/lib/slug-redirect"
@@ -124,7 +125,7 @@ export default async function QuestionPage({ params }: QuestionPageProps) {
     select: { id: true, slug: true, title: true, answerCount: true, voteCount: true, status: true },
   })
 
-  const questionContentHtml = await highlightHtmlContent(question.content)
+  const questionContentHtml = await highlightHtmlContent(toRenderableHtml(question.content))
   const safeContent = await sanitizeHtml(questionContentHtml)
 
   return (

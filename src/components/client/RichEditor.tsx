@@ -8,12 +8,32 @@ import ImageExtension from "@tiptap/extension-image";
 import LinkExtension from "@tiptap/extension-link";
 import TurndownService from "turndown";
 import { marked } from "marked";
+import DOMPurify from "dompurify";
 import {
   Bold, Italic, Heading2, List, ListOrdered, Code, Quote,
   Link as LinkIcon, Image as ImageIcon, Eye, Pencil, Columns, Strikethrough, Undo, Redo
 } from "lucide-react";
 
 marked.setOptions({ breaks: true, gfm: true });
+
+/** Allow-list shared by the Markdown preview and RichContent. */
+const SANITIZE_CONFIG = {
+  ALLOWED_TAGS: [
+    "h1", "h2", "h3", "h4", "h5", "h6", "p", "br", "hr", "strong", "b", "em", "i",
+    "s", "u", "a", "code", "pre", "ul", "ol", "li", "blockquote", "img",
+    "table", "thead", "tbody", "tr", "th", "td", "div", "span",
+  ],
+  ALLOWED_ATTR: ["href", "target", "rel", "src", "alt", "title", "class"],
+  ALLOWED_URI_REGEXP: /^(?:(?:https?|ftp):\/\/|mailto:|tel:|\/|#)/i,
+};
+
+function sanitizePreviewHtml(html: string): string {
+  try {
+    return DOMPurify.sanitize(html, SANITIZE_CONFIG);
+  } catch {
+    return html.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  }
+}
 
 const turndownService = new TurndownService({
   headingStyle: "atx",
@@ -120,7 +140,9 @@ export function RichEditor({
       try {
         if (sourceContent.trim()) {
           const html = marked.parse(sourceContent) as string;
-          setPreviewHtml(html || "");
+          // The preview is injected with dangerouslySetInnerHTML, so sanitise it
+          // the same way every other HTML sink in the app does.
+          setPreviewHtml(sanitizePreviewHtml(html));
         } else {
           setPreviewHtml("");
         }
@@ -349,5 +371,6 @@ export function RichEditor({
 }
 
 export function RichContent({ html }: { html: string }) {
-  return <div className="prose-custom max-w-none" dangerouslySetInnerHTML={{ __html: html }} />;
+  // Sanitise by default: this is a raw-HTML sink and previously trusted its input.
+  return <div className="prose-custom max-w-none" dangerouslySetInnerHTML={{ __html: sanitizePreviewHtml(html) }} />;
 }

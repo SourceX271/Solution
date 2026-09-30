@@ -2,11 +2,30 @@
 
 import { useState } from "react"
 import { Pencil, CheckCircle } from "lucide-react"
+import DOMPurify from "dompurify"
 import { VoteButtons } from "./VoteButtons"
 import { AcceptButton } from "./AcceptButton"
 import { AnswerForm } from "./AnswerForm"
 import { RichContent } from "./RichEditor"
 import { formatRelativeTime } from "@/lib/utils"
+
+/**
+ * Answer bodies are user-authored HTML stored verbatim by the API, so they must
+ * be sanitised before they are injected into the DOM. Mirrors the allow-list
+ * used for comments in CommentSection.tsx.
+ */
+function sanitizeAnswerHtml(html: string): string {
+  if (!html) return ""
+  try {
+    return DOMPurify.sanitize(html, {
+      ALLOWED_TAGS: ["h1", "h2", "h3", "h4", "p", "br", "hr", "strong", "b", "em", "i", "s", "u", "a", "code", "pre", "ul", "ol", "li", "blockquote", "img", "table", "thead", "tbody", "tr", "th", "td", "div", "span"],
+      ALLOWED_ATTR: ["href", "target", "rel", "src", "alt", "title", "class"],
+      ALLOWED_URI_REGEXP: /^(?:(?:https?|ftp):\/\/|mailto:|tel:|\/|#)/i,
+    })
+  } catch {
+    return html.replace(/</g, "&lt;").replace(/>/g, "&gt;")
+  }
+}
 
 interface AnswerData {
   id: string
@@ -79,7 +98,7 @@ export function AnswerItem({ answer, votes, isAuthor, userId, questionId }: Answ
 
         {/* Content */}
         <div className="min-w-0 flex-1">
-          <RichContent html={answer.content} />
+          <RichContent html={sanitizeAnswerHtml(answer.content)} />
           <div className="mt-3 flex items-center gap-2 text-xs text-muted-foreground">
             <span>{answer.author.name}</span>
             <span>·</span>

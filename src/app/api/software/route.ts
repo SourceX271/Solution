@@ -3,13 +3,14 @@ import { prisma } from "@/lib/db";
 import { auth } from "@/lib/auth";
 import { softwareSchema } from "@/lib/validations";
 import { generateSlug } from "@/lib/utils";
-import { resolveTags, parseTagInput } from "@/lib/tags";
+import { resolveTags, parseTagInput, bumpTagUsage } from "@/lib/tags";
+import { toPositiveInt } from "@/lib/errors";
 
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
-    const page = parseInt(searchParams.get("page") || "1");
-    const limit = parseInt(searchParams.get("limit") || "10");
+    const page = toPositiveInt(searchParams.get("page"), 1);
+    const limit = toPositiveInt(searchParams.get("limit"), 10, 100);
     const category = searchParams.get("category");
     const skip = (page - 1) * limit;
 
@@ -72,6 +73,8 @@ export async function POST(req: NextRequest) {
         author: { select: { id: true, name: true, image: true } },
       },
     });
+
+    await bumpTagUsage(tagConnections.map((t) => t.slug), 1);
 
     return NextResponse.json(software, { status: 201 });
   } catch (error) {

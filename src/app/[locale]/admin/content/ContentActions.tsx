@@ -9,26 +9,44 @@ import {
 } from "@/components/ui/dialog"
 import { Eye, Pencil, Trash2 } from "lucide-react"
 import { useState } from "react"
+import { toast } from "sonner"
 
 interface ContentActionsProps {
   type: string
   id: string
+  slug?: string
   status: string
 }
 
-export function ContentActions({ type, id, status }: ContentActionsProps) {
+// Public detail routes are keyed by slug, not by database id, and articles live
+// under /docs — the old links 404'd.
+const PUBLIC_PREFIX: Record<string, string> = {
+  articles: "/docs",
+  questions: "/questions",
+  software: "/software",
+}
+
+export function ContentActions({ type, id, slug, status }: ContentActionsProps) {
   const router = useRouter()
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [loading, setLoading] = useState(false)
+
+  const publicHref = slug ? `${PUBLIC_PREFIX[type] ?? "/docs"}/${slug}` : null
 
   async function handleDelete() {
     setLoading(true)
     try {
       const res = await fetch(`/api/admin/content/${type}/${id}`, { method: "DELETE" })
       if (res.ok) {
-        router.refresh()
+        toast.success("已删除")
         setDeleteOpen(false)
+        router.refresh()
+      } else {
+        const data = await res.json().catch(() => null)
+        toast.error(data?.error || "删除失败")
       }
+    } catch {
+      toast.error("删除失败，请检查网络")
     } finally {
       setLoading(false)
     }
@@ -36,11 +54,13 @@ export function ContentActions({ type, id, status }: ContentActionsProps) {
 
   return (
     <div className="flex items-center justify-end gap-1">
-      <Button variant="ghost" size="icon" asChild title="View">
-        <Link href={`/${type === "articles" ? "articles" : type === "questions" ? "questions" : "software"}/${id}`}>
-          <Eye className="h-4 w-4" />
-        </Link>
-      </Button>
+      {publicHref && (
+        <Button variant="ghost" size="icon" asChild title="View">
+          <Link href={publicHref} target="_blank" rel="noopener noreferrer">
+            <Eye className="h-4 w-4" />
+          </Link>
+        </Button>
+      )}
       <Button variant="ghost" size="icon" asChild title="Edit">
         <Link href={`/admin/content/${type}/${id}/edit`}>
           <Pencil className="h-4 w-4" />

@@ -82,7 +82,7 @@
     "loginFailed": "登录失败，请重试",
     "registerError": "注册失败，请重试",
     "nameMin": "名称至少2个字符",
-    "passwordMin": "密码至少6位",
+    "passwordMin": "密码至少8位，且包含字母和数字",
     "invalidEmail": "请输入有效的邮箱地址"
   },
   "docs": {

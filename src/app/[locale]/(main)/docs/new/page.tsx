@@ -39,7 +39,7 @@ export default function NewDocPage() {
           title: title.trim(),
           content,
           excerpt: excerpt.trim() || undefined,
-          problem: problem.trim() || undefined,
+          problem: problem.trim(),
           category,
           tags: tags ? JSON.stringify(tags.split(",").map((t) => t.trim()).filter(Boolean)) : "[]",
         }),

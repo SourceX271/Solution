@@ -1,4 +1,4 @@
-﻿import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { ZodError, ZodSchema } from "zod";
 import { auth } from "@/lib/auth";
 import { AuthSession } from "@/lib/types";
@@ -108,10 +108,24 @@ export function apiHandler(config: HandlerConfig, handler: HandlerFn) {
 }
 
 // Helpers
+
+/**
+ * Parse a positive integer safely.
+ *
+ * `parseInt` returns NaN for garbage input (e.g. ?page=abc) and NaN propagates
+ * into Prisma's `skip`/`take`, which throws a 500. Always fall back to a
+ * sensible default instead.
+ */
+export function toPositiveInt(value: string | null, fallback: number, max?: number): number {
+  const parsed = Number.parseInt(value ?? "", 10);
+  if (!Number.isFinite(parsed) || parsed < 1) return fallback;
+  return max !== undefined ? Math.min(parsed, max) : parsed;
+}
+
 export function getPaginationParams(req: NextRequest): { page: number; limit: number; skip: number } {
   const url = new URL(req.url);
-  const page = Math.max(1, parseInt(url.searchParams.get("page") || "1"));
-  const limit = Math.min(100, Math.max(1, parseInt(url.searchParams.get("limit") || "10")));
+  const page = toPositiveInt(url.searchParams.get("page"), 1);
+  const limit = toPositiveInt(url.searchParams.get("limit"), 10, 100);
   return { page, limit, skip: (page - 1) * limit };
 }
 

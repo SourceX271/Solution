@@ -1,13 +1,28 @@
-﻿import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { writeFile, mkdir } from "fs/promises";
 import path from "path";
 import { randomUUID } from "crypto";
 import { checkRateLimit, getRateLimitKey } from "@/lib/rate-limit";
 
-const ALLOWED_MIME = ["image/jpeg", "image/png", "image/gif", "image/webp", "image/svg+xml"];
+const ALLOWED_MIME = ["image/jpeg", "image/png", "image/gif", "image/webp"];
 const ALLOWED_EXTENSIONS = new Set(["jpg", "jpeg", "png", "gif", "webp"]);
 const MAX_SIZE = 2 * 1024 * 1024; // 2MB
+
+/** Magic-byte sniffing: the declared Content-Type is attacker controlled. */
+function detectImageType(buffer: Buffer): "jpg" | "png" | "gif" | "webp" | null {
+  if (buffer.length < 12) return null;
+  if (buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff) return "jpg";
+  if (buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4e && buffer[3] === 0x47) return "png";
+  if (buffer[0] === 0x47 && buffer[1] === 0x49 && buffer[2] === 0x46 && buffer[3] === 0x38) return "gif";
+  if (
+    buffer.toString("ascii", 0, 4) === "RIFF" &&
+    buffer.toString("ascii", 8, 12) === "WEBP"
+  ) {
+    return "webp";
+  }
+  return null;
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -22,9 +37,9 @@ export async function POST(req: NextRequest) {
     }
 
     const formData = await req.formData();
-    const file = formData.get("file") as File;
+    const file = formData.get("file") as File | null;
 
-    if (!file) {
+    if (!file || typeof file === "string") {
       return NextResponse.json({ success: false, error: "未选择文件" }, { status: 400 });
     }
 
@@ -36,19 +51,23 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: "文件不能超过 2MB" }, { status: 400 });
     }
 
-    // Whitelist extension derived from MIME type, not user-supplied filename
-    const ext = file.type.split("/").pop() || "jpg";
-    if (!ALLOWED_EXTENSIONS.has(ext)) {
+    const buffer = Buffer.from(await file.arrayBuffer());
+
+    // Trust the bytes, not the filename or the declared MIME type.
+    const detected = detectImageType(buffer);
+    if (!detected) {
+      return NextResponse.json({ success: false, error: "文件内容不是有效的图片" }, { status: 400 });
+    }
+
+    if (!ALLOWED_EXTENSIONS.has(detected)) {
       return NextResponse.json({ success: false, error: "不允许的文件扩展名" }, { status: 400 });
     }
 
     // Sanitize: use only UUID, no user-controlled path segment
-    const filename = randomUUID() + "." + ext;
+    const filename = randomUUID() + "." + detected;
     const uploadDir = path.join(process.cwd(), "public", "uploads", "avatars");
 
     await mkdir(uploadDir, { recursive: true });
-
-    const buffer = Buffer.from(await file.arrayBuffer());
     await writeFile(path.join(uploadDir, filename), buffer);
 
     const url = "/uploads/avatars/" + filename;

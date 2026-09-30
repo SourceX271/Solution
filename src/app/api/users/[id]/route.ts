@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { auth } from "@/lib/auth";
+import { profileSchema } from "@/lib/validations";
 
 export async function GET(
   req: NextRequest,
@@ -53,7 +54,12 @@ export async function PUT(
     }
 
     const body = await req.json();
-    const { name, bio, image } = body as { name?: string; bio?: string; image?: string };
+    const parsed = profileSchema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json({ error: parsed.error.errors[0].message }, { status: 400 });
+    }
+
+    const { name, bio, image } = parsed.data;
 
     const updated = await prisma.user.update({
       where: { id: params.id },

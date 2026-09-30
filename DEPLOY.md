@@ -31,22 +31,30 @@ nano .env
 | `AUTH_GITHUB_ID` | GitHub OAuth App Client ID | 在 GitHub Developer Settings 获取 |
 | `AUTH_GITHUB_SECRET` | GitHub OAuth App Secret | 同上 |
 | `NEXT_PUBLIC_SITE_URL` | 网站公开 URL | `https://yourdomain.com` |
-| `CRAWLER_INTERVAL_HOURS` | 爬虫运行间隔 (小时) | `24` |
+| `CRAWLER_INTERVAL_HOURS` | 爬虫运行间隔 (小时，1–23) | `24` |
+| `PYTHON_BIN` | 爬虫使用的 Python 解释器 (可选) | `python3` |
+| `SEED_ADMIN_PASSWORD` | 种子脚本创建的管理员密码 (可选) | 随机强密码 |
+
+> `.env` 已从版本库中移除且被 `.dockerignore` 忽略。**部署前请轮换 `AUTH_SECRET`、
+> `AUTH_GITHUB_SECRET` 等已泄露到历史的密钥**，并通过 `docker compose` 的环境变量或
+> `--env-file` 传入，不要写回仓库。
 
 ### 2. 构建并启动
 
 ```bash
-# 构建 Docker 镜像并启动
+# 构建 Docker 镜像并启动（首次启动会自动用镜像内的 schema 快照初始化
+# /app/data/dev.db，无需在容器内执行 prisma 命令——standalone 产物不含 Prisma CLI）
 docker compose up -d --build
-
-# 初始化数据库
-docker compose exec app npx prisma db push
-
-# 导入种子数据 (可选)
-docker compose exec app npm run db:seed
 ```
 
 网站将运行在 `http://localhost:3000`。
+
+如需导入演示数据，请在**本机**（非容器）执行，因为运行镜像不包含 `tsx`/Prisma CLI：
+
+```bash
+DATABASE_URL="file:./prisma/dev.db" npm run db:seed
+# 或在容器内初始化后把 dev.db 复制进 app-data 卷
+```
 
 ### 3. 配置 Nginx 反向代理 (生产环境)
 
@@ -155,11 +163,8 @@ docker compose exec app cp /app/data/dev.db /app/data/dev.db.backup
 # 拉取最新代码
 git pull
 
-# 重新构建并重启
+# 重新构建并重启（启动脚本会保留已有数据库；schema 变更需按下文重置或自行迁移）
 docker compose up -d --build
-
-# 运行数据库迁移 (如有)
-docker compose exec app npx prisma db push
 ```
 
 ## 故障排查
@@ -181,20 +186,27 @@ docker compose exec app sh
 
 ### 数据库问题
 ```bash
-# 重置数据库
+# 重置数据库（下次启动会重新从镜像快照初始化）
 docker compose exec app rm /app/data/dev.db
-docker compose exec app npx prisma db push
-docker compose exec app npm run db:seed
+docker compose restart app
+```
+
+### 爬虫不工作
+```bash
+# 确认容器内可以导入依赖
+docker compose exec app python3 -c "import httpx, bs4, lxml; print('ok')"
+# 手动执行一次
+docker compose exec app python3 -m crawler.main --limit 1
 ```
 
 ## 默认管理员账号
 
-部署后运行 `npm run db:seed` 将创建默认管理员:
+运行 `npm run db:seed` 将创建默认管理员（可用 `SEED_ADMIN_PASSWORD` 覆盖）：
 
 - 邮箱: `admin@solution.local`
-- 密码: `admin123`
+- 密码: `admin123`（默认值，**首次登录后请立即修改**）
 
-**请立即修改默认密码！**
+**生产环境请在执行 seed 前设置 `SEED_ADMIN_PASSWORD`，不要使用默认密码。**
 
 ---
 

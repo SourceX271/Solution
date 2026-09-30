@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Switch } from "@/components/ui/switch"
 import { Play, Power } from "lucide-react"
+import { toast } from "sonner"
 
 interface CrawlerActionsProps {
   sourceId: string
@@ -20,22 +21,37 @@ export function CrawlerActions({ sourceId, enabled }: CrawlerActionsProps) {
     const newState = !isEnabled
     setIsEnabled(newState)
     try {
-      await fetch(`/api/admin/crawler/${sourceId}`, {
+      const res = await fetch(`/api/admin/crawler/${sourceId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ enabled: newState }),
       })
+      if (!res.ok) {
+        // fetch resolves on 4xx/5xx, so check the status explicitly.
+        setIsEnabled(!newState)
+        toast.error("状态更新失败")
+        return
+      }
       router.refresh()
     } catch {
       setIsEnabled(!newState)
+      toast.error("状态更新失败，请检查网络")
     }
   }
 
   async function handleRunNow() {
     setRunning(true)
     try {
-      await fetch(`/api/admin/crawler/${sourceId}/run`, { method: "POST" })
+      const res = await fetch(`/api/admin/crawler/${sourceId}/run`, { method: "POST" })
+      const data = await res.json().catch(() => null)
+      if (res.ok && data?.success !== false) {
+        toast.success(data?.message || "抓取任务已完成")
+      } else {
+        toast.error(data?.error || data?.message || "抓取失败")
+      }
       router.refresh()
+    } catch {
+      toast.error("抓取失败，请检查网络")
     } finally {
       setRunning(false)
     }

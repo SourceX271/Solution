@@ -7,6 +7,7 @@ import {
 import { Users } from "lucide-react"
 import { UserActions } from "./UserActions"
 import { UserSearch } from "./UserSearch"
+import { toPositiveInt } from "@/lib/errors"
 
 export const dynamic = "force-dynamic"
 
@@ -25,7 +26,7 @@ export default async function UsersPage({
   searchParams: { search?: string; page?: string }
 }) {
   const search = searchParams.search || ""
-  const page = Math.max(1, parseInt(searchParams.page || "1"))
+  const page = toPositiveInt(searchParams.page ?? null, 1)
   const skip = (page - 1) * PAGE_SIZE
 
   const where: any = {}

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { auth } from "@/lib/auth";
 import { questionSchema } from "@/lib/validations";
+import { bumpTagUsage } from "@/lib/tags";
 
 export async function GET(
   req: NextRequest,
@@ -94,7 +95,10 @@ export async function DELETE(
       return NextResponse.json({ error: "请先登录" }, { status: 401 });
     }
 
-    const question = await prisma.question.findUnique({ where: { id: params.id } });
+    const question = await prisma.question.findUnique({
+      where: { id: params.id },
+      include: { tags: { select: { slug: true } } },
+    });
     if (!question) {
       return NextResponse.json({ error: "问题不存在" }, { status: 404 });
     }
@@ -106,6 +110,7 @@ export async function DELETE(
     }
 
     await prisma.question.delete({ where: { id: params.id } });
+    await bumpTagUsage(question.tags.map((t) => t.slug), -1);
 
     return NextResponse.json({ message: "问题已删除" });
   } catch (error) {

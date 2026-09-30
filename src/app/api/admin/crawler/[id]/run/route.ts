@@ -41,6 +41,15 @@ export async function POST(
   }
 
   const sourceKey = resolveSourceKey(source.name)
+  if (!sourceKey) {
+    // Falling back to a full crawl here used to silently crawl *every* source
+    // when a display name had no mapping. Report it instead.
+    return NextResponse.json(
+      { error: `无法识别的数据源名称：${source.name}，请检查 SOURCE_KEY_ALIASES 映射` },
+      { status: 400 }
+    )
+  }
+
   const result = await runCrawler({ source: sourceKey })
 
   if (result.status === "success") {

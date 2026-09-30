@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { getTranslations } from "next-intl/server";
+import { getTranslations, getLocale } from "next-intl/server";
 import { prisma } from "@/lib/db";
 import { formatRelativeTime, cn } from "@/lib/utils";
 import {
@@ -22,13 +22,19 @@ interface HomePageProps {
 export default async function HomePage({ searchParams }: HomePageProps) {
   const t = await getTranslations("home");
   const tc = await getTranslations("common");
+  const locale = await getLocale();
+
+  // Keep the locale prefix on internal links: on /en a plain "/?tag=x" href
+  // dropped the user back to the default locale via a full page reload.
+  const withLocale = (path: string) => (locale === "en" ? `/en${path}` : path);
 
   const { type: filterType, tag: filterTag } = await searchParams;
   const ft = filterType || "";
   const fTag = filterTag || "";
 
-  const [articles, questions, software, tags, siteConfig] = await Promise.all([
-    prisma.article.findMany({
+  const [articles, questions, software, tags, siteConfig, articleTotal, questionTotal, softwareTotal, userTotal] =
+    await Promise.all([
+      prisma.article.findMany({
       where: {
         status: "published",
         ...(fTag ? { tags: { some: { slug: fTag } } } : {}),
@@ -68,6 +74,10 @@ export default async function HomePage({ searchParams }: HomePageProps) {
       take: 20,
     }),
     prisma.siteConfig.findUnique({ where: { id: "main" } }),
+    prisma.article.count({ where: { status: "published" } }),
+    prisma.question.count(),
+    prisma.software.count({ where: { status: "published" } }),
+    prisma.user.count(),
   ]);
 
   const allItems = [
@@ -77,10 +87,10 @@ export default async function HomePage({ searchParams }: HomePageProps) {
   ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
   const stats = {
-    articles: await prisma.article.count({ where: { status: "published" } }),
-    questions: await prisma.question.count(),
-    software: await prisma.software.count({ where: { status: "published" } }),
-    users: await prisma.user.count(),
+    articles: articleTotal,
+    questions: questionTotal,
+    software: softwareTotal,
+    users: userTotal,
   };
 
   const typeIcons = { article: BookOpen, question: MessageCircle, software: ExternalLink };
@@ -108,8 +118,13 @@ export default async function HomePage({ searchParams }: HomePageProps) {
     if (tag) params.set("tag", tag);
     if (type) params.set("type", type);
     const qs = params.toString();
-    return "/" + (qs ? "?" + qs : "");
+    return withLocale("/" + (qs ? "?" + qs : ""));
   };
+
+  // "查看更多" should stay in the section the user is filtering.
+  const moreHref = withLocale(
+    ft === "question" ? "/questions" : ft === "software" ? "/software" : "/docs"
+  );
 
   return (
     <div className="min-h-screen">
@@ -129,7 +144,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
             <span className="gradient-text">{siteConfig?.siteName || "Solution"}</span>
             <br />
             <span className="text-2xl md:text-3xl lg:text-4xl text-foreground/80 font-semibold">
-              {t("heroSubtitle")}
+              {t("heroTitle")}
             </span>
           </h1>
 
@@ -181,7 +196,6 @@ export default async function HomePage({ searchParams }: HomePageProps) {
                   "stat-card text-center animate-fade-in-up",
                   `stagger-${i + 1}`
                 )}
-                style={{ background: `linear-gradient(135deg, var(--tw-gradient-stops))` }}
               >
                 <div className={`inline-flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br ${s.gradient} mb-3`}>
                   <s.icon className={`h-5 w-5 ${s.color}`} />
@@ -324,7 +338,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
             {allItems.length > 0 && (
               <div className="mt-8 text-center animate-fade-in-up">
                 <Link
-                  href="/docs"
+                  href={moreHref}
                   className="inline-flex items-center gap-2 rounded-full border px-6 py-2.5 text-sm font-medium hover:bg-accent transition-all shadow-sm hover:shadow-md"
                 >
                   {tc("viewMore")} <ArrowRight className="h-4 w-4" />
