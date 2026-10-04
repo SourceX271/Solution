@@ -7,6 +7,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select"
 import { MoreHorizontal } from "lucide-react"
+import { useTranslations } from "next-intl"
 import { toast } from "sonner"
 
 // Keep in sync with z.enum(["USER","ADMIN"]) in api/admin/users/[id]/route.ts:
@@ -20,12 +21,13 @@ interface UserActionsProps {
 
 export function UserActions({ userId, currentRole }: UserActionsProps) {
   const router = useRouter()
+  const t = useTranslations("admin")
   const [role, setRole] = useState(currentRole)
   const [loading, setLoading] = useState(false)
 
   async function handleRoleChange(newRole: string) {
     if (newRole === role) return
-    if (!window.confirm(`确定将用户角色修改为 ${newRole} 吗？`)) return
+    if (!window.confirm(t("roleConfirm", { role: newRole }))) return
 
     setLoading(true)
     const previous = role
@@ -37,16 +39,16 @@ export function UserActions({ userId, currentRole }: UserActionsProps) {
         body: JSON.stringify({ role: newRole }),
       })
       if (res.ok) {
-        toast.success("角色已更新")
+        toast.success(t("roleUpdated"))
         router.refresh()
       } else {
         const data = await res.json().catch(() => null)
         setRole(previous)
-        toast.error(data?.error || "角色更新失败")
+        toast.error(data?.error || t("roleUpdateFailed"))
       }
     } catch {
       setRole(previous)
-      toast.error("角色更新失败，请检查网络")
+      toast.error(t("roleUpdateFailedNetwork"))
     } finally {
       setLoading(false)
     }

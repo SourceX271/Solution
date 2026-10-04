@@ -1,33 +1,18 @@
 import Link from "next/link"
 import type { Metadata } from "next"
+import { getTranslations, getLocale } from "next-intl/server"
 import { prisma } from "@/lib/db"
 import { formatDate, cn } from "@/lib/utils"
 import { Star, ExternalLink, ChevronLeft, ChevronRight, Package, Globe, Wrench, Gamepad2, MoreHorizontal, PlusCircle } from "lucide-react"
 
 export const revalidate = 60
 
-export const metadata: Metadata = {
-  title: "软件推荐",
-  description: "发现优秀的开发工具、库、框架和服务。浏览评分最高的软件推荐。",
-};
-
-const CATEGORIES = [
-  { value: "", label: "全部", icon: Package },
-  { value: "development", label: "开发", icon: Wrench },
-  { value: "library", label: "库/框架", icon: Package },
-  { value: "tool", label: "工具", icon: Wrench },
-  { value: "website", label: "网站", icon: Globe },
-  { value: "game", label: "游戏", icon: Gamepad2 },
-  { value: "other", label: "其他", icon: MoreHorizontal },
-]
-
-const CATEGORY_LABELS: Record<string, string> = {
-  development: "开发",
-  library: "库/框架",
-  tool: "工具",
-  website: "网站",
-  game: "游戏",
-  other: "其他",
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("software")
+  return {
+    title: t("title"),
+    description: t("metaDescription"),
+  }
 }
 
 /** Software descriptions are rich HTML; cards show a plain-text preview. */
@@ -52,9 +37,31 @@ interface SoftwarePageProps {
 }
 
 export default async function SoftwarePage({ searchParams }: SoftwarePageProps) {
+  const t = await getTranslations("software")
+  const tc = await getTranslations("common")
+  const locale = await getLocale()
   const { page: pageStr, category } = await searchParams
   const page = Math.max(1, parseInt(pageStr ?? "1") || 1)
   const cat = category ?? ""
+
+  const CATEGORIES = [
+    { value: "", label: t("categoryAll"), icon: Package },
+    { value: "development", label: t("categoryDevelopment"), icon: Wrench },
+    { value: "library", label: t("categoryLibrary"), icon: Package },
+    { value: "tool", label: t("categoryTool"), icon: Wrench },
+    { value: "website", label: t("categoryWebsite"), icon: Globe },
+    { value: "game", label: t("categoryGame"), icon: Gamepad2 },
+    { value: "other", label: t("categoryOther"), icon: MoreHorizontal },
+  ]
+
+  const CATEGORY_LABELS: Record<string, string> = {
+    development: t("categoryDevelopment"),
+    library: t("categoryLibrary"),
+    tool: t("categoryTool"),
+    website: t("categoryWebsite"),
+    game: t("categoryGame"),
+    other: t("categoryOther"),
+  }
 
   const where = {
     status: "published" as const,
@@ -79,14 +86,14 @@ export default async function SoftwarePage({ searchParams }: SoftwarePageProps) 
       {/* Header */}
       <div className="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 animate-fade-in-up">
         <div>
-          <h1 className="text-3xl font-bold gradient-text">软件推荐</h1>
-          <p className="mt-2 text-muted-foreground">共 {total} 款软件</p>
+          <h1 className="text-3xl font-bold gradient-text">{t("title")}</h1>
+          <p className="mt-2 text-muted-foreground">{t("totalCount", { total })}</p>
         </div>
         <Link
           href="/software/new"
           className="btn-gradient inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-medium shadow-lg shadow-primary/25"
         >
-          <PlusCircle className="h-4 w-4" /> 提交软件
+          <PlusCircle className="h-4 w-4" /> {t("submit")}
         </Link>
       </div>
 
@@ -146,11 +153,11 @@ export default async function SoftwarePage({ searchParams }: SoftwarePageProps) 
             <div className="mt-auto flex items-center gap-2 text-xs text-muted-foreground">
               {s.url && (
                 <span className="inline-flex items-center gap-1 text-primary">
-                  <ExternalLink className="h-3 w-3" />访问
+                  <ExternalLink className="h-3 w-3" />{t("visit")}
                 </span>
               )}
               <span className="ml-auto">
-                {s.author.name} · {formatDate(s.createdAt)}
+                {s.author.name} · {formatDate(s.createdAt, locale)}
               </span>
             </div>
 
@@ -172,7 +179,7 @@ export default async function SoftwarePage({ searchParams }: SoftwarePageProps) 
             <div className="inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-muted mb-4">
               <Package className="h-8 w-8 text-muted-foreground" />
             </div>
-            <p className="text-muted-foreground">暂无软件</p>
+            <p className="text-muted-foreground">{t("noSoftware")}</p>
           </div>
         )}
       </div>
@@ -187,7 +194,7 @@ export default async function SoftwarePage({ searchParams }: SoftwarePageProps) 
               page <= 1 && "pointer-events-none opacity-40"
             )}
           >
-            <ChevronLeft className="h-4 w-4" />上一页
+            <ChevronLeft className="h-4 w-4" />{tc("previous")}
           </Link>
           <span className="px-4 py-2 text-sm text-muted-foreground font-medium">
             {page} / {totalPages}
@@ -199,7 +206,7 @@ export default async function SoftwarePage({ searchParams }: SoftwarePageProps) 
               page >= totalPages && "pointer-events-none opacity-40"
             )}
           >
-            下一页<ChevronRight className="h-4 w-4" />
+            {tc("next")}<ChevronRight className="h-4 w-4" />
           </Link>
         </div>
       )}

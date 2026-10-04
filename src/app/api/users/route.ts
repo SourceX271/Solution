@@ -1,13 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { auth } from "@/lib/auth";
+import { getApiT } from "@/lib/api-i18n";
 import { toPositiveInt } from "@/lib/errors";
 
 export async function GET(req: NextRequest) {
+  const t = await getApiT("api");
   try {
     const session = await auth();
     if (!session || (session.user as any).role !== "ADMIN") {
-      return NextResponse.json({ error: "无权访问" }, { status: 403 });
+      return NextResponse.json({ error: t("forbiddenAccess") }, { status: 403 });
     }
 
     const { searchParams } = new URL(req.url);
@@ -48,27 +50,31 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({ data, total, page, limit });
   } catch (error) {
-    return NextResponse.json({ error: "获取用户列表失败" }, { status: 500 });
+    return NextResponse.json(
+      { error: t("getFailed", { entity: t("entity.userList") }) },
+      { status: 500 }
+    );
   }
 }
 
 export async function PUT(req: NextRequest) {
+  const t = await getApiT("api");
   try {
     const session = await auth();
     if (!session || (session.user as any).role !== "ADMIN") {
-      return NextResponse.json({ error: "无权访问" }, { status: 403 });
+      return NextResponse.json({ error: t("forbiddenAccess") }, { status: 403 });
     }
 
     const body = await req.json();
     const { userId, role } = body as { userId: string; role: string };
 
     if (!userId || !role) {
-      return NextResponse.json({ error: "缺少参数" }, { status: 400 });
+      return NextResponse.json({ error: t("missingParams") }, { status: 400 });
     }
 
     const validRoles = ["USER", "ADMIN"];
     if (!validRoles.includes(role)) {
-      return NextResponse.json({ error: "无效的角色" }, { status: 400 });
+      return NextResponse.json({ error: t("invalidRole") }, { status: 400 });
     }
 
     const updated = await prisma.user.update({
@@ -85,6 +91,9 @@ export async function PUT(req: NextRequest) {
 
     return NextResponse.json(updated);
   } catch (error) {
-    return NextResponse.json({ error: "更新用户失败" }, { status: 500 });
+    return NextResponse.json(
+      { error: t("updateFailed", { entity: t("entity.user") }) },
+      { status: 500 }
+    );
   }
 }

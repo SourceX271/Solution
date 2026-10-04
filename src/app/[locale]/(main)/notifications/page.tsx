@@ -1,13 +1,18 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { getTranslations, getLocale } from "next-intl/server";
 import { prisma } from "@/lib/db";
 import { auth } from "@/lib/auth";
 import { cn, formatRelativeTime } from "@/lib/utils";
+import { renderNotificationMessage } from "@/lib/notification-message";
 import { redirect } from "next/navigation";
 import { Bell, CheckCheck, MessageCircle, MessageSquare, ThumbsUp, UserPlus } from "lucide-react";
 import { MarkAllReadButton } from "./MarkAllReadButton";
 
-export const metadata: Metadata = { title: "通知中心" };
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("notifications");
+  return { title: t("pageTitle") };
+}
 export const dynamic = "force-dynamic";
 
 const typeConfig: Record<string, { icon: typeof Bell; color: string; bg: string }> = {
@@ -23,6 +28,8 @@ const typeConfig: Record<string, { icon: typeof Bell; color: string; bg: string 
 };
 
 export default async function NotificationsPage() {
+  const t = await getTranslations("notifications");
+  const locale = await getLocale();
   const session = await auth();
   if (!session) redirect("/login");
 
@@ -41,9 +48,9 @@ export default async function NotificationsPage() {
       {/* Header */}
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-3xl font-bold gradient-text">通知中心</h1>
+          <h1 className="text-3xl font-bold gradient-text">{t("pageTitle")}</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            {unreadCount > 0 ? `${unreadCount} 条未读通知` : "全部已读"}
+            {unreadCount > 0 ? t("unreadCount", { count: unreadCount }) : t("allRead")}
           </p>
         </div>
         {unreadCount > 0 && <MarkAllReadButton />}
@@ -70,13 +77,13 @@ export default async function NotificationsPage() {
                 <div className="min-w-0 flex-1">
                   {n.link ? (
                     <Link href={n.link} className="text-sm font-medium hover:text-primary transition-colors line-clamp-2">
-                      {n.message}
+                      {renderNotificationMessage(n.message, t)}
                     </Link>
                   ) : (
-                    <p className="text-sm font-medium">{n.message}</p>
+                    <p className="text-sm font-medium">{renderNotificationMessage(n.message, t)}</p>
                   )}
                   <p className="text-xs text-muted-foreground mt-1">
-                    {formatRelativeTime(n.createdAt)}
+                    {formatRelativeTime(n.createdAt, locale)}
                     {!n.read && (
                       <span className="ml-2 inline-block h-2 w-2 rounded-full bg-primary" />
                     )}
@@ -91,7 +98,7 @@ export default async function NotificationsPage() {
           <div className="inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-muted mb-4">
             <Bell className="h-8 w-8 text-muted-foreground" />
           </div>
-          <p className="text-muted-foreground">暂无通知</p>
+          <p className="text-muted-foreground">{t("noNotifications")}</p>
         </div>
       )}
     </div>

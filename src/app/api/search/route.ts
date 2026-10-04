@@ -1,13 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { getApiT } from "@/lib/api-i18n";
 
 export async function GET(req: NextRequest) {
+  const t = await getApiT("api");
   try {
     const { searchParams } = new URL(req.url);
     const q = searchParams.get("q");
 
     if (!q || q.trim().length === 0) {
-      return NextResponse.json({ error: "请输入搜索关键词" }, { status: 400 });
+      return NextResponse.json({ error: t("searchKeywordRequired") }, { status: 400 });
     }
 
     const keyword = q.trim();
@@ -58,6 +60,6 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({ data: results, query: q });
   } catch (error) {
-    return NextResponse.json({ error: "搜索失败" }, { status: 500 });
+    return NextResponse.json({ error: t("searchFailed") }, { status: 500 });
   }
 }

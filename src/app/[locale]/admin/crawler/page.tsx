@@ -5,12 +5,15 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table"
 import { Radio } from "lucide-react"
+import { getLocale } from "next-intl/server"
+import { formatDate } from "@/lib/utils"
 import { CrawlerActions } from "./CrawlerActions"
 import { AddSourceForm } from "./AddSourceForm"
 
 export const dynamic = "force-dynamic"
 
 export default async function CrawlerPage() {
+  const locale = await getLocale()
   const sources = await prisma.crawlSource.findMany({
     orderBy: { createdAt: "desc" },
   })
@@ -73,7 +76,7 @@ export default async function CrawlerPage() {
                       </TableCell>
                       <TableCell className="text-muted-foreground">
                         {source.lastRun
-                          ? new Date(source.lastRun).toLocaleDateString("zh-CN")
+                          ? formatDate(source.lastRun, locale)
                           : "Never"}
                       </TableCell>
                       <TableCell className="text-right">
@@ -134,7 +137,7 @@ export default async function CrawlerPage() {
                         {log.message || "-"}
                       </TableCell>
                       <TableCell className="text-muted-foreground">
-                        {new Date(log.createdAt).toLocaleDateString("zh-CN")}
+                        {formatDate(log.createdAt, locale)}
                       </TableCell>
                     </TableRow>
                   ))

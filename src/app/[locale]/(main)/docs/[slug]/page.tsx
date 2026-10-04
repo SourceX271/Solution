@@ -1,5 +1,6 @@
 import Link from "next/link"
 import { notFound } from "next/navigation"
+import { getTranslations, getLocale } from "next-intl/server"
 import { prisma } from "@/lib/db"
 import { formatDate, formatRelativeTime } from "@/lib/utils"
 import { highlightHtmlContent } from "@/lib/highlight"
@@ -26,23 +27,16 @@ interface ArticlePageProps {
 
 export async function generateMetadata({ params }: ArticlePageProps) {
   const { slug } = await params
+  const t = await getTranslations("docs")
   const article = await prisma.article.findUnique({
     where: { slug },
     select: { title: true, excerpt: true },
   })
-  if (!article) return { title: "方案未找到" }
+  if (!article) return { title: t("notFoundTitle") }
   return {
     title: article.title,
     description: article.excerpt ?? undefined,
   }
-}
-
-const categoryLabels: Record<string, string> = {
-  solution: "解决方案",
-  tutorial: "教程",
-  guide: "指南",
-  reference: "参考",
-  news: "资讯",
 }
 
 /** Slugify a heading and make it unique within the document. */
@@ -82,6 +76,18 @@ function addIdsToHeadings(content: string): string {
 }
 
 export default async function ArticlePage({ params }: ArticlePageProps) {
+  const t = await getTranslations("docs")
+  const tc = await getTranslations("common")
+  const locale = await getLocale()
+
+  const categoryLabels: Record<string, string> = {
+    solution: t("categorySolution"),
+    tutorial: t("categoryTutorial"),
+    guide: t("categoryGuide"),
+    reference: t("categoryReference"),
+    news: t("categoryNews"),
+  }
+
   const { slug } = await params
   const session = await auth()
   const userId = (session?.user as any)?.id
@@ -156,9 +162,9 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
       <div className="container mx-auto px-4 py-8">
         {/* Breadcrumb */}
         <nav className="mb-6 flex items-center gap-1.5 text-sm text-muted-foreground animate-fade-in">
-          <Link href="/" className="hover:text-foreground transition-colors">首页</Link>
+          <Link href="/" className="hover:text-foreground transition-colors">{tc("home")}</Link>
           <ChevronRight className="h-3 w-3" />
-          <Link href="/docs" className="hover:text-foreground transition-colors">解决方案</Link>
+          <Link href="/docs" className="hover:text-foreground transition-colors">{t("title")}</Link>
           <ChevronRight className="h-3 w-3" />
           <span className="text-foreground truncate max-w-[240px] font-medium">{article.title}</span>
         </nav>
@@ -166,11 +172,11 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
         <div className="flex gap-8 lg:gap-10">
           {/* TOC Sidebar */}
           <aside className="sticky top-20 hidden w-56 shrink-0 self-start lg:block space-y-4">
-            <TableOfContents headings={headings} title="目录" />
+            <TableOfContents headings={headings} title={tc("toc")} />
 
             {relatedArticles.length > 0 && (
               <div className="glass-card rounded-xl p-4">
-                <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">相关方案</h3>
+                <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("relatedSolutions")}</h3>
                 <div className="space-y-2">
                   {relatedArticles.map((ra) => (
                     <Link
@@ -217,12 +223,12 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
                 <span className="text-border">|</span>
                 <span className="inline-flex items-center gap-1.5">
                   <Clock className="h-4 w-4" />
-                  {formatDate(article.createdAt)}
+                  {formatDate(article.createdAt, locale)}
                 </span>
                 <span className="text-border">|</span>
                 <span className="inline-flex items-center gap-1.5">
                   <Eye className="h-4 w-4" />
-                  {article.viewCount + 1} 阅读
+                  {t("readCount", { count: article.viewCount + 1 })}
                 </span>
               </div>
 
@@ -234,7 +240,7 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
                   className="mt-3 inline-flex items-center gap-1.5 text-xs text-primary hover:underline"
                 >
                   <ArrowLeft className="h-3 w-3 rotate-45" />
-                  查看原文
+                   {t("viewOriginal")}
                 </a>
               )}
             </header>
@@ -260,7 +266,7 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
                 <div className="flex items-start gap-3">
                   <AlertCircle className="h-5 w-5 shrink-0 text-amber-600 dark:text-amber-400 mt-0.5" />
                   <div>
-                    <h3 className="text-sm font-semibold text-amber-800 dark:text-amber-300 mb-1.5">遇到的问题</h3>
+                    <h3 className="text-sm font-semibold text-amber-800 dark:text-amber-300 mb-1.5">{t("problemTitle")}</h3>
                     <p className="text-sm text-amber-700 dark:text-amber-400/80 leading-relaxed">{article.problem}</p>
                   </div>
                 </div>
@@ -273,7 +279,7 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
                 <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-100 dark:bg-emerald-900/30">
                   <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
                 </div>
-                <h2 className="text-lg font-semibold">解决方案</h2>
+                <h2 className="text-lg font-semibold">{t("solutionHeading")}</h2>
               </div>
             )}
 

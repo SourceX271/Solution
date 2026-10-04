@@ -1,8 +1,9 @@
-﻿"use client"
+"use client"
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { CheckCircle, Loader2 } from "lucide-react"
+import { useTranslations } from "next-intl"
 
 interface AcceptButtonProps {
   answerId: string
@@ -10,6 +11,7 @@ interface AcceptButtonProps {
 }
 
 export function AcceptButton({ answerId, questionId }: AcceptButtonProps) {
+  const t = useTranslations("common")
   const router = useRouter()
   const [loading, setLoading] = useState(false)
 
@@ -32,7 +34,7 @@ export function AcceptButton({ answerId, questionId }: AcceptButtonProps) {
       onClick={handleAccept}
       disabled={loading}
       className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs text-muted-foreground transition-colors hover:bg-green-50 hover:text-green-600 disabled:opacity-50"
-      title="采纳此回答"
+      title={t("acceptAnswer")}
     >
       {loading ? (
         <Loader2 className="h-4 w-4 animate-spin" />

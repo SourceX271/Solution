@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ZodError, ZodSchema } from "zod";
 import { auth } from "@/lib/auth";
+import { getApiT } from "@/lib/api-i18n";
 import { AuthSession } from "@/lib/types";
 
 // AppError
@@ -32,13 +33,14 @@ export function apiHandler(config: HandlerConfig, handler: HandlerFn) {
     req: NextRequest,
     routeCtx: { params: Promise<Record<string, string>> }
   ): Promise<NextResponse> => {
+    const t = await getApiT("api");
     try {
       // Auth check
       const session = (await auth()) as AuthSession | null;
 
       if (config.auth === "required" && !session) {
         return NextResponse.json(
-          { success: false, error: "请先登录" },
+          { success: false, error: t("unauthorized") },
           { status: 401 }
         );
       }
@@ -46,13 +48,13 @@ export function apiHandler(config: HandlerConfig, handler: HandlerFn) {
       if (config.auth === "admin") {
         if (!session) {
           return NextResponse.json(
-            { success: false, error: "请先登录" },
+            { success: false, error: t("unauthorized") },
             { status: 401 }
           );
         }
         if (session.user.role !== "ADMIN") {
           return NextResponse.json(
-            { success: false, error: "无权限" },
+            { success: false, error: t("forbidden") },
             { status: 403 }
           );
         }
@@ -100,7 +102,7 @@ export function apiHandler(config: HandlerConfig, handler: HandlerFn) {
 
       console.error("Unhandled API error:", error);
       return NextResponse.json(
-        { success: false, error: "服务器内部错误" },
+        { success: false, error: t("serverError") },
         { status: 500 }
       );
     }

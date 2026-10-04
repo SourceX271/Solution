@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, memo } from "react"
 import { useRouter, usePathname } from "@/i18n/routing"
 import { useSession, signOut } from "next-auth/react"
-import { useLocale } from "next-intl"
+import { useLocale, useTranslations } from "next-intl"
 import { cn } from "@/lib/utils"
 import {
   Moon, Sun, Search, Menu, X, User, Settings, LogOut, Shield, Bell,
@@ -21,13 +21,14 @@ import {
 import Link from "next/link"
 
 const navLinks = [
-  { href: "/", label: "首页", labelEn: "Home", icon: null },
-  { href: "/docs", label: "解决方案", labelEn: "Solutions", icon: BookOpen },
-  { href: "/questions", label: "问答", labelEn: "Q&A", icon: MessageCircle },
-  { href: "/software", label: "软件", labelEn: "Software", icon: ExternalLink },
+  { href: "/", key: "home" as const, icon: null },
+  { href: "/docs", key: "solutions" as const, icon: BookOpen },
+  { href: "/questions", key: "questions" as const, icon: MessageCircle },
+  { href: "/software", key: "software" as const, icon: ExternalLink },
 ]
 
 export const Navbar = memo(function Navbar() {
+  const t = useTranslations("nav")
   const { data: session } = useSession()
   const { theme, setTheme, resolvedTheme } = useTheme()
   const router = useRouter()
@@ -91,7 +92,7 @@ export const Navbar = memo(function Navbar() {
               href={link.href}
               className="relative px-3 py-2 text-sm font-medium rounded-lg transition-colors hover:bg-accent hover:text-accent-foreground group/nav"
             >
-              {locale === "en" ? link.labelEn : link.label}
+              {t(link.key)}
               <span className="absolute bottom-1 left-1/2 -translate-x-1/2 h-0.5 w-0 rounded-full bg-primary transition-all duration-300 group-hover/nav:w-4" />
             </Link>
           ))}
@@ -103,7 +104,7 @@ export const Navbar = memo(function Navbar() {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground transition-colors group-focus-within/search:text-primary" />
             <Input
               type="search"
-              placeholder={locale === "en" ? "Search..." : "搜索..."}
+              placeholder={t("searchPlaceholder")}
               className="pl-9 h-9 rounded-full border-muted-foreground/20 bg-muted/50 focus:bg-background transition-all"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
@@ -120,7 +121,7 @@ export const Navbar = memo(function Navbar() {
               size="icon"
               className="rounded-full"
               onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
-              aria-label={locale === "en" ? "Toggle theme" : "切换主题"}
+              aria-label={t("toggleTheme")}
             >
               <Sun className="h-[18px] w-[18px] rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
               <Moon className="absolute h-[18px] w-[18px] rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
@@ -132,7 +133,7 @@ export const Navbar = memo(function Navbar() {
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="icon" className="rounded-full hidden sm:flex">
                 <Globe className="h-[18px] w-[18px]" />
-                <span className="sr-only">{locale === "en" ? "Switch language" : "切换语言"}</span>
+                <span className="sr-only">{t("switchLanguage")}</span>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-36">
@@ -140,7 +141,7 @@ export const Navbar = memo(function Navbar() {
                 onClick={() => switchLocale("zh")}
                 className={cn(locale === "zh" && "bg-accent font-medium")}
               >
-                中文
+                {t("chinese")}
               </DropdownMenuItem>
               <DropdownMenuItem
                 onClick={() => switchLocale("en")}
@@ -179,29 +180,29 @@ export const Navbar = memo(function Navbar() {
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={() => router.push("/profile")}>
-                    <User className="mr-2 h-4 w-4" />{locale === "en" ? "Profile" : "个人资料"}
+                    <User className="mr-2 h-4 w-4" />{t("profile")}
                   </DropdownMenuItem>
                   {user.role === "ADMIN" && (
                     <DropdownMenuItem onClick={() => router.push("/admin")}>
-                      <Shield className="mr-2 h-4 w-4" />{locale === "en" ? "Admin" : "管理后台"}
+                      <Shield className="mr-2 h-4 w-4" />{t("admin")}
                     </DropdownMenuItem>
                   )}
                   <DropdownMenuItem onClick={() => router.push("/settings")}>
-                    <Settings className="mr-2 h-4 w-4" />{locale === "en" ? "Settings" : "设置"}
+                    <Settings className="mr-2 h-4 w-4" />{t("settings")}
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={() => signOut()} className="text-destructive focus:text-destructive">
-                    <LogOut className="mr-2 h-4 w-4" />{locale === "en" ? "Sign Out" : "退出登录"}
+                    <LogOut className="mr-2 h-4 w-4" />{t("logout")}
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             ) : (
               <div className="flex items-center gap-2">
                 <Button variant="ghost" size="sm" className="rounded-full" onClick={() => router.push("/login")}>
-                  {locale === "en" ? "Login" : "登录"}
+                  {t("login")}
                 </Button>
                 <Button size="sm" className="rounded-full btn-gradient" onClick={() => router.push("/register")}>
-                  {locale === "en" ? "Register" : "注册"}
+                  {t("register")}
                 </Button>
               </div>
             )}
@@ -213,7 +214,7 @@ export const Navbar = memo(function Navbar() {
             size="icon"
             className="md:hidden rounded-full"
             onClick={() => setMobileOpen(!mobileOpen)}
-            aria-label={locale === "en" ? "Menu" : "菜单"}
+            aria-label={t("menu")}
           >
             {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </Button>
@@ -228,7 +229,7 @@ export const Navbar = memo(function Navbar() {
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 type="search"
-                placeholder={locale === "en" ? "Search..." : "搜索..."}
+                placeholder={t("searchPlaceholder")}
                 className="pl-9 rounded-full"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
@@ -245,7 +246,7 @@ export const Navbar = memo(function Navbar() {
                     onClick={() => setMobileOpen(false)}
                   >
                     {Icon && <Icon className="h-4 w-4 text-muted-foreground" />}
-                    {locale === "en" ? link.labelEn : link.label}
+                    {t(link.key)}
                   </Link>
                 )
               })}
@@ -259,7 +260,7 @@ export const Navbar = memo(function Navbar() {
                   locale === "zh" ? "bg-primary text-primary-foreground border-primary" : "hover:bg-accent"
                 )}
               >
-                中文
+                {t("chinese")}
               </button>
               <button
                 onClick={() => { switchLocale("en"); setMobileOpen(false) }}
@@ -274,7 +275,7 @@ export const Navbar = memo(function Navbar() {
                 <div className="border-t pt-3 space-y-2">
                   {user && (
                     <Link href="/notifications" className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm hover:bg-accent" onClick={() => setMobileOpen(false)}>
-                      <Bell className="h-4 w-4 text-muted-foreground" />通知
+                      <Bell className="h-4 w-4 text-muted-foreground" />{t("notifications")}
                     </Link>
                   )}
               {user ? (
@@ -292,27 +293,27 @@ export const Navbar = memo(function Navbar() {
                     </div>
                   </div>
                   <Link href="/profile" className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm hover:bg-accent" onClick={() => setMobileOpen(false)}>
-                    <User className="h-4 w-4 text-muted-foreground" />{locale === "en" ? "Profile" : "个人资料"}
+                    <User className="h-4 w-4 text-muted-foreground" />{t("profile")}
                   </Link>
                   {user.role === "ADMIN" && (
                     <Link href="/admin" className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm hover:bg-accent" onClick={() => setMobileOpen(false)}>
-                      <Shield className="h-4 w-4 text-muted-foreground" />{locale === "en" ? "Admin" : "管理后台"}
+                      <Shield className="h-4 w-4 text-muted-foreground" />{t("admin")}
                     </Link>
                   )}
                   <Link href="/settings" className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm hover:bg-accent" onClick={() => setMobileOpen(false)}>
-                    <Settings className="h-4 w-4 text-muted-foreground" />{locale === "en" ? "Settings" : "设置"}
+                    <Settings className="h-4 w-4 text-muted-foreground" />{t("settings")}
                   </Link>
                   <button className="flex w-full items-center gap-3 px-3 py-2 rounded-lg text-sm hover:bg-destructive/10 text-destructive transition-colors" onClick={() => { signOut(); setMobileOpen(false); }}>
-                    <LogOut className="h-4 w-4" />{locale === "en" ? "Sign Out" : "退出登录"}
+                    <LogOut className="h-4 w-4" />{t("logout")}
                   </button>
                 </>
               ) : (
                 <div className="flex gap-2 px-3">
                   <Button variant="outline" size="sm" className="flex-1 rounded-full" onClick={() => { router.push("/login"); setMobileOpen(false); }}>
-                    {locale === "en" ? "Login" : "登录"}
+                    {t("login")}
                   </Button>
                   <Button size="sm" className="flex-1 rounded-full btn-gradient" onClick={() => { router.push("/register"); setMobileOpen(false); }}>
-                    {locale === "en" ? "Register" : "注册"}
+                    {t("register")}
                   </Button>
                 </div>
               )}

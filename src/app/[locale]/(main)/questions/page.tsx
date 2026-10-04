@@ -1,21 +1,19 @@
-﻿import Link from "next/link";
+import Link from "next/link";
 import type { Metadata } from "next";
+import { getTranslations, getLocale } from "next-intl/server";
 import { prisma } from "@/lib/db";
 import { formatRelativeTime, cn } from "@/lib/utils";
 import { PlusCircle, ChevronLeft, ChevronRight, MessageCircle, CheckCircle2, Clock } from "lucide-react";
 
 export const revalidate = 60;
 
-export const metadata: Metadata = {
-  title: "问答社区",
-  description: "提出你的技术问题，获得专业解答。浏览待解决和已解决的问题。",
-};
-
-const STATUS_FILTERS = [
-  { value: "", label: "全部", icon: MessageCircle },
-  { value: "open", label: "待解决", icon: Clock },
-  { value: "solved", label: "已解决", icon: CheckCircle2 },
-];
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("questions");
+  return {
+    title: t("title"),
+    description: t("metaDescription"),
+  };
+}
 
 const PAGE_SIZE = 15;
 
@@ -24,6 +22,16 @@ interface QuestionsPageProps {
 }
 
 export default async function QuestionsPage({ searchParams }: QuestionsPageProps) {
+  const t = await getTranslations("questions");
+  const tc = await getTranslations("common");
+  const locale = await getLocale();
+
+  const STATUS_FILTERS = [
+    { value: "", label: t("allStatus"), icon: MessageCircle },
+    { value: "open", label: t("statusOpen"), icon: Clock },
+    { value: "solved", label: t("statusSolved"), icon: CheckCircle2 },
+  ];
+
   const { page: pageStr, status } = await searchParams;
   const page = Math.max(1, parseInt(pageStr ?? "1") || 1);
   const s = status ?? "";
@@ -48,15 +56,15 @@ export default async function QuestionsPage({ searchParams }: QuestionsPageProps
       {/* Header */}
       <div className="mb-8 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 animate-fade-in-up">
         <div>
-          <h1 className="text-3xl font-bold gradient-text">问答社区</h1>
-          <p className="mt-2 text-muted-foreground">共 {total} 个问题</p>
+          <h1 className="text-3xl font-bold gradient-text">{t("title")}</h1>
+          <p className="mt-2 text-muted-foreground">{t("totalCount", { total })}</p>
         </div>
         <Link
           href="/questions/ask"
           className="btn-gradient inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-medium shadow-lg shadow-primary/25"
         >
           <PlusCircle className="h-4 w-4" />
-          提问
+          {t("askQuestion")}
         </Link>
       </div>
 
@@ -94,7 +102,7 @@ export default async function QuestionsPage({ searchParams }: QuestionsPageProps
               <div className="flex shrink-0 gap-4">
                 <div className="flex flex-col items-center min-w-[48px]">
                   <span className="text-lg font-bold text-foreground">{q.voteCount}</span>
-                  <span className="text-[11px] text-muted-foreground">票</span>
+                  <span className="text-[11px] text-muted-foreground">{tc("votes")}</span>
                 </div>
                 <div className="flex flex-col items-center min-w-[48px]">
                   <span className={cn(
@@ -103,7 +111,7 @@ export default async function QuestionsPage({ searchParams }: QuestionsPageProps
                   )}>
                     {q.answerCount}
                   </span>
-                  <span className="text-[11px] text-muted-foreground">回答</span>
+                  <span className="text-[11px] text-muted-foreground">{tc("answers")}</span>
                 </div>
               </div>
 
@@ -128,7 +136,7 @@ export default async function QuestionsPage({ searchParams }: QuestionsPageProps
                   <span className="ml-auto flex items-center gap-1">
                     {q.author.name}
                     <span className="text-border">·</span>
-                    {formatRelativeTime(q.createdAt)}
+                    {formatRelativeTime(q.createdAt, locale)}
                   </span>
                 </div>
               </div>
@@ -141,9 +149,9 @@ export default async function QuestionsPage({ searchParams }: QuestionsPageProps
             <div className="inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-muted mb-4">
               <MessageCircle className="h-8 w-8 text-muted-foreground" />
             </div>
-            <p className="text-muted-foreground mb-4">暂无问题</p>
+            <p className="text-muted-foreground mb-4">{t("noQuestions")}</p>
             <Link href="/questions/ask" className="btn-gradient inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium">
-              <PlusCircle className="h-4 w-4" />提问
+              <PlusCircle className="h-4 w-4" />{t("askQuestion")}
             </Link>
           </div>
         )}
@@ -159,7 +167,7 @@ export default async function QuestionsPage({ searchParams }: QuestionsPageProps
               page <= 1 && "pointer-events-none opacity-40"
             )}
           >
-            <ChevronLeft className="h-4 w-4" />上一页
+            <ChevronLeft className="h-4 w-4" />{tc("previous")}
           </Link>
           <span className="px-4 py-2 text-sm text-muted-foreground font-medium">
             {page} / {totalPages}
@@ -171,7 +179,7 @@ export default async function QuestionsPage({ searchParams }: QuestionsPageProps
               page >= totalPages && "pointer-events-none opacity-40"
             )}
           >
-            下一页<ChevronRight className="h-4 w-4" />
+            {tc("next")}<ChevronRight className="h-4 w-4" />
           </Link>
         </div>
       )}

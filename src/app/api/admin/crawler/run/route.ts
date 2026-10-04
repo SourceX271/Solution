@@ -1,17 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
+import { getApiT } from "@/lib/api-i18n";
 import { runCrawler, isCrawlerSource } from "@/lib/crawler-ingest";
 
 export async function POST(req: NextRequest) {
+  const t = await getApiT("api");
   try {
     const session = await auth();
     if (!session || (session.user as any).role !== "ADMIN") {
-      return NextResponse.json({ error: "无权访问" }, { status: 403 });
+      return NextResponse.json({ error: t("forbiddenAccess") }, { status: 403 });
     }
 
     const requested = new URL(req.url).searchParams.get("source") || undefined;
     if (requested && !isCrawlerSource(requested)) {
-      return NextResponse.json({ error: "未知的数据源" }, { status: 400 });
+      return NextResponse.json({ error: t("crawlerUnknownSource") }, { status: 400 });
     }
 
     const result = await runCrawler({ source: requested });
@@ -25,6 +27,6 @@ export async function POST(req: NextRequest) {
       sourcesProcessed: result.sourcesProcessed,
     });
   } catch {
-    return NextResponse.json({ error: "触发爬虫失败" }, { status: 500 });
+    return NextResponse.json({ error: t("crawlerTriggerFailed") }, { status: 500 });
   }
 }

@@ -4,8 +4,10 @@ import { useState, useEffect, useCallback } from "react";
 import { Bell } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useTranslations, useLocale } from "next-intl";
 import { formatRelativeTime } from "@/lib/utils";
 import { cn } from "@/lib/utils";
+import { renderNotificationMessage } from "@/lib/notification-message";
 
 interface Notification {
   id: string;
@@ -17,6 +19,8 @@ interface Notification {
 }
 
 export function NotificationBell() {
+  const t = useTranslations("notifications");
+  const locale = useLocale();
   const router = useRouter();
   const [unreadCount, setUnreadCount] = useState(0);
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -96,7 +100,7 @@ export function NotificationBell() {
       <button
         onClick={() => setOpen(!open)}
         className="relative rounded-full p-2 hover:bg-accent transition-colors"
-        aria-label={unreadCount > 0 ? `通知（${unreadCount} 条未读）` : "通知"}
+        aria-label={unreadCount > 0 ? t("unreadCount", { count: unreadCount }) : t("title")}
         aria-expanded={open}
         aria-haspopup="true"
       >
@@ -113,21 +117,21 @@ export function NotificationBell() {
           <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} aria-hidden="true" />
           <div className="absolute right-0 top-full z-50 mt-2 w-80 rounded-lg border bg-popover shadow-lg">
             <div className="flex items-center justify-between border-b px-4 py-3">
-              <h3 className="text-sm font-semibold">通知</h3>
+              <h3 className="text-sm font-semibold">{t("title")}</h3>
               <div className="flex gap-2">
                 {unreadCount > 0 && (
                   <button onClick={markAllAsRead} className="text-xs text-primary hover:underline">
-                    全部已读
+                    {t("markAllRead")}
                   </button>
                 )}
                 <Link href="/notifications" className="text-xs text-muted-foreground hover:underline" onClick={() => setOpen(false)}>
-                  查看全部
+                  {t("viewAll")}
                 </Link>
               </div>
             </div>
             <div className="max-h-80 overflow-y-auto">
               {notifications.length === 0 ? (
-                <p className="px-4 py-8 text-center text-sm text-muted-foreground">暂无通知</p>
+                <p className="px-4 py-8 text-center text-sm text-muted-foreground">{t("noNotifications")}</p>
               ) : (
                 notifications.map((n) => (
                   <button
@@ -140,8 +144,8 @@ export function NotificationBell() {
                   >
                     <span className="mt-0.5 text-base">{typeIcons[n.type] || "🔔"}</span>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm leading-snug">{n.message}</p>
-                      <p className="mt-0.5 text-xs text-muted-foreground">{formatRelativeTime(n.createdAt)}</p>
+                      <p className="text-sm leading-snug">{renderNotificationMessage(n.message, t)}</p>
+                      <p className="mt-0.5 text-xs text-muted-foreground">{formatRelativeTime(n.createdAt, locale)}</p>
                     </div>
                     {!n.read && <span className="mt-2 h-2 w-2 shrink-0 rounded-full bg-primary" />}
                   </button>

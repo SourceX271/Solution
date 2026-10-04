@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db"
 import { auth } from "@/lib/auth"
 import { NextResponse } from "next/server"
+import { getApiT } from "@/lib/api-i18n"
 import { runCrawler } from "@/lib/crawler-ingest"
 
 // Known crawler source keys (crawler/main.py SOURCES). CrawlSource.name is a
@@ -30,9 +31,10 @@ export async function POST(
   _req: Request,
   { params }: { params: { id: string } }
 ) {
+  const t = await getApiT("api")
   const session = await auth()
   if (!session || (session.user as any).role !== "ADMIN") {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    return NextResponse.json({ error: t("unauthorized") }, { status: 401 })
   }
 
   const source = await prisma.crawlSource.findUnique({ where: { id: params.id } })
@@ -45,7 +47,7 @@ export async function POST(
     // Falling back to a full crawl here used to silently crawl *every* source
     // when a display name had no mapping. Report it instead.
     return NextResponse.json(
-      { error: `无法识别的数据源名称：${source.name}，请检查 SOURCE_KEY_ALIASES 映射` },
+      { error: t("crawlerSourceNameUnknown", { name: source.name }) },
       { status: 400 }
     )
   }

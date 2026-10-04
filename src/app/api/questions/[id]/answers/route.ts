@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { auth } from "@/lib/auth";
-import { answerSchema } from "@/lib/validations";
+import { getAnswerSchema } from "@/lib/validations";
+import { getApiT } from "@/lib/api-i18n";
 import { sanitizeHtml } from "@/lib/sanitize";
 import { checkRateLimit, getRateLimitKey } from "@/lib/rate-limit";
 import { createNotification } from "@/lib/notifications";
@@ -10,24 +11,29 @@ export async function POST(
   req: NextRequest,
   { params }: { params: { id: string } }
 ) {
+  const t = await getApiT("api");
+  const tv = await getApiT("validation");
   try {
     const session = await auth();
     if (!session) {
-      return NextResponse.json({ error: "请先登录" }, { status: 401 });
+      return NextResponse.json({ error: t("unauthorized") }, { status: 401 });
     }
 
     const { allowed } = checkRateLimit(getRateLimitKey(req, "answer"), { windowMs: 60000, maxRequests: 10 });
     if (!allowed) {
-      return NextResponse.json({ error: "操作过于频繁，请稍后再试" }, { status: 429 });
+      return NextResponse.json({ error: t("rateLimited") }, { status: 429 });
     }
 
     const question = await prisma.question.findUnique({ where: { id: params.id } });
     if (!question) {
-      return NextResponse.json({ error: "问题不存在" }, { status: 404 });
+      return NextResponse.json(
+        { error: t("notFound", { entity: t("entity.question") }) },
+        { status: 404 }
+      );
     }
 
     const body = await req.json();
-    const parsed = answerSchema.safeParse(body);
+    const parsed = getAnswerSchema(tv).safeParse(body);
     if (!parsed.success) {
       return NextResponse.json({ error: parsed.error.errors[0].message }, { status: 400 });
     }
@@ -60,12 +66,16 @@ export async function POST(
       userId: question.authorId,
       actorId: authorId,
       type: "answer",
-      message: `${session.user?.name || "有人"} 回答了你的问题「${question.title}」`,
+      messageKey: "newAnswer",
+      messageParams: { name: session.user?.name || "Someone", title: question.title },
       link: `/questions/${question.slug}`,
     });
 
     return NextResponse.json(answer, { status: 201 });
   } catch (error) {
-    return NextResponse.json({ error: "创建回答失败" }, { status: 500 });
+    return NextResponse.json(
+      { error: t("createFailed", { entity: t("entity.answer") }) },
+      { status: 500 }
+    );
   }
 }

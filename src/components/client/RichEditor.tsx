@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback, useEffect, useRef } from "react";
+import { useTranslations } from "next-intl";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Placeholder from "@tiptap/extension-placeholder";
@@ -58,6 +59,8 @@ export function RichEditor({
   showToolbar = true,
   readOnly = false,
 }: RichEditorProps) {
+  const tc = useTranslations("common");
+  const te = useTranslations("editor");
   const [mode, setMode] = useState<"wysiwyg" | "source" | "split">("wysiwyg");
   const [sourceContent, setSourceContent] = useState("");
   const [previewHtml, setPreviewHtml] = useState("");
@@ -147,9 +150,12 @@ export function RichEditor({
           setPreviewHtml("");
         }
       } catch {
-        setPreviewHtml("<p class='text-destructive'>Markdown 解析错误</p>");
+        setPreviewHtml(`<p class='text-destructive'>${te("markdownError")}</p>`);
       }
     }
+    // Translators are new function identities on every render, so they are
+    // intentionally not dependencies.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sourceContent, mode]);
 
   // Sync editor changes to parent
@@ -209,19 +215,21 @@ export function RichEditor({
   const insertLink = useCallback(() => {
     if (!editor) return;
     const prevUrl = editor.getAttributes("link").href || "";
-    const url = window.prompt("输入链接地址：", prevUrl);
+    const url = window.prompt(te("linkPrompt"), prevUrl);
     if (url === null) return; // cancelled
     if (url === "") {
       editor.chain().focus().extendMarkRange("link").unsetLink().run();
     } else {
       editor.chain().focus().extendMarkRange("link").setLink({ href: url }).run();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editor]);
 
   const insertImage = useCallback(() => {
     if (!editor) return;
-    const url = window.prompt("输入图片地址：");
+    const url = window.prompt(te("imagePrompt"));
     if (url) editor.chain().focus().setImage({ src: url }).run();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editor]);
 
   if (!editor) {
@@ -249,44 +257,44 @@ export function RichEditor({
           <div className="flex flex-wrap items-center gap-0.5">
             {mode === "wysiwyg" && (
               <>
-                <button type="button" onClick={() => editor.chain().focus().toggleBold().run()} className={btnClass(editor.isActive("bold"))} title="粗体">
+                <button type="button" onClick={() => editor.chain().focus().toggleBold().run()} className={btnClass(editor.isActive("bold"))} title={te("bold")}>
                   <Bold className="h-3.5 w-3.5" />
                 </button>
-                <button type="button" onClick={() => editor.chain().focus().toggleItalic().run()} className={btnClass(editor.isActive("italic"))} title="斜体">
+                <button type="button" onClick={() => editor.chain().focus().toggleItalic().run()} className={btnClass(editor.isActive("italic"))} title={te("italic")}>
                   <Italic className="h-3.5 w-3.5" />
                 </button>
-                <button type="button" onClick={() => editor.chain().focus().toggleStrike().run()} className={btnClass(editor.isActive("strike"))} title="删除线">
+                <button type="button" onClick={() => editor.chain().focus().toggleStrike().run()} className={btnClass(editor.isActive("strike"))} title={te("strike")}>
                   <Strikethrough className="h-3.5 w-3.5" />
                 </button>
                 <Divider />
-                <button type="button" onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()} className={btnClass(editor.isActive("heading", { level: 2 }))} title="标题">
+                <button type="button" onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()} className={btnClass(editor.isActive("heading", { level: 2 }))} title={te("heading")}>
                   <Heading2 className="h-3.5 w-3.5" />
                 </button>
-                <button type="button" onClick={() => editor.chain().focus().toggleBulletList().run()} className={btnClass(editor.isActive("bulletList"))} title="无序列表">
+                <button type="button" onClick={() => editor.chain().focus().toggleBulletList().run()} className={btnClass(editor.isActive("bulletList"))} title={te("bulletList")}>
                   <List className="h-3.5 w-3.5" />
                 </button>
-                <button type="button" onClick={() => editor.chain().focus().toggleOrderedList().run()} className={btnClass(editor.isActive("orderedList"))} title="有序列表">
+                <button type="button" onClick={() => editor.chain().focus().toggleOrderedList().run()} className={btnClass(editor.isActive("orderedList"))} title={te("orderedList")}>
                   <ListOrdered className="h-3.5 w-3.5" />
                 </button>
                 <Divider />
-                <button type="button" onClick={() => editor.chain().focus().toggleCodeBlock().run()} className={btnClass(editor.isActive("codeBlock"))} title="代码块">
+                <button type="button" onClick={() => editor.chain().focus().toggleCodeBlock().run()} className={btnClass(editor.isActive("codeBlock"))} title={te("codeBlock")}>
                   <Code className="h-3.5 w-3.5" />
                 </button>
-                <button type="button" onClick={() => editor.chain().focus().toggleBlockquote().run()} className={btnClass(editor.isActive("blockquote"))} title="引用">
+                <button type="button" onClick={() => editor.chain().focus().toggleBlockquote().run()} className={btnClass(editor.isActive("blockquote"))} title={te("blockquote")}>
                   <Quote className="h-3.5 w-3.5" />
                 </button>
                 <Divider />
-                <button type="button" onClick={insertLink} className={btnClass(editor.isActive("link"))} title="插入链接">
+                <button type="button" onClick={insertLink} className={btnClass(editor.isActive("link"))} title={te("insertLink")}>
                   <LinkIcon className="h-3.5 w-3.5" />
                 </button>
-                <button type="button" onClick={insertImage} className="rounded px-1.5 py-1 text-xs text-muted-foreground hover:bg-accent hover:text-foreground transition-colors" title="插入图片">
+                <button type="button" onClick={insertImage} className="rounded px-1.5 py-1 text-xs text-muted-foreground hover:bg-accent hover:text-foreground transition-colors" title={te("insertImage")}>
                   <ImageIcon className="h-3.5 w-3.5" />
                 </button>
                 <Divider />
-                <button type="button" onClick={() => editor.chain().focus().undo().run()} className={btnClass(false, !editor.can().undo())} title="撤销">
+                <button type="button" onClick={() => editor.chain().focus().undo().run()} className={btnClass(false, !editor.can().undo())} title={te("undo")}>
                   <Undo className="h-3.5 w-3.5" />
                 </button>
-                <button type="button" onClick={() => editor.chain().focus().redo().run()} className={btnClass(false, !editor.can().redo())} title="重做">
+                <button type="button" onClick={() => editor.chain().focus().redo().run()} className={btnClass(false, !editor.can().redo())} title={te("redo")}>
                   <Redo className="h-3.5 w-3.5" />
                 </button>
               </>
@@ -295,13 +303,13 @@ export function RichEditor({
 
           {/* Mode switchers */}
           <div className="flex items-center gap-0.5 shrink-0">
-            <button type="button" onClick={() => setMode("wysiwyg")} title="富文本模式" className={btnClass(mode === "wysiwyg")}>
+            <button type="button" onClick={() => setMode("wysiwyg")} title={te("richTextMode")} className={btnClass(mode === "wysiwyg")}>
               <Pencil className="h-3.5 w-3.5" />
             </button>
-            <button type="button" onClick={switchToSource} title="Markdown 源码" className={btnClass(mode === "source")}>
+            <button type="button" onClick={switchToSource} title={te("markdownSource")} className={btnClass(mode === "source")}>
               {"</>"}
             </button>
-            <button type="button" onClick={switchToSplit} title="分屏预览" className={btnClass(mode === "split")}>
+            <button type="button" onClick={switchToSplit} title={te("splitPreview")} className={btnClass(mode === "split")}>
               <Columns className="h-3.5 w-3.5" />
             </button>
           </div>
@@ -324,24 +332,24 @@ export function RichEditor({
             onChange={handleSourceChange}
             className="w-full rounded-md border border-input bg-background p-4 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-ring resize-none"
             style={{ minHeight }}
-            placeholder="输入 Markdown 内容..."
+            placeholder={te("sourcePlaceholder")}
           />
           <details className="rounded-md border border-input bg-background group" open>
             <summary className="cursor-pointer px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground select-none">
               <Eye className="mr-1.5 inline-block h-3.5 w-3.5" />
-              预览
+              {tc("preview")}
             </summary>
             <div className="border-t px-4 py-3">
               {previewHtml ? (
                 <div className="prose-custom max-w-none text-sm" dangerouslySetInnerHTML={{ __html: previewHtml }} />
               ) : (
-                <p className="text-sm text-muted-foreground">暂无内容</p>
+                <p className="text-sm text-muted-foreground">{te("noContent")}</p>
               )}
             </div>
           </details>
           <div className="flex justify-end">
             <button type="button" onClick={switchToWysiwyg} className="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 transition-colors">
-              切换到富文本
+              {te("switchToRichText")}
             </button>
           </div>
         </div>
@@ -355,13 +363,13 @@ export function RichEditor({
             value={sourceContent}
             onChange={handleSourceChange}
             className="w-full border-r border-input bg-background p-4 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-inset focus:ring-ring resize-none"
-            placeholder="输入 Markdown 内容..."
+            placeholder={te("sourcePlaceholder")}
           />
           <div className="bg-muted/20 p-4 overflow-auto">
             {previewHtml ? (
               <div className="prose-custom max-w-none text-sm" dangerouslySetInnerHTML={{ __html: previewHtml }} />
             ) : (
-              <p className="text-sm text-muted-foreground">暂无内容</p>
+              <p className="text-sm text-muted-foreground">{te("noContent")}</p>
             )}
           </div>
         </div>

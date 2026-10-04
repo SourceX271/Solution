@@ -9,6 +9,8 @@ import { FileText, HelpCircle, Package } from "lucide-react"
 import { ContentActions } from "./ContentActions"
 import { StatusFilter } from "./StatusFilter"
 import { toPositiveInt } from "@/lib/errors"
+import { getTranslations, getLocale } from "next-intl/server"
+import { formatDate } from "@/lib/utils"
 
 export const dynamic = "force-dynamic"
 
@@ -16,10 +18,10 @@ const PAGE_SIZE = 10
 
 type ContentType = "articles" | "questions" | "software"
 
-const typeLabels: Record<ContentType, { label: string; icon: React.ComponentType<{ className?: string }> }> = {
-  articles: { label: "解决方案", icon: FileText },
-  questions: { label: "Questions", icon: HelpCircle },
-  software: { label: "Software", icon: Package },
+const typeLabels: Record<ContentType, { icon: React.ComponentType<{ className?: string }> }> = {
+  articles: { icon: FileText },
+  questions: { icon: HelpCircle },
+  software: { icon: Package },
 }
 
 const statusColors: Record<string, "default" | "secondary" | "success" | "warning" | "destructive" | "outline"> = {
@@ -77,9 +79,16 @@ export default async function ContentPage({
       : "articles"
   const status = searchParams.status || "all"
   const page = toPositiveInt(searchParams.page ?? null, 1)
+  const t = await getTranslations("admin")
+  const locale = await getLocale()
   const { items, total } = await getContent(type, status, page)
   const totalPages = Math.ceil(total / PAGE_SIZE)
   const Icon = typeLabels[type].icon
+  const labels: Record<ContentType, string> = {
+    articles: t("solutions"),
+    questions: "Questions",
+    software: "Software",
+  }
 
   return (
     <div className="space-y-6">
@@ -90,7 +99,7 @@ export default async function ContentPage({
 
       {/* Tabs */}
       <div className="flex gap-1 rounded-lg bg-muted p-1 w-fit">
-        {(Object.entries(typeLabels) as [ContentType, typeof typeLabels[ContentType]][]).map(([key, { label, icon: TabIcon }]) => (
+        {(Object.entries(typeLabels) as [ContentType, typeof typeLabels[ContentType]][]).map(([key, { icon: TabIcon }]) => (
           <Link
             key={key}
             href={`/admin/content?type=${key}&status=${status}`}
@@ -99,7 +108,7 @@ export default async function ContentPage({
             }`}
           >
             <TabIcon className="h-4 w-4" />
-            {label}
+            {labels[key]}
           </Link>
         ))}
       </div>
@@ -108,7 +117,7 @@ export default async function ContentPage({
         <CardHeader className="flex flex-row items-center justify-between space-y-0">
           <CardTitle className="text-lg flex items-center gap-2">
             <Icon className="h-5 w-5" />
-            {typeLabels[type].label}
+            {labels[type]}
           </CardTitle>
           <div className="flex items-center gap-3">
             <StatusFilter type={type} currentStatus={status} options={statusOptions[type]} />
@@ -129,7 +138,7 @@ export default async function ContentPage({
               {items.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
-                    No {typeLabels[type].label.toLowerCase()} found.
+                    No {labels[type].toLowerCase()} found.
                   </TableCell>
                 </TableRow>
               ) : (
@@ -145,7 +154,7 @@ export default async function ContentPage({
                       </Badge>
                     </TableCell>
                     <TableCell className="text-muted-foreground">
-                      {new Date(item.createdAt).toLocaleDateString("zh-CN")}
+                      {formatDate(item.createdAt, locale)}
                     </TableCell>
                     <TableCell className="text-right">
                       <ContentActions type={type} id={item.id} slug={item.slug} status={item.status} />

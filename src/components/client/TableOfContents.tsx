@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { cn } from "@/lib/utils"
+import { useTranslations } from "next-intl"
 
 interface TocHeading {
   id: string
@@ -14,7 +15,9 @@ interface TableOfContentsProps {
   title?: string
 }
 
-export function TableOfContents({ headings, title = "目录" }: TableOfContentsProps) {
+export function TableOfContents({ headings, title }: TableOfContentsProps) {
+  const t = useTranslations("common")
+  const headingTitle = title ?? t("toc")
   const [activeId, setActiveId] = useState<string>("")
 
   useEffect(() => {
@@ -42,15 +45,15 @@ export function TableOfContents({ headings, title = "目录" }: TableOfContentsP
   if (headings.length === 0) {
     return (
       <div className="glass-card rounded-xl p-4">
-        <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">{title}</h3>
-        <p className="text-xs text-muted-foreground">暂无目录</p>
+        <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">{headingTitle}</h3>
+        <p className="text-xs text-muted-foreground">{t("noToc")}</p>
       </div>
     )
   }
 
   return (
     <div className="glass-card rounded-xl p-4">
-      <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">{title}</h3>
+      <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">{headingTitle}</h3>
       <nav className="space-y-0.5">
         {headings.map((h) => (
           <a

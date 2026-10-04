@@ -1,18 +1,25 @@
 import Link from "next/link"
 import { prisma } from "@/lib/db"
 import { Github, Twitter, Mail, Globe, Heart } from "lucide-react"
+import { getTranslations, getLocale } from "next-intl/server"
 
 const footerLinks = [
-  { href: "/about", label: "关于我们", labelEn: "About" },
-  { href: "/help", label: "帮助中心", labelEn: "Help" },
-  { href: "/privacy", label: "隐私政策", labelEn: "Privacy" },
-  { href: "/contact", label: "联系我们", labelEn: "Contact" },
+  { href: "/about", key: "about" as const },
+  { href: "/help", key: "help" as const },
+  { href: "/privacy", key: "privacy" as const },
+  { href: "/contact", key: "contact" as const },
 ]
 
 export async function Footer() {
+  const t = await getTranslations("footer")
+  const tc = await getTranslations("common")
+  const locale = await getLocale()
   const config = await prisma.siteConfig.findUnique({ where: { id: "main" } })
   const siteName = config?.siteName || "Solution"
-  const siteDescription = config?.siteDescription || "社区解决方案与问答平台"
+  // The admin-entered description is a single (usually Chinese) value, so it is
+  // only used for the default locale — other locales use the translated copy.
+  const siteDescription =
+    locale === "zh" && config?.siteDescription ? config.siteDescription : tc("siteDescription")
   const contactEmail = config?.contactEmail || ""
   const githubUrl = config?.githubUrl || ""
   const twitterUrl = config?.twitterUrl || ""
@@ -71,7 +78,7 @@ export async function Footer() {
 
           {/* Links */}
           <div>
-            <h4 className="text-sm font-semibold mb-4">快速链接</h4>
+            <h4 className="text-sm font-semibold mb-4">{t("quickLinks")}</h4>
             <ul className="space-y-2.5">
               {footerLinks.map((link) => (
                 <li key={link.href}>
@@ -79,7 +86,7 @@ export async function Footer() {
                     href={link.href}
                     className="text-sm text-muted-foreground hover:text-foreground transition-colors"
                   >
-                    {link.label}
+                    {t(link.key)}
                   </Link>
                 </li>
               ))}
@@ -88,7 +95,7 @@ export async function Footer() {
 
           {/* Contact */}
           <div>
-            <h4 className="text-sm font-semibold mb-4">联系方式</h4>
+            <h4 className="text-sm font-semibold mb-4">{t("contactTitle")}</h4>
             <ul className="space-y-2.5 text-sm text-muted-foreground">
               {contactEmail && <li className="flex items-center gap-2"><Mail className="h-3.5 w-3.5" />{contactEmail}</li>}
               {githubUrl && (
@@ -106,7 +113,7 @@ export async function Footer() {
                 </li>
               )}
               {!contactEmail && !githubUrl && !twitterUrl && (
-                <li>暂无联系方式</li>
+                <li>{t("noContact")}</li>
               )}
             </ul>
           </div>
@@ -116,7 +123,7 @@ export async function Footer() {
         <div className="mt-10 pt-6 border-t flex flex-col sm:flex-row items-center justify-between gap-3 text-sm text-muted-foreground">
           <p className="flex items-center gap-1">
             {footerText ? footerText : (
-              <>{"\u00A9"} {currentYear} {siteName}. All rights reserved.</>
+              <>{"\u00A9"} {currentYear} {siteName}. {t("allRights")}</>
             )}
           </p>
           <div className="flex items-center gap-4">

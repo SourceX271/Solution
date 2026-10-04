@@ -10,10 +10,13 @@ import {
 
 export const revalidate = 300;
 
-export const metadata: Metadata = {
-  title: "首页",
-  description: "发现技术方案，连接开发者社区。浏览高质量解决方案、提问答疑、发现最佳开发工具。",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("home");
+  return {
+    title: t("metaTitle"),
+    description: t("metaDescription"),
+  };
+}
 
 interface HomePageProps {
   searchParams: Promise<{ type?: string; tag?: string }>;
@@ -137,7 +140,9 @@ export default async function HomePage({ searchParams }: HomePageProps) {
         <div className="container mx-auto px-4 py-20 md:py-28 text-center relative z-10">
           <div className="inline-flex items-center gap-2 rounded-full border bg-card px-4 py-1.5 text-xs font-medium text-muted-foreground mb-6 animate-fade-in-up shadow-sm">
             <Sparkles className="h-3.5 w-3.5 text-amber-500" />
-            {siteConfig?.siteDescription || ""}
+            {/* The admin-entered description is a single (usually Chinese) value,
+                so it is only shown in the default locale. */}
+            {locale === "zh" && siteConfig?.siteDescription ? siteConfig.siteDescription : tc("siteDescription")}
           </div>
 
           <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight mb-6 animate-fade-in-up stagger-1">
@@ -325,7 +330,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
                                 <span className="text-border">·</span>
                               </>
                             )}
-                            {formatRelativeTime(item.createdAt)}
+                            {formatRelativeTime(item.createdAt, locale)}
                           </span>
                         </div>
                       </div>

@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
+import { useTranslations } from "next-intl"
 import { Star } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
@@ -13,6 +14,7 @@ interface RatingWidgetProps {
 }
 
 export function RatingWidget({ softwareId, currentRating, userId }: RatingWidgetProps) {
+  const t = useTranslations("common")
   const router = useRouter()
   const [rating, setRating] = useState(currentRating)
   const [hover, setHover] = useState(0)
@@ -40,17 +42,17 @@ export function RatingWidget({ softwareId, currentRating, userId }: RatingWidget
       if (res.ok) {
         if (data.voted === false) {
           setRating(0)
-          toast.success(data.message || "已取消评分")
+          toast.success(data.message || t("rateCancelled"))
         } else {
           setRating(value)
-          toast.success(data.message || "评分成功")
+          toast.success(data.message || t("rateSuccess"))
         }
         router.refresh()
       } else {
-        toast.error(data.error || "评分失败")
+        toast.error(data.error || t("rateFailed"))
       }
     } catch {
-      toast.error("评分操作失败，请重试")
+      toast.error(t("rateFailedRetry"))
     } finally {
       setLoading(false)
     }
@@ -80,10 +82,10 @@ export function RatingWidget({ softwareId, currentRating, userId }: RatingWidget
         </button>
       ))}
       {!userId && (
-        <span className="ml-2 text-xs text-muted-foreground">登录即可评分</span>
+        <span className="ml-2 text-xs text-muted-foreground">{t("loginToRate")}</span>
       )}
       {loading && (
-        <span className="ml-2 text-xs text-muted-foreground animate-pulse">提交中...</span>
+        <span className="ml-2 text-xs text-muted-foreground animate-pulse">{t("submittingRating")}</span>
       )}
     </div>
   )

@@ -18,6 +18,8 @@ import { RichTextEditor } from "./RichTextEditor"
 import { ArrowLeft, Save, Trash2 } from "lucide-react"
 import Link from "next/link"
 import { toast } from "sonner"
+import { useTranslations, useLocale } from "next-intl"
+import { formatDate } from "@/lib/utils"
 
 interface EditContentFormProps {
   type: string
@@ -27,12 +29,19 @@ interface EditContentFormProps {
 const articleCategories = ["solution", "tutorial", "guide", "reference", "news"]
 const softwareCategories = ["tool", "library", "framework", "service", "platform", "other"]
 
-const categoryLabels: Record<string, string> = {
-  solution: "解决方案", tutorial: "教程", guide: "指南", reference: "参考", news: "资讯",
-}
-
 export function EditContentForm({ type, item }: EditContentFormProps) {
   const router = useRouter()
+  const t = useTranslations("admin")
+  const tc = useTranslations("common")
+  const td = useTranslations("docs")
+  const locale = useLocale()
+  const categoryLabels: Record<string, string> = {
+    solution: td("categorySolution"),
+    tutorial: td("categoryTutorial"),
+    guide: td("categoryGuide"),
+    reference: td("categoryReference"),
+    news: td("categoryNews"),
+  }
   const [saving, setSaving] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [deleting, setDeleting] = useState(false)
@@ -86,15 +95,15 @@ export function EditContentForm({ type, item }: EditContentFormProps) {
       })
 
       if (res.ok) {
-        toast.success("保存成功")
+        toast.success(tc("saveSuccess"))
         router.refresh()
         router.push("/admin/content?type=" + type)
       } else {
         const data = await res.json().catch(() => null)
-        toast.error(data?.error || "保存失败")
+        toast.error(data?.error || tc("saveFailed"))
       }
     } catch {
-      toast.error("保存失败，请检查网络")
+      toast.error(tc("saveFailedNetwork"))
     } finally {
       setSaving(false)
     }
@@ -105,14 +114,14 @@ export function EditContentForm({ type, item }: EditContentFormProps) {
     try {
       const res = await fetch("/api/admin/content/" + type + "/" + item.id, { method: "DELETE" })
       if (res.ok) {
-        toast.success("已删除")
+        toast.success(tc("deleteSuccess"))
         router.push("/admin/content?type=" + type)
       } else {
         const data = await res.json().catch(() => null)
-        toast.error(data?.error || "删除失败")
+        toast.error(data?.error || tc("deleteFailed"))
       }
     } catch {
-      toast.error("删除失败，请检查网络")
+      toast.error(tc("deleteFailedNetwork"))
     } finally { setDeleting(false) }
   }
 
@@ -120,26 +129,26 @@ export function EditContentForm({ type, item }: EditContentFormProps) {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <Link href={"/admin/content?type=" + type} className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground">
-          <ArrowLeft className="h-4 w-4" />返回
+          <ArrowLeft className="h-4 w-4" />{tc("back")}
         </Link>
         <div className="flex items-center gap-3">
           <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
             <DialogTrigger asChild>
-              <Button variant="outline" size="sm"><Trash2 className="h-4 w-4 mr-2" />删除</Button>
+              <Button variant="outline" size="sm"><Trash2 className="h-4 w-4 mr-2" />{tc("delete")}</Button>
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>确认删除</DialogTitle>
-                <DialogDescription>此操作不可撤销，确定要删除吗？</DialogDescription>
+                <DialogTitle>{tc("deleteConfirmTitle")}</DialogTitle>
+                <DialogDescription>{tc("deleteConfirmText")}</DialogDescription>
               </DialogHeader>
               <DialogFooter>
-                <Button variant="outline" onClick={() => setDeleteOpen(false)}>取消</Button>
-                <Button variant="destructive" onClick={handleDelete} disabled={deleting}>{deleting ? "删除中..." : "删除"}</Button>
+                <Button variant="outline" onClick={() => setDeleteOpen(false)}>{tc("cancel")}</Button>
+                <Button variant="destructive" onClick={handleDelete} disabled={deleting}>{deleting ? tc("deleting") : tc("delete")}</Button>
               </DialogFooter>
             </DialogContent>
           </Dialog>
           <Button onClick={handleSave} disabled={saving}>
-            <Save className="h-4 w-4 mr-2" />{saving ? "保存中..." : "保存"}
+            <Save className="h-4 w-4 mr-2" />{saving ? tc("saving") : tc("save")}
           </Button>
         </div>
       </div>
@@ -147,36 +156,36 @@ export function EditContentForm({ type, item }: EditContentFormProps) {
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2 space-y-6">
           <Card>
-            <CardHeader><CardTitle className="text-lg">内容编辑</CardTitle></CardHeader>
+            <CardHeader><CardTitle className="text-lg">{t("contentEdit")}</CardTitle></CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="title">{type === "software" ? "名称" : "标题"}</Label>
-                <Input id="title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder={type === "software" ? "软件名称" : "标题"} />
+                <Label htmlFor="title">{type === "software" ? t("softwareName") : t("contentTitle")}</Label>
+                <Input id="title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder={type === "software" ? t("namePlaceholder") : t("titlePlaceholder")} />
               </div>
 
               {type === "articles" && (
                 <div className="space-y-2">
-                  <Label htmlFor="problem">遇到的问题</Label>
-                  <Textarea id="problem" value={problem} onChange={(e) => setProblem(e.target.value)} placeholder="描述这篇文章要解决的问题..." rows={3} />
+                  <Label htmlFor="problem">{tc("problem")}</Label>
+                  <Textarea id="problem" value={problem} onChange={(e) => setProblem(e.target.value)} placeholder={t("problemPlaceholder")} rows={3} />
                 </div>
               )}
 
               {type === "software" && (
                 <div className="space-y-2">
-                  <Label htmlFor="url">网站地址</Label>
+                  <Label htmlFor="url">{t("urlLabel")}</Label>
                   <Input id="url" value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://..." />
                 </div>
               )}
 
               {type === "articles" && (
                 <div className="space-y-2">
-                  <Label htmlFor="excerpt">摘要</Label>
-                  <Textarea id="excerpt" value={excerpt} onChange={(e) => setExcerpt(e.target.value)} placeholder="简短描述..." rows={2} />
+                  <Label htmlFor="excerpt">{t("excerptLabel")}</Label>
+                  <Textarea id="excerpt" value={excerpt} onChange={(e) => setExcerpt(e.target.value)} placeholder={t("excerptPlaceholder")} rows={2} />
                 </div>
               )}
 
               <div className="space-y-2">
-                <Label>{type === "software" ? "描述" : "内容"}</Label>
+                <Label>{type === "software" ? t("descriptionLabel") : t("contentLabel")}</Label>
                 <RichTextEditor content={content} onChange={setContent} />
               </div>
             </CardContent>
@@ -185,21 +194,21 @@ export function EditContentForm({ type, item }: EditContentFormProps) {
 
         <div className="space-y-6">
           <Card>
-            <CardHeader><CardTitle className="text-sm">状态</CardTitle></CardHeader>
+            <CardHeader><CardTitle className="text-sm">{t("status")}</CardTitle></CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Label>状态</Label>
+                <Label>{t("status")}</Label>
                 <Select value={status} onValueChange={setStatus}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    {type === "articles" && (<><SelectItem value="published">已发布</SelectItem><SelectItem value="draft">草稿</SelectItem></>)}
-                    {type === "questions" && (<><SelectItem value="open">开放</SelectItem><SelectItem value="closed">关闭</SelectItem><SelectItem value="resolved">已解决</SelectItem></>)}
-                    {type === "software" && (<><SelectItem value="published">已发布</SelectItem><SelectItem value="pending">待审核</SelectItem></>)}
+                    {type === "articles" && (<><SelectItem value="published">{t("statusPublished")}</SelectItem><SelectItem value="draft">{t("statusDraft")}</SelectItem></>)}
+                    {type === "questions" && (<><SelectItem value="open">{t("statusOpen")}</SelectItem><SelectItem value="closed">{t("statusClosed")}</SelectItem><SelectItem value="resolved">{t("statusSolved")}</SelectItem></>)}
+                    {type === "software" && (<><SelectItem value="published">{t("statusPublished")}</SelectItem><SelectItem value="pending">{t("statusPending")}</SelectItem></>)}
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label>分类</Label>
+                <Label>{t("category")}</Label>
                 <Select value={category} onValueChange={setCategory}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
@@ -210,23 +219,23 @@ export function EditContentForm({ type, item }: EditContentFormProps) {
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label>标签（逗号分隔）</Label>
-                <Input value={tags} onChange={(e) => setTags(e.target.value)} placeholder="windows, 性能优化" />
+                <Label>{t("tagsLabel")}</Label>
+                <Input value={tags} onChange={(e) => setTags(e.target.value)} placeholder={t("tagsPlaceholder")} />
               </div>
               {(type === "articles" || type === "software") && (
                 <div className="space-y-2">
-                  <Label>{type === "articles" ? "封面图 URL" : "图片 URL"}</Label>
+                  <Label>{type === "articles" ? t("coverImage") : t("image")}</Label>
                   <Input value={type === "articles" ? coverImage : image} onChange={(e) => type === "articles" ? setCoverImage(e.target.value) : setImage(e.target.value)} placeholder="https://..." />
                 </div>
               )}
             </CardContent>
           </Card>
           <Card>
-            <CardHeader><CardTitle className="text-sm">信息</CardTitle></CardHeader>
+            <CardHeader><CardTitle className="text-sm">{t("infoTitle")}</CardTitle></CardHeader>
             <CardContent className="space-y-2 text-sm">
-              <div className="flex justify-between"><span className="text-muted-foreground">作者</span><span>{item.author?.name || "未知"}</span></div>
-              <div className="flex justify-between"><span className="text-muted-foreground">创建时间</span><span>{new Date(item.createdAt).toLocaleDateString("zh-CN")}</span></div>
-              <div className="flex justify-between"><span className="text-muted-foreground">更新时间</span><span>{new Date(item.updatedAt).toLocaleDateString("zh-CN")}</span></div>
+              <div className="flex justify-between"><span className="text-muted-foreground">{t("author")}</span><span>{item.author?.name || tc("noName")}</span></div>
+              <div className="flex justify-between"><span className="text-muted-foreground">{t("createdAt")}</span><span>{formatDate(item.createdAt, locale)}</span></div>
+              <div className="flex justify-between"><span className="text-muted-foreground">{t("updatedAt")}</span><span>{formatDate(item.updatedAt, locale)}</span></div>
             </CardContent>
           </Card>
         </div>

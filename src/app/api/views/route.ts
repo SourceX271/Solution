@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { getApiT } from "@/lib/api-i18n";
 import { z } from "zod";
 
 const viewSchema = z.object({
@@ -11,11 +12,12 @@ const viewSchema = z.object({
 // no auth required (a bot could inflate counts, but the count is cosmetic).
 // Uses a quick update to avoid blocking page render on the server.
 export async function POST(req: NextRequest) {
+  const t = await getApiT("api");
   try {
     const body = await req.json();
     const parsed = viewSchema.safeParse(body);
     if (!parsed.success) {
-      return NextResponse.json({ error: "无效参数" }, { status: 400 });
+      return NextResponse.json({ error: t("invalidParams") }, { status: 400 });
     }
 
     const { targetType, targetId } = parsed.data;
@@ -25,7 +27,8 @@ export async function POST(req: NextRequest) {
         where: { id: targetId },
         select: { id: true },
       });
-      if (!exists) return NextResponse.json({ error: "内容不存在" }, { status: 404 });
+      if (!exists)
+        return NextResponse.json({ error: t("contentNotFound") }, { status: 404 });
       await prisma.article.update({
         where: { id: targetId },
         data: { viewCount: { increment: 1 } },
@@ -35,7 +38,8 @@ export async function POST(req: NextRequest) {
         where: { id: targetId },
         select: { id: true },
       });
-      if (!exists) return NextResponse.json({ error: "内容不存在" }, { status: 404 });
+      if (!exists)
+        return NextResponse.json({ error: t("contentNotFound") }, { status: 404 });
       await prisma.question.update({
         where: { id: targetId },
         data: { viewCount: { increment: 1 } },
@@ -44,6 +48,6 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ success: true });
   } catch {
-    return NextResponse.json({ error: "记录失败" }, { status: 500 });
+    return NextResponse.json({ error: t("viewRecordFailed") }, { status: 500 });
   }
 }

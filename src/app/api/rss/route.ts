@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db";
+import { getApiT, getRequestLocale } from "@/lib/api-i18n";
 
 // Without a dynamic marker this route was prerendered at build time, so the
 // published feed never changed after deployment (and in Docker it baked the
@@ -7,6 +8,7 @@ import { prisma } from "@/lib/db";
 export const dynamic = "force-dynamic";
 
 export async function GET() {
+  const t = await getApiT("common");
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
 
   const articles = await prisma.article.findMany({
@@ -45,8 +47,8 @@ export async function GET() {
     "<channel>" +
     "<title>Solution</title>" +
     "<link>" + siteUrl + "</link>" +
-    "<description>Solution 社区技术文档与问答平台</description>" +
-    "<language>zh-CN</language>" +
+    "<description>" + t("siteDescription") + "</description>" +
+    "<language>" + (getRequestLocale() === "en" ? "en" : "zh-CN") + "</language>" +
     "<lastBuildDate>" + new Date().toUTCString() + "</lastBuildDate>" +
     '<atom:link href="' + siteUrl + '/api/rss" rel="self" type="application/rss+xml"/>' +
     items +

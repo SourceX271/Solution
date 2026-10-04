@@ -11,6 +11,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select"
 import { Save } from "lucide-react"
+import { useTranslations } from "next-intl"
 
 interface SettingsFormProps {
   config: {
@@ -37,6 +38,8 @@ interface SettingsFormProps {
 
 export function SettingsForm({ config, articles, questions, software }: SettingsFormProps) {
   const router = useRouter()
+  const t = useTranslations("admin")
+  const tc = useTranslations("common")
   const [saving, setSaving] = useState(false)
 
   const [siteName, setSiteName] = useState(config.siteName)
@@ -89,10 +92,10 @@ export function SettingsForm({ config, articles, questions, software }: Settings
     <div className="space-y-6">
       {/* General */}
       <div className="space-y-4">
-        <h3 className="text-sm font-semibold border-b pb-2">基本设置</h3>
+        <h3 className="text-sm font-semibold border-b pb-2">{t("basic")}</h3>
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-2">
-            <Label htmlFor="siteName">网站名称</Label>
+            <Label htmlFor="siteName">{t("siteName")}</Label>
             <Input id="siteName" value={siteName} onChange={(e) => setSiteName(e.target.value)} placeholder="Solution" />
           </div>
           <div className="space-y-2">
@@ -101,29 +104,29 @@ export function SettingsForm({ config, articles, questions, software }: Settings
           </div>
         </div>
         <div className="space-y-2">
-          <Label htmlFor="siteDescription">网站描述</Label>
-          <Textarea id="siteDescription" value={siteDescription} onChange={(e) => setSiteDescription(e.target.value)} placeholder="社区解决方案与问答平台" rows={2} />
+          <Label htmlFor="siteDescription">{t("siteDescription")}</Label>
+          <Textarea id="siteDescription" value={siteDescription} onChange={(e) => setSiteDescription(e.target.value)} placeholder={tc("siteDescription")} rows={2} />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="keywords">SEO 关键词（逗号分隔）</Label>
-          <Input id="keywords" value={keywords} onChange={(e) => setKeywords(e.target.value)} placeholder="技术,编程,解决方案,问答" />
+          <Label htmlFor="keywords">{t("keywords")}</Label>
+          <Input id="keywords" value={keywords} onChange={(e) => setKeywords(e.target.value)} placeholder={t("keywordsPlaceholder")} />
         </div>
       </div>
 
       {/* Contact & Social */}
       <div className="space-y-4">
-        <h3 className="text-sm font-semibold border-b pb-2">联系与社交</h3>
+        <h3 className="text-sm font-semibold border-b pb-2">{t("social")}</h3>
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-2">
-            <Label htmlFor="contactEmail">联系邮箱</Label>
+            <Label htmlFor="contactEmail">{t("contactEmail")}</Label>
             <Input id="contactEmail" value={contactEmail} onChange={(e) => setContactEmail(e.target.value)} placeholder="admin@example.com" />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="githubUrl">GitHub 地址</Label>
+            <Label htmlFor="githubUrl">{t("githubUrl")}</Label>
             <Input id="githubUrl" value={githubUrl} onChange={(e) => setGithubUrl(e.target.value)} placeholder="https://github.com/..." />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="twitterUrl">Twitter 地址</Label>
+            <Label htmlFor="twitterUrl">{t("twitterUrl")}</Label>
             <Input id="twitterUrl" value={twitterUrl} onChange={(e) => setTwitterUrl(e.target.value)} placeholder="https://twitter.com/..." />
           </div>
         </div>
@@ -131,41 +134,41 @@ export function SettingsForm({ config, articles, questions, software }: Settings
 
       {/* Footer */}
       <div className="space-y-4">
-        <h3 className="text-sm font-semibold border-b pb-2">页脚设置</h3>
+        <h3 className="text-sm font-semibold border-b pb-2">{t("footer")}</h3>
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-2">
-            <Label htmlFor="footerText">版权文字</Label>
+            <Label htmlFor="footerText">{t("footerText")}</Label>
             <Input id="footerText" value={footerText} onChange={(e) => setFooterText(e.target.value)} placeholder="2024 Solution. All rights reserved." />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="icpNumber">ICP 备案号</Label>
-            <Input id="icpNumber" value={icpNumber} onChange={(e) => setIcpNumber(e.target.value)} placeholder="京ICP备XXXXXXXX号" />
+            <Label htmlFor="icpNumber">{t("icp")}</Label>
+            <Input id="icpNumber" value={icpNumber} onChange={(e) => setIcpNumber(e.target.value)} placeholder={t("icpPlaceholder")} />
           </div>
         </div>
       </div>
 
       {/* Features */}
       <div className="space-y-4">
-        <h3 className="text-sm font-semibold border-b pb-2">功能开关</h3>
+        <h3 className="text-sm font-semibold border-b pb-2">{t("features")}</h3>
         <div className="space-y-3">
           <div className="flex items-center justify-between rounded-lg border p-3">
             <div>
-              <p className="text-sm font-medium">解决方案</p>
-              <p className="text-xs text-muted-foreground">用户可分享遇到的问题和解决方案</p>
+              <p className="text-sm font-medium">{tc("solutions")}</p>
+              <p className="text-xs text-muted-foreground">{t("featureSolutionsDesc")}</p>
             </div>
             <Switch checked={enableSolutions} onCheckedChange={setEnableSolutions} />
           </div>
           <div className="flex items-center justify-between rounded-lg border p-3">
             <div>
-              <p className="text-sm font-medium">问答</p>
-              <p className="text-xs text-muted-foreground">用户可提问和回答技术问题</p>
+              <p className="text-sm font-medium">{tc("questions")}</p>
+              <p className="text-xs text-muted-foreground">{t("featureQuestionsDesc")}</p>
             </div>
             <Switch checked={enableQuestions} onCheckedChange={setEnableQuestions} />
           </div>
           <div className="flex items-center justify-between rounded-lg border p-3">
             <div>
-              <p className="text-sm font-medium">软件推荐</p>
-              <p className="text-xs text-muted-foreground">用户可推荐和评价软件工具</p>
+              <p className="text-sm font-medium">{tc("software")}</p>
+              <p className="text-xs text-muted-foreground">{t("featureSoftwareDesc")}</p>
             </div>
             <Switch checked={enableSoftware} onCheckedChange={setEnableSoftware} />
           </div>
@@ -174,14 +177,14 @@ export function SettingsForm({ config, articles, questions, software }: Settings
 
       {/* Featured Content */}
       <div className="space-y-4">
-        <h3 className="text-sm font-semibold border-b pb-2">精选内容</h3>
+        <h3 className="text-sm font-semibold border-b pb-2">{t("featured")}</h3>
         <div className="grid gap-4 sm:grid-cols-3">
           <div className="space-y-2">
-            <Label>精选解决方案</Label>
+            <Label>{t("featuredArticle")}</Label>
             <Select value={featuredArticle} onValueChange={setFeaturedArticle}>
-              <SelectTrigger><SelectValue placeholder="无" /></SelectTrigger>
+              <SelectTrigger><SelectValue placeholder={t("none")} /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="__none__">无</SelectItem>
+                <SelectItem value="__none__">{t("none")}</SelectItem>
                 {articles.map((a) => (
                   <SelectItem key={a.id} value={a.id}>{a.title}</SelectItem>
                 ))}
@@ -189,11 +192,11 @@ export function SettingsForm({ config, articles, questions, software }: Settings
             </Select>
           </div>
           <div className="space-y-2">
-            <Label>精选问题</Label>
+            <Label>{t("featuredQuestion")}</Label>
             <Select value={featuredQuestion} onValueChange={setFeaturedQuestion}>
-              <SelectTrigger><SelectValue placeholder="无" /></SelectTrigger>
+              <SelectTrigger><SelectValue placeholder={t("none")} /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="__none__">无</SelectItem>
+                <SelectItem value="__none__">{t("none")}</SelectItem>
                 {questions.map((q) => (
                   <SelectItem key={q.id} value={q.id}>{q.title}</SelectItem>
                 ))}
@@ -201,11 +204,11 @@ export function SettingsForm({ config, articles, questions, software }: Settings
             </Select>
           </div>
           <div className="space-y-2">
-            <Label>精选软件</Label>
+            <Label>{t("featuredSoftware")}</Label>
             <Select value={featuredSoftware} onValueChange={setFeaturedSoftware}>
-              <SelectTrigger><SelectValue placeholder="无" /></SelectTrigger>
+              <SelectTrigger><SelectValue placeholder={t("none")} /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="__none__">无</SelectItem>
+                <SelectItem value="__none__">{t("none")}</SelectItem>
                 {software.map((s) => (
                   <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
                 ))}
@@ -218,7 +221,7 @@ export function SettingsForm({ config, articles, questions, software }: Settings
       <div className="flex justify-end border-t pt-6">
         <Button onClick={handleSave} disabled={saving} size="lg">
           <Save className="h-4 w-4 mr-2" />
-          {saving ? "保存中..." : "保存设置"}
+          {saving ? tc("saving") : t("saveSettings")}
         </Button>
       </div>
     </div>

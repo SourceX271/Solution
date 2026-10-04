@@ -76,7 +76,7 @@
 
 | 优先级 | 事项 | 说明 |
 |---|---|---|
-| 高 | **英文站点实际仍是中文** | `messages/en.json` 存在且有 194 个键，但约 30 个页面/组件直接硬编码中文（含 `<title>`/description、日期格式 `formatDate`/`formatRelativeTime` 全部默认 `zh`）。这是产品级缺口，需按页改造，非单点 bug。 |
+| 高 | ~~**英文站点实际仍是中文**~~ | **已修复**，见第 5 节。 |
 | 高 | **GitHub OAuth 用户没有数据库记录** | 未接 Prisma adapter，也没有在 `signIn`/`jwt` 中 upsert 用户：OAuth 登录后 `session.user.id` 是 GitHub 的 id，写评论/回答/收藏会因外键失败，个人资料页为空。修复需引入 `@auth/prisma-adapter`，或在**校验邮箱归属**后再做账号关联（当前注册不验证邮箱，直接按邮箱合并会造成账号接管风险）。属于设计决策，未擅自实现。 |
 | 中 | 没有 Prisma migrations | `prisma/` 下无 `migrations/`，只能 `db push`，缺少可复现的升级路径与回滚。 |
 | 中 | 后台缺 `loading.tsx`/`error.tsx`；破坏性操作提示不完整 | 已补主要操作的 toast，但错误边界/骨架屏仍缺。 |
@@ -115,3 +115,56 @@ Markdown 渲染回归（临时插入文章后验证并清理）：
 ```
 
 改动规模：68 个文件修改，新增 5 个文件（`lib/notifications.ts`、`lib/render.ts`、`components/HtmlLang.tsx`、`notifications/MarkAllReadButton.tsx`、`docker-entrypoint.sh`）、1 个配置文件（`.gitattributes`）。
+
+---
+
+## 5. 补充：英文站点 i18n 全站改造（第二轮）
+
+**问题**：`messages/en.json` 虽已存在，但 85 个源文件、888 行硬编码中文从未接入 —— `/en` 只是 URL 前缀与日期之外的假象，界面全是中文。
+
+**方案**
+
+1. **词条表重建**：`messages/zh.json` / `messages/en.json` 从 194 键扩充到 **651 键**（中英逐键对齐），新增 `editor`、`errors`、`api`、`validation`、`tags`、`about`、`help`、`privacy`、`contact` 等命名空间。
+2. **服务端组件**用 `getTranslations(ns)` / `getLocale()`，**客户端组件**用 `useTranslations(ns)` / `useLocale()`；`metadata`/`generateMetadata` 全部改为按 locale 生成。
+3. **日期**：所有 `formatDate`/`formatRelativeTime` 调用补上 `locale`（此前一律默认中文）。
+4. **API 消息按请求语言返回**（新增 `lib/api-i18n.ts`）：API 路由不在 next-intl 中间件覆盖范围内，改为读取每次请求都会写入的 `NEXT_LOCALE` cookie，用 `getTranslations({ locale })` 翻译。错误消息用参数化键降低重复，如 `t("notFound", { entity: t("entity.article") })`。
+5. **校验消息**：`lib/validations.ts` 改为 `getXSchema(t)` 工厂，14 处 zod 调用点传入当前语言。
+6. **通知消息结构化**（新增 `lib/notification-message.ts`）：通知落库改存 `{"key","params"}`，渲染时按**阅读者**的语言生成，新旧数据兼容（旧纯文本原样返回）。
+7. **富文本工具条**新增 `editor` 命名空间，修正此前被近似键替换的按钮（如"无序列表/有序列表"曾都显示"目录"）。
+8. **help 页**改用 next-intl 富文本（`t.rich`），把链接嵌进句子，中英文各自语序都正确。
+9. **数据库驱动文案**：站点描述只存一份（中文），`/en` 回退到词条表翻译（首页 hero 与页脚）。
+10. **根 layout 元数据回退**：`keywords`、`twitter:*` 此前中文残留；同时子级 `openGraph` 覆盖了根级配置，导致 `og:image`/`og:type` 丢失 —— 已按 locale 完整补齐。
+
+**可复用的校验脚本**（新增，已接 npm script）
+
+- `npm run i18n:check` —— 静态检查：中英词条完全对齐、源码中每个 `t()` 键都存在、并扫描 `src/` 里残留的硬编码中文（忽略注释与白名单）。
+- `npm run i18n:check:runtime` —— 运行期检查：对运行中的服务器断言 `/en` 纯中文页面零 CJK、数据页无中文界面文案、`zh` 仍为中文。
+
+**验收结果**（本次会话实测）
+
+```
+npm run i18n:check   → 651 键 / 中英对齐 / 548 键被静态引用 / 0 问题
+                        src/ 中除白名单（api-docs、根 layout、crawler 日志、
+                        lib 注释、utils 中文分支）外，硬编码中文 0 处
+npm run i18n:check:runtime → ALL PASS
+  /en/{login,register,about,help,privacy,contact}  零 CJK（仅语言切换器的 "中文" 自名保留）
+  /en, /en/docs, /en/questions, /en/software, /en/search  英文界面标记齐全、无中文界面文案
+  /login, /about, /docs                            中文界面正常
+API 语言（curl 带 NEXT_LOCALE）
+  en → {"error":"Please sign in first"} / {"error":"article not found"}
+  zh → {"error":"请先登录"} / {"error":"文章不存在"}
+```
+
+**保留中文的位置（有意为之）**
+
+| 位置 | 原因 |
+|---|---|
+| `src/app/api-docs/page.tsx` | 开发用 API 参考页，位于 `[locale]` 之外、不参与多语言路由 |
+| `src/app/layout.tsx` 元数据 | 仅作为 `/api-docs` 等非本地化路由的回退 |
+| `src/lib/crawler-ingest.ts` | 写入 `CrawlLog` 的运维日志（数据，非界面） |
+| `src/lib/auth.ts` credentials label | next-auth 默认登录页字段，本站使用自定义页面，不渲染 |
+| `src/lib/utils.ts` | `formatRelativeTime` 的中文分支（已按 locale 参数正确切换） |
+| 代码注释 | 开发者可见，不属于界面 |
+
+**尚未处理**：103 个词条未被静态引用（多为历史遗留键，部分通过动态键访问如 `comments.*Placeholder`，故未删除）。
+

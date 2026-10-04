@@ -3,11 +3,14 @@
 import { useState, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { useSession } from "next-auth/react"
+import { useTranslations } from "next-intl"
 import Link from "next/link"
 import { RichEditor } from "@/components/client/RichEditor"
 import { Loader2 } from "lucide-react"
 
 export default function AskQuestionPage() {
+  const t = useTranslations("questions")
+  const tc = useTranslations("common")
   const router = useRouter()
   const { data: session, status } = useSession()
   const [title, setTitle] = useState("")
@@ -18,11 +21,11 @@ export default function AskQuestionPage() {
 
   const handleSubmit = useCallback(async () => {
     if (!title.trim()) {
-      setError("请输入问题标题")
+      setError(t("titleRequired"))
       return
     }
     if (!content) {
-      setError("请输入问题内容")
+      setError(t("contentRequired"))
       return
     }
     setSaving(true)
@@ -43,17 +46,21 @@ export default function AskQuestionPage() {
 
       if (!res.ok) {
         const data = await res.json()
-        throw new Error(data.error || "发布失败")
+        throw new Error(data.error || tc("publishFailed"))
       }
 
       const question = await res.json()
       router.push(`/questions/${question.slug}`)
       router.refresh()
     } catch (err: any) {
-      setError(err.message || "发布失败，请重试")
+      setError(err.message || tc("publishFailedRetry"))
     } finally {
       setSaving(false)
     }
+    // Translators are new function identities on every render, so they are
+    // deliberately kept out of the dependency list (adding them would only
+    // recreate the callback each render).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [title, tags, content, router])
 
   if (status === "loading") {
@@ -67,13 +74,13 @@ export default function AskQuestionPage() {
   if (!session) {
     return (
       <div className="container mx-auto px-4 py-16 text-center">
-        <h1 className="mb-4 text-2xl font-bold">请先登录</h1>
-        <p className="mb-6 text-muted-foreground">你需要登录后才能提问</p>
+        <h1 className="mb-4 text-2xl font-bold">{tc("loginRequiredTitle")}</h1>
+        <p className="mb-6 text-muted-foreground">{tc("loginRequiredQuestion")}</p>
         <Link
           href="/login"
           className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground"
         >
-          去登录
+          {tc("goToLogin")}
         </Link>
       </div>
     )
@@ -81,19 +88,19 @@ export default function AskQuestionPage() {
 
   return (
     <div className="container mx-auto max-w-3xl px-4 py-8">
-      <h1 className="mb-6 text-2xl font-bold">提出问题</h1>
+      <h1 className="mb-6 text-2xl font-bold">{t("askTitle")}</h1>
 
       <div className="space-y-4">
         {/* Title */}
         <div>
           <label className="mb-1.5 block text-sm font-medium">
-            标题 <span className="text-red-500">*</span>
+            {tc("titleLabel")} <span className="text-red-500">*</span>
           </label>
           <input
             type="text"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            placeholder="简明扼要地描述你的问题"
+            placeholder={t("titlePlaceholder")}
             className="w-full rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
             maxLength={200}
           />
@@ -102,24 +109,24 @@ export default function AskQuestionPage() {
         {/* Content */}
         <div>
           <label className="mb-1.5 block text-sm font-medium">
-            内容 <span className="text-red-500">*</span>
+            {tc("content")} <span className="text-red-500">*</span>
           </label>
           <RichEditor
             value={content}
             onChange={setContent}
-            placeholder="详细描述你的问题...（支持 Markdown 切换）"
+            placeholder={t("contentPlaceholder")}
             minHeight="250px"
           />
         </div>
 
         {/* Tags */}
         <div>
-          <label className="mb-1.5 block text-sm font-medium">标签</label>
+          <label className="mb-1.5 block text-sm font-medium">{tc("tags")}</label>
           <input
             type="text"
             value={tags}
             onChange={(e) => setTags(e.target.value)}
-            placeholder="用逗号分隔，如: react, typescript"
+            placeholder={tc("tagsPlaceholder")}
             className="w-full rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
           />
         </div>
@@ -139,7 +146,7 @@ export default function AskQuestionPage() {
           className="inline-flex items-center gap-2 rounded-md bg-primary px-6 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
         >
           {saving && <Loader2 className="h-4 w-4 animate-spin" />}
-          {saving ? "发布中..." : "发布问题"}
+          {saving ? tc("publishing") : t("publish")}
         </button>
       </div>
     </div>

@@ -1,11 +1,13 @@
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/db";
+import { getProfileSchema } from "@/lib/validations";
+import { getApiT } from "@/lib/api-i18n";
 import { apiHandler, successResponse, AppError } from "@/lib/errors";
-import { profileSchema } from "@/lib/validations";
 
 export const PUT = apiHandler({ auth: "required" }, async (req, ctx) => {
+  const tv = await getApiT("validation");
   const body = await req.json();
-  const parsed = profileSchema.safeParse(body);
+  const parsed = getProfileSchema(tv).safeParse(body);
 
   if (!parsed.success) {
     throw new AppError(400, parsed.error.errors[0].message);

@@ -3,7 +3,7 @@ import Credentials from "next-auth/providers/credentials";
 import GitHub from "next-auth/providers/github";
 import { compare } from "bcryptjs";
 import { prisma } from "@/lib/db";
-import { loginSchema } from "@/lib/validations";
+import { getLoginSchema } from "@/lib/validations";
 import { checkRateLimit, getRateLimitKey } from "@/lib/rate-limit";
 import type { NextAuthConfig } from "next-auth";
 
@@ -40,7 +40,11 @@ export const authConfig: NextAuthConfig = {
         password: { label: "密码", type: "password" },
       },
       async authorize(credentials, request) {
-        const parsed = loginSchema.safeParse(credentials);
+        // No translator here on purpose: this module is imported by the Edge
+        // middleware bundle, so it must not pull in `next-intl/server`. The
+        // schema messages are never shown anyway — invalid input simply fails
+        // the sign-in and the login page renders its own localized error.
+        const parsed = getLoginSchema().safeParse(credentials);
         if (!parsed.success) return null;
 
         const { email, password } = parsed.data;

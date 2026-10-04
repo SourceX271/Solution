@@ -13,6 +13,8 @@
     "db:seed": "tsx prisma/seed.ts",
     "db:studio": "prisma studio",
     "crawler:run": "python -m crawler.main",
+    "i18n:check": "node scripts/check-i18n.mjs",
+    "i18n:check:runtime": "node scripts/check-i18n-runtime.mjs",
     "postinstall": "prisma generate"
   },
   "dependencies": {

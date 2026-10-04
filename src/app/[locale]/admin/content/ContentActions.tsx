@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/dialog"
 import { Eye, Pencil, Trash2 } from "lucide-react"
 import { useState } from "react"
+import { useTranslations } from "next-intl"
 import { toast } from "sonner"
 
 interface ContentActionsProps {
@@ -28,6 +29,7 @@ const PUBLIC_PREFIX: Record<string, string> = {
 
 export function ContentActions({ type, id, slug, status }: ContentActionsProps) {
   const router = useRouter()
+  const t = useTranslations("common")
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [loading, setLoading] = useState(false)
 
@@ -38,15 +40,15 @@ export function ContentActions({ type, id, slug, status }: ContentActionsProps) 
     try {
       const res = await fetch(`/api/admin/content/${type}/${id}`, { method: "DELETE" })
       if (res.ok) {
-        toast.success("已删除")
+        toast.success(t("deleteSuccess"))
         setDeleteOpen(false)
         router.refresh()
       } else {
         const data = await res.json().catch(() => null)
-        toast.error(data?.error || "删除失败")
+        toast.error(data?.error || t("deleteFailed"))
       }
     } catch {
-      toast.error("删除失败，请检查网络")
+      toast.error(t("deleteFailedNetwork"))
     } finally {
       setLoading(false)
     }

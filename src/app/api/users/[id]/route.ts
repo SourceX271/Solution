@@ -1,12 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { auth } from "@/lib/auth";
-import { profileSchema } from "@/lib/validations";
+import { getProfileSchema } from "@/lib/validations";
+import { getApiT } from "@/lib/api-i18n";
 
 export async function GET(
   req: NextRequest,
   { params }: { params: { id: string } }
 ) {
+  const t = await getApiT("api");
   try {
     const session = await auth();
     const isOwner = session && (session.user as any).id === params.id;
@@ -29,12 +31,18 @@ export async function GET(
     });
 
     if (!user) {
-      return NextResponse.json({ error: "用户不存在" }, { status: 404 });
+      return NextResponse.json(
+        { error: t("notFound", { entity: t("entity.user") }) },
+        { status: 404 }
+      );
     }
 
     return NextResponse.json(user);
   } catch (error) {
-    return NextResponse.json({ error: "获取用户信息失败" }, { status: 500 });
+    return NextResponse.json(
+      { error: t("getFailed", { entity: t("entity.user") }) },
+      { status: 500 }
+    );
   }
 }
 
@@ -42,19 +50,21 @@ export async function PUT(
   req: NextRequest,
   { params }: { params: { id: string } }
 ) {
+  const t = await getApiT("api");
+  const tv = await getApiT("validation");
   try {
     const session = await auth();
     if (!session) {
-      return NextResponse.json({ error: "请先登录" }, { status: 401 });
+      return NextResponse.json({ error: t("unauthorized") }, { status: 401 });
     }
 
     const userId = (session.user as any).id;
     if (params.id !== userId) {
-      return NextResponse.json({ error: "只能修改自己的资料" }, { status: 403 });
+      return NextResponse.json({ error: t("profileUpdateSelfOnly") }, { status: 403 });
     }
 
     const body = await req.json();
-    const parsed = profileSchema.safeParse(body);
+    const parsed = getProfileSchema(tv).safeParse(body);
     if (!parsed.success) {
       return NextResponse.json({ error: parsed.error.errors[0].message }, { status: 400 });
     }
@@ -81,6 +91,9 @@ export async function PUT(
 
     return NextResponse.json(updated);
   } catch (error) {
-    return NextResponse.json({ error: "更新资料失败" }, { status: 500 });
+    return NextResponse.json(
+      { error: t("updateFailed", { entity: t("entity.user") }) },
+      { status: 500 }
+    );
   }
 }

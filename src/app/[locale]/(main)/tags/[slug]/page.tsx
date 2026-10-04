@@ -1,6 +1,7 @@
 import Link from "next/link"
 import { notFound } from "next/navigation"
 import type { Metadata } from "next"
+import { getTranslations, getLocale } from "next-intl/server"
 import { prisma } from "@/lib/db"
 import { formatRelativeTime, cn } from "@/lib/utils"
 import { Tag, BookOpen, MessageCircle, ExternalLink, ChevronRight } from "lucide-react"
@@ -12,16 +13,20 @@ interface TagPageProps {
 }
 
 export async function generateMetadata({ params }: TagPageProps): Promise<Metadata> {
+  const t = await getTranslations("tags")
   const { slug } = await params
   const tag = await prisma.tag.findUnique({ where: { slug }, select: { name: true } })
-  if (!tag) return { title: "标签未找到" }
+  if (!tag) return { title: t("notFoundTitle") }
   return {
-    title: `标签: ${tag.name}`,
-    description: `浏览所有与 ${tag.name} 相关的内容`,
+    title: t("metaTitle", { name: tag.name }),
+    description: t("metaDescription", { name: tag.name }),
   }
 }
 
 export default async function TagPage({ params }: TagPageProps) {
+  const t = await getTranslations("tags")
+  const tc = await getTranslations("common")
+  const locale = await getLocale()
   const { slug } = await params
   const tag = await prisma.tag.findUnique({ where: { slug } })
   if (!tag) notFound()
@@ -57,9 +62,9 @@ export default async function TagPage({ params }: TagPageProps) {
   ])
 
   const sections = [
-    { type: "article" as const, label: "解决方案", icon: BookOpen, items: articles, linkPrefix: "/docs/", nameKey: "title" },
-    { type: "question" as const, label: "问答", icon: MessageCircle, items: questions, linkPrefix: "/questions/", nameKey: "title" },
-    { type: "software" as const, label: "软件", icon: ExternalLink, items: software, linkPrefix: "/software/", nameKey: "name" },
+    { type: "article" as const, label: tc("solutions"), icon: BookOpen, items: articles, linkPrefix: "/docs/", nameKey: "title" },
+    { type: "question" as const, label: tc("questions"), icon: MessageCircle, items: questions, linkPrefix: "/questions/", nameKey: "title" },
+    { type: "software" as const, label: tc("software"), icon: ExternalLink, items: software, linkPrefix: "/software/", nameKey: "name" },
   ]
 
   const total = articles.length + questions.length + software.length
@@ -67,9 +72,9 @@ export default async function TagPage({ params }: TagPageProps) {
   return (
     <div className="container mx-auto px-4 py-10 animate-fade-in">
       <nav className="mb-6 flex items-center gap-1.5 text-sm text-muted-foreground">
-        <Link href="/" className="hover:text-foreground transition-colors">首页</Link>
+        <Link href="/" className="hover:text-foreground transition-colors">{tc("home")}</Link>
         <ChevronRight className="h-3 w-3" />
-        <span className="text-foreground font-medium">标签</span>
+        <span className="text-foreground font-medium">{t("label")}</span>
         <ChevronRight className="h-3 w-3" />
         <span className="rounded-full px-2 py-0.5 text-xs font-medium" style={{ backgroundColor: tag.color + "20", color: tag.color }}>
           {tag.name}
@@ -81,14 +86,14 @@ export default async function TagPage({ params }: TagPageProps) {
           <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl shadow-md" style={{ backgroundColor: tag.color + "15" }}>
             <Tag className="h-5 w-5" style={{ color: tag.color }} />
           </span>
-          标签: {tag.name}
+          {t("title", { name: tag.name })}
         </h1>
         {tag.description && <p className="mt-2 text-muted-foreground">{tag.description}</p>}
-        <p className="mt-1 text-sm text-muted-foreground">共 {total} 条相关内容</p>
+        <p className="mt-1 text-sm text-muted-foreground">{t("totalCount", { total })}</p>
       </div>
 
       {total === 0 ? (
-        <div className="py-16 text-center text-muted-foreground">该标签下暂无内容</div>
+        <div className="py-16 text-center text-muted-foreground">{t("empty")}</div>
       ) : (
         <div className="space-y-10">
           {sections.map((section) => {
@@ -111,7 +116,7 @@ export default async function TagPage({ params }: TagPageProps) {
                         {item[section.nameKey]}
                       </h3>
                       <p className="mt-1 text-xs text-muted-foreground">
-                        {item.author?.name} · {formatRelativeTime(item.createdAt)}
+                        {item.author?.name} · {formatRelativeTime(item.createdAt, locale)}
                       </p>
                     </Link>
                   ))}

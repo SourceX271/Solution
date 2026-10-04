@@ -1,12 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { auth } from "@/lib/auth";
-import { questionSchema } from "@/lib/validations";
+import { getQuestionSchema } from "@/lib/validations";
+import { getApiT } from "@/lib/api-i18n";
 import { generateSlug } from "@/lib/utils";
 import { resolveTags, parseTagInput, bumpTagUsage } from "@/lib/tags";
 import { toPositiveInt } from "@/lib/errors";
 
 export async function GET(req: NextRequest) {
+  const t = await getApiT("api");
   try {
     const { searchParams } = new URL(req.url);
     const page = toPositiveInt(searchParams.get("page"), 1);
@@ -44,19 +46,24 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({ data, total, page, limit });
   } catch (error) {
-    return NextResponse.json({ error: "获取问题列表失败" }, { status: 500 });
+    return NextResponse.json(
+      { error: t("getFailed", { entity: t("entity.question") }) },
+      { status: 500 }
+    );
   }
 }
 
 export async function POST(req: NextRequest) {
+  const t = await getApiT("api");
+  const tv = await getApiT("validation");
   try {
     const session = await auth();
     if (!session) {
-      return NextResponse.json({ error: "请先登录" }, { status: 401 });
+      return NextResponse.json({ error: t("unauthorized") }, { status: 401 });
     }
 
     const body = await req.json();
-    const parsed = questionSchema.safeParse(body);
+    const parsed = getQuestionSchema(tv).safeParse(body);
     if (!parsed.success) {
       return NextResponse.json({ error: parsed.error.errors[0].message }, { status: 400 });
     }
@@ -87,6 +94,9 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json(question, { status: 201 });
   } catch (error) {
-    return NextResponse.json({ error: "创建问题失败" }, { status: 500 });
+    return NextResponse.json(
+      { error: t("createFailed", { entity: t("entity.question") }) },
+      { status: 500 }
+    );
   }
 }

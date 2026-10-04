@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -19,6 +20,9 @@ interface UserData {
 
 export function SettingsForm({ user }: { user: UserData }) {
   const router = useRouter();
+  const t = useTranslations("profile");
+  const tc = useTranslations("common");
+  const ts = useTranslations("settings");
   const [name, setName] = useState(user.name || "");
   const [bio, setBio] = useState(user.bio || "");
   const [avatarUrl, setAvatarUrl] = useState(user.image || "");
@@ -47,12 +51,12 @@ export function SettingsForm({ user }: { user: UserData }) {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ image: data.url }),
         });
-        toast.success("头像上传成功");
+        toast.success(tc("avatarUpdated"));
       } else {
-        toast.error(data.error || "上传失败");
+        toast.error(data.error || tc("uploadFailed"));
       }
     } catch {
-      toast.error("上传失败");
+      toast.error(tc("uploadFailed"));
     } finally {
       setUploading(false);
     }
@@ -68,13 +72,13 @@ export function SettingsForm({ user }: { user: UserData }) {
       });
       const data = await res.json();
       if (data.success) {
-        toast.success("资料已更新");
+        toast.success(tc("profileUpdated"));
         router.refresh();
       } else {
-        toast.error(data.error || "更新失败");
+        toast.error(data.error || tc("updateFailed"));
       }
     } catch {
-      toast.error("更新失败");
+      toast.error(tc("updateFailed"));
     }
   };
 
@@ -82,15 +86,15 @@ export function SettingsForm({ user }: { user: UserData }) {
     e.preventDefault();
     // Mirror passwordChangeSchema in src/lib/validations.ts (8+ chars, letter + digit).
     if (newPassword.length < 8) {
-      toast.error("新密码至少8位");
+      toast.error(tc("newPasswordMin"));
       return;
     }
     if (!/[a-zA-Z]/.test(newPassword) || !/[0-9]/.test(newPassword)) {
-      toast.error("新密码需同时包含字母和数字");
+      toast.error(tc("newPasswordPattern"));
       return;
     }
     if (newPassword !== confirmPassword) {
-      toast.error("两次密码不一致");
+      toast.error(tc("passwordMismatch"));
       return;
     }
 
@@ -102,15 +106,15 @@ export function SettingsForm({ user }: { user: UserData }) {
       });
       const data = await res.json();
       if (data.success) {
-        toast.success("密码已更改");
+        toast.success(tc("passwordUpdated"));
         setCurrentPassword("");
         setNewPassword("");
         setConfirmPassword("");
       } else {
-        toast.error(data.error || "密码更改失败");
+        toast.error(data.error || tc("passwordFailed"));
       }
     } catch {
-      toast.error("密码更改失败");
+      toast.error(tc("passwordFailed"));
     }
   };
 
@@ -119,7 +123,7 @@ export function SettingsForm({ user }: { user: UserData }) {
       {/* Profile Card */}
       <Card>
         <CardHeader>
-          <CardTitle>个人资料</CardTitle>
+          <CardTitle>{t("title")}</CardTitle>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleProfileUpdate} className="space-y-4">
@@ -130,24 +134,24 @@ export function SettingsForm({ user }: { user: UserData }) {
               </Avatar>
               <div>
                 <Label htmlFor="avatar-upload" className="cursor-pointer text-sm text-primary hover:underline">
-                  {uploading ? "上传中..." : "更换头像"}
+                  {uploading ? t("avatarUploading") : t("avatarChange")}
                 </Label>
                 <input id="avatar-upload" type="file" accept="image/*" className="hidden" onChange={handleAvatarUpload} disabled={uploading} />
-                <p className="text-xs text-muted-foreground">支持 JPG、PNG、GIF，最大 2MB</p>
+                <p className="text-xs text-muted-foreground">{t("avatarHint")}</p>
               </div>
             </div>
 
             <div>
-              <Label htmlFor="name">昵称</Label>
-              <Input id="name" value={name} onChange={(e) => setName(e.target.value)} placeholder="你的昵称" />
+              <Label htmlFor="name">{t("nickname")}</Label>
+              <Input id="name" value={name} onChange={(e) => setName(e.target.value)} placeholder={t("nicknamePlaceholder")} />
             </div>
 
             <div>
-              <Label htmlFor="bio">简介</Label>
-              <Textarea id="bio" value={bio} onChange={(e) => setBio(e.target.value)} placeholder="介绍一下自己..." rows={3} />
+              <Label htmlFor="bio">{t("bio")}</Label>
+              <Textarea id="bio" value={bio} onChange={(e) => setBio(e.target.value)} placeholder={t("bioPlaceholder")} rows={3} />
             </div>
 
-            <Button type="submit">保存资料</Button>
+            <Button type="submit">{t("saveProfile")}</Button>
           </form>
         </CardContent>
       </Card>
@@ -155,23 +159,23 @@ export function SettingsForm({ user }: { user: UserData }) {
       {/* Password Card */}
       <Card>
         <CardHeader>
-          <CardTitle>修改密码</CardTitle>
+          <CardTitle>{ts("changePassword")}</CardTitle>
         </CardHeader>
         <CardContent>
           <form onSubmit={handlePasswordChange} className="space-y-4">
             <div>
-              <Label htmlFor="current-password">当前密码</Label>
+              <Label htmlFor="current-password">{ts("currentPassword")}</Label>
               <Input id="current-password" type="password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} required />
             </div>
             <div>
-              <Label htmlFor="new-password">新密码</Label>
+              <Label htmlFor="new-password">{ts("newPassword")}</Label>
               <Input id="new-password" type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} required minLength={8} />
             </div>
             <div>
-              <Label htmlFor="confirm-password">确认新密码</Label>
+              <Label htmlFor="confirm-password">{ts("confirmNewPassword")}</Label>
               <Input id="confirm-password" type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required />
             </div>
-            <Button type="submit" variant="secondary">更改密码</Button>
+            <Button type="submit" variant="secondary">{ts("changePassword")}</Button>
           </form>
         </CardContent>
       </Card>

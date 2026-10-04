@@ -2,9 +2,10 @@
 
 import { useState, useEffect } from "react"
 import { useSession } from "next-auth/react"
+import { useTranslations, useLocale } from "next-intl"
 import Link from "next/link"
 import Image from "next/image"
-import { cn } from "@/lib/utils"
+import { formatDate, cn } from "@/lib/utils"
 import { Loader2, FileText, MessageCircle, MessageSquare, BookmarkIcon, User, Calendar, Shield } from "lucide-react"
 
 interface ProfileData {
@@ -18,6 +19,9 @@ interface ProfileData {
 }
 
 export default function ProfilePage() {
+  const t = useTranslations("profile")
+  const tc = useTranslations("common")
+  const locale = useLocale()
   const { data: session, status } = useSession()
   const [profile, setProfile] = useState<ProfileData | null>(null)
   const [loading, setLoading] = useState(true)
@@ -40,7 +44,7 @@ export default function ProfilePage() {
       <div className="container mx-auto flex min-h-[50vh] items-center justify-center px-4">
         <div className="flex flex-col items-center gap-3">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          <p className="text-sm text-muted-foreground">加载中...</p>
+          <p className="text-sm text-muted-foreground">{tc("loading")}</p>
         </div>
       </div>
     )
@@ -52,10 +56,10 @@ export default function ProfilePage() {
         <div className="inline-flex h-20 w-20 items-center justify-center rounded-2xl bg-muted mb-6">
           <User className="h-10 w-10 text-muted-foreground" />
         </div>
-        <h1 className="mb-2 text-2xl font-bold gradient-text">请先登录</h1>
-        <p className="mb-6 text-muted-foreground">登录后即可查看个人资料</p>
+        <h1 className="mb-2 text-2xl font-bold gradient-text">{tc("loginRequiredTitle")}</h1>
+        <p className="mb-6 text-muted-foreground">{tc("loginRequiredProfile")}</p>
         <Link href="/login" className="btn-gradient inline-flex items-center gap-2 rounded-full px-6 py-2.5 text-sm font-medium shadow-lg shadow-primary/25">
-          去登录
+          {tc("goToLogin")}
         </Link>
       </div>
     )
@@ -64,7 +68,7 @@ export default function ProfilePage() {
   if (!profile) {
     return (
       <div className="container mx-auto px-4 py-16 text-center text-muted-foreground">
-        加载失败，请刷新重试
+        {tc("loadFailed")}
       </div>
     )
   }
@@ -77,14 +81,14 @@ export default function ProfilePage() {
   }
 
   const getTypeLabel = (type: string) => {
-    switch (type) { case "article": return "文章"; case "question": return "问题"; case "software": return "软件"; default: return type }
+    switch (type) { case "article": return tc("article"); case "question": return tc("question"); case "software": return tc("software"); default: return type }
   }
 
   const statItems = [
-    { label: "文章", value: stats.articleCount, icon: FileText, gradient: "from-blue-500 to-cyan-500" },
-    { label: "问题", value: stats.questionCount, icon: MessageCircle, gradient: "from-amber-500 to-orange-500" },
-    { label: "回答", value: stats.answerCount, icon: MessageSquare, gradient: "from-emerald-500 to-teal-500" },
-    { label: "收藏", value: bookmarks.length, icon: BookmarkIcon, gradient: "from-violet-500 to-fuchsia-500" },
+    { label: t("articles"), value: stats.articleCount, icon: FileText, gradient: "from-blue-500 to-cyan-500" },
+    { label: t("questions"), value: stats.questionCount, icon: MessageCircle, gradient: "from-amber-500 to-orange-500" },
+    { label: t("answers"), value: stats.answerCount, icon: MessageSquare, gradient: "from-emerald-500 to-teal-500" },
+    { label: t("bookmarks"), value: bookmarks.length, icon: BookmarkIcon, gradient: "from-violet-500 to-fuchsia-500" },
   ]
 
   return (
@@ -102,17 +106,17 @@ export default function ProfilePage() {
             )}
           </div>
           <div className="min-w-0">
-            <h1 className="text-xl font-bold">{user.name ?? "未设置名称"}</h1>
+            <h1 className="text-xl font-bold">{user.name ?? tc("noName")}</h1>
             <p className="text-sm text-muted-foreground">{user.email}</p>
             {user.bio && <p className="mt-1.5 text-sm text-muted-foreground leading-relaxed">{user.bio}</p>}
             <div className="mt-2 flex items-center gap-3 text-xs text-muted-foreground">
               <span className="inline-flex items-center gap-1">
                 <Calendar className="h-3 w-3" />
-                {new Date(user.createdAt).toLocaleDateString("zh-CN")} 加入
+                {tc("joinedAt", { date: formatDate(user.createdAt, locale) })}
               </span>
               {user.role === "ADMIN" && (
                 <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary">
-                  <Shield className="h-3 w-3" />管理员
+                  <Shield className="h-3 w-3" />{tc("adminBadge")}
                 </span>
               )}
             </div>
@@ -121,7 +125,7 @@ export default function ProfilePage() {
             href="/settings"
             className="ml-auto shrink-0 rounded-full border px-4 py-2 text-xs font-medium hover:bg-accent transition-all shadow-sm"
           >
-            编辑资料
+            {tc("editProfile")}
           </Link>
         </div>
       </div>
@@ -142,7 +146,7 @@ export default function ProfilePage() {
       <div className="grid gap-8 lg:grid-cols-2">
         {/* Bookmarks */}
         <div className="animate-fade-in-up stagger-5">
-          <h2 className="mb-3 text-lg font-semibold">我的收藏</h2>
+          <h2 className="mb-3 text-lg font-semibold">{t("myBookmarks")}</h2>
           {bookmarks.length > 0 ? (
             <div className="space-y-2">
               {bookmarks.map((bm) => (
@@ -163,30 +167,30 @@ export default function ProfilePage() {
             </div>
           ) : (
             <div className="py-10 text-center">
-              <p className="text-sm text-muted-foreground">暂无收藏</p>
+              <p className="text-sm text-muted-foreground">{t("noBookmarks")}</p>
             </div>
           )}
         </div>
 
         {/* Recent Activity */}
         <div className="animate-fade-in-up stagger-6">
-          <h2 className="mb-3 text-lg font-semibold">最近动态</h2>
+          <h2 className="mb-3 text-lg font-semibold">{t("recentActivity")}</h2>
           {recentActivity.length > 0 ? (
             <div className="space-y-2">
-              {recentActivity.map((activity, idx) => (
+              {recentActivity.map((activity) => (
                 <Link
-                  key={idx}
+                  key={`${activity.type}-${activity.slug}`}
                   href={getTargetLink(activity.type, activity.slug)}
                   className="glass-card block p-3.5 group"
                 >
                   <p className="text-sm font-medium line-clamp-1 group-hover:text-primary transition-colors">{activity.title}</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">{activity.date}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">{formatDate(activity.date, locale)}</p>
                 </Link>
               ))}
             </div>
           ) : (
             <div className="py-10 text-center">
-              <p className="text-sm text-muted-foreground">暂无动态</p>
+              <p className="text-sm text-muted-foreground">{t("noActivity")}</p>
             </div>
           )}
         </div>

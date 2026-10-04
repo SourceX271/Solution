@@ -5,8 +5,10 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { signIn } from "next-auth/react";
 import Link from "next/link";
 import { Loader2, Github, Mail, ArrowRight, Lock } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 function LoginForm() {
+  const t = useTranslations("auth");
   const router = useRouter();
   const searchParams = useSearchParams();
   // Only allow same-site relative paths: an attacker could otherwise craft
@@ -30,13 +32,13 @@ function LoginForm() {
     try {
       const result = await signIn("credentials", { email, password, redirect: false });
       if (result?.error) {
-        setError("邮箱或密码错误");
+        setError(t("loginError"));
       } else {
         router.push(callbackUrl);
         router.refresh();
       }
     } catch {
-      setError("登录失败，请重试");
+      setError(t("loginFailed"));
     } finally {
       setLoading(false);
     }
@@ -56,8 +58,8 @@ function LoginForm() {
               S
             </div>
           </Link>
-          <h1 className="text-2xl font-bold tracking-tight">欢迎回来</h1>
-          <p className="mt-2 text-sm text-muted-foreground">登录你的 Solution 账号</p>
+          <h1 className="text-2xl font-bold tracking-tight">{t("loginTitle")}</h1>
+          <p className="mt-2 text-sm text-muted-foreground">{t("loginSubtitle")}</p>
         </div>
 
         {/* Card */}
@@ -70,7 +72,7 @@ function LoginForm() {
               className="flex w-full items-center justify-center gap-2.5 rounded-xl border bg-card px-4 py-2.5 text-sm font-medium hover:bg-accent transition-all shadow-sm hover:shadow-md"
             >
               <Github className="h-5 w-5" />
-              GitHub 登录
+              {t("githubLogin")}
             </button>
           </div>
 
@@ -79,7 +81,7 @@ function LoginForm() {
               <span className="w-full border-t" />
             </div>
             <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-card px-3 text-muted-foreground">或使用邮箱登录</span>
+              <span className="bg-card px-3 text-muted-foreground">{t("orEmail")}</span>
             </div>
           </div>
 
@@ -87,7 +89,7 @@ function LoginForm() {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="mb-1.5 block text-sm font-medium" htmlFor="email">
-                邮箱
+                {t("email")}
               </label>
               <div className="relative">
                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -104,7 +106,7 @@ function LoginForm() {
             </div>
             <div>
               <label className="mb-1.5 block text-sm font-medium" htmlFor="password">
-                密码
+                {t("password")}
               </label>
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -133,14 +135,14 @@ function LoginForm() {
               className="btn-gradient flex w-full items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium shadow-lg shadow-primary/25 disabled:opacity-50 disabled:shadow-none"
             >
               {loading && <Loader2 className="h-4 w-4 animate-spin" />}
-              {loading ? "登录中..." : <>登录 <ArrowRight className="h-4 w-4" /></>}
+              {loading ? t("loginLoading") : <>{t("loginBtn")} <ArrowRight className="h-4 w-4" /></>}
             </button>
           </form>
 
           <p className="mt-6 text-center text-sm text-muted-foreground">
-            还没有账号？{" "}
+            {t("noAccount")}{" "}
             <Link href="/register" className="font-medium text-primary hover:underline">
-              注册
+              {t("registerBtn")}
             </Link>
           </p>
         </div>
@@ -150,12 +152,13 @@ function LoginForm() {
 }
 
 export default function LoginPage() {
+  const t = useTranslations("common");
   return (
     <Suspense fallback={
       <div className="flex min-h-[80vh] items-center justify-center">
         <div className="flex flex-col items-center gap-3">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          <p className="text-sm text-muted-foreground">加载中...</p>
+          <p className="text-sm text-muted-foreground">{t("loading")}</p>
         </div>
       </div>
     }>

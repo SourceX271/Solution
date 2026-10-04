@@ -5,6 +5,7 @@ import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import { Bookmark } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { useTranslations } from "next-intl"
 
 interface BookmarkButtonProps {
   targetType: string
@@ -13,6 +14,7 @@ interface BookmarkButtonProps {
 }
 
 export function BookmarkButton({ targetType, targetId, isBookmarked: initial }: BookmarkButtonProps) {
+  const t = useTranslations("common")
   const { data: session } = useSession()
   const router = useRouter()
   const [bookmarked, setBookmarked] = useState(initial)
@@ -50,7 +52,7 @@ export function BookmarkButton({ targetType, targetId, isBookmarked: initial }: 
       )}
     >
       <Bookmark className={cn("h-4 w-4", bookmarked && "fill-current")} />
-      {bookmarked ? "已收藏" : "收藏"}
+      {bookmarked ? t("bookmarked") : t("bookmark")}
     </button>
   )
 }

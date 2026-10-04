@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from "react"
 import { useRouter } from "next/navigation"
+import { useTranslations } from "next-intl"
 import { RichEditor } from "./RichEditor"
 import { Loader2, Send, X } from "lucide-react"
 
@@ -21,6 +22,8 @@ export function AnswerForm({
   editInitialContent,
   onCancelEdit,
 }: AnswerFormProps) {
+  const t = useTranslations("questions")
+  const tc = useTranslations("common")
   const router = useRouter()
   const [submitting, setSubmitting] = useState(false)
   const [success, setSuccess] = useState(false)
@@ -69,12 +72,12 @@ export function AnswerForm({
   if (!userId) {
     return (
       <div className="rounded-lg border p-6 text-center">
-        <p className="text-sm text-muted-foreground">请先登录后回答</p>
+        <p className="text-sm text-muted-foreground">{tc("loginRequiredAnswer")}</p>
         <button
           onClick={() => router.push("/login")}
           className="mt-2 inline-flex items-center gap-1 rounded-md bg-primary px-4 py-1.5 text-xs font-medium text-primary-foreground"
         >
-          去登录
+          {tc("goToLogin")}
         </button>
       </div>
     )
@@ -84,21 +87,21 @@ export function AnswerForm({
     <div>
       {isEditing && (
         <div className="mb-2 flex items-center justify-between">
-          <span className="text-sm font-medium text-muted-foreground">编辑回答</span>
+          <span className="text-sm font-medium text-muted-foreground">{t("editAnswer")}</span>
           <button
             type="button"
             onClick={onCancelEdit}
             className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs hover:bg-accent"
           >
             <X className="h-3 w-3" />
-            取消
+            {tc("cancel")}
           </button>
         </div>
       )}
       <RichEditor
         value={content}
         onChange={setContent}
-        placeholder={isEditing ? "编辑你的回答..." : "写下你的回答..."}
+        placeholder={isEditing ? t("answerEditPlaceholder") : t("answerPlaceholder")}
         minHeight="150px"
       />
       <div className="mt-2 flex justify-end">
@@ -110,12 +113,12 @@ export function AnswerForm({
         >
           {submitting && <Loader2 className="h-3 w-3 animate-spin" />}
           <Send className="h-3 w-3" />
-          {submitting ? "提交中..." : isEditing ? "更新回答" : "提交回答"}
+          {submitting ? tc("submitting") : isEditing ? t("updateAnswer") : t("submitAnswer")}
         </button>
       </div>
       {success && (
         <p className="mt-2 text-sm text-green-600">
-          {isEditing ? "回答更新成功！" : "回答发布成功！"}
+          {isEditing ? t("answerUpdated") : t("answerPosted")}
         </p>
       )}
     </div>

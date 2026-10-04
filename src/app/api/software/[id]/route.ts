@@ -1,13 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { auth } from "@/lib/auth";
-import { softwareSchema } from "@/lib/validations";
+import { getSoftwareSchema } from "@/lib/validations";
+import { getApiT } from "@/lib/api-i18n";
 import { bumpTagUsage } from "@/lib/tags";
 
 export async function GET(
   req: NextRequest,
   { params }: { params: { id: string } }
 ) {
+  const t = await getApiT("api");
   try {
     const software = await prisma.software.findUnique({
       where: { id: params.id },
@@ -24,12 +26,18 @@ export async function GET(
     });
 
     if (!software) {
-      return NextResponse.json({ error: "软件条目不存在" }, { status: 404 });
+      return NextResponse.json(
+        { error: t("notFound", { entity: t("entity.software") }) },
+        { status: 404 }
+      );
     }
 
     return NextResponse.json(software);
   } catch (error) {
-    return NextResponse.json({ error: "获取软件条目失败" }, { status: 500 });
+    return NextResponse.json(
+      { error: t("getFailed", { entity: t("entity.software") }) },
+      { status: 500 }
+    );
   }
 }
 
@@ -37,25 +45,33 @@ export async function PUT(
   req: NextRequest,
   { params }: { params: { id: string } }
 ) {
+  const t = await getApiT("api");
+  const tv = await getApiT("validation");
   try {
     const session = await auth();
     if (!session) {
-      return NextResponse.json({ error: "请先登录" }, { status: 401 });
+      return NextResponse.json({ error: t("unauthorized") }, { status: 401 });
     }
 
     const software = await prisma.software.findUnique({ where: { id: params.id } });
     if (!software) {
-      return NextResponse.json({ error: "软件条目不存在" }, { status: 404 });
+      return NextResponse.json(
+        { error: t("notFound", { entity: t("entity.software") }) },
+        { status: 404 }
+      );
     }
 
     const userId = (session.user as any).id;
     const userRole = (session.user as any).role;
     if (software.authorId !== userId && userRole !== "ADMIN") {
-      return NextResponse.json({ error: "无权修改此软件条目" }, { status: 403 });
+      return NextResponse.json(
+        { error: t("noPermissionEdit", { entity: t("entity.software") }) },
+        { status: 403 }
+      );
     }
 
     const body = await req.json();
-    const parsed = softwareSchema.safeParse(body);
+    const parsed = getSoftwareSchema(tv).safeParse(body);
     if (!parsed.success) {
       return NextResponse.json({ error: parsed.error.errors[0].message }, { status: 400 });
     }
@@ -75,7 +91,10 @@ export async function PUT(
 
     return NextResponse.json(updated);
   } catch (error) {
-    return NextResponse.json({ error: "更新软件条目失败" }, { status: 500 });
+    return NextResponse.json(
+      { error: t("updateFailed", { entity: t("entity.software") }) },
+      { status: 500 }
+    );
   }
 }
 
@@ -83,10 +102,11 @@ export async function DELETE(
   req: NextRequest,
   { params }: { params: { id: string } }
 ) {
+  const t = await getApiT("api");
   try {
     const session = await auth();
     if (!session) {
-      return NextResponse.json({ error: "请先登录" }, { status: 401 });
+      return NextResponse.json({ error: t("unauthorized") }, { status: 401 });
     }
 
     const software = await prisma.software.findUnique({
@@ -94,20 +114,29 @@ export async function DELETE(
       include: { tags: { select: { slug: true } } },
     });
     if (!software) {
-      return NextResponse.json({ error: "软件条目不存在" }, { status: 404 });
+      return NextResponse.json(
+        { error: t("notFound", { entity: t("entity.software") }) },
+        { status: 404 }
+      );
     }
 
     const userId = (session.user as any).id;
     const userRole = (session.user as any).role;
     if (software.authorId !== userId && userRole !== "ADMIN") {
-      return NextResponse.json({ error: "无权删除此软件条目" }, { status: 403 });
+      return NextResponse.json(
+        { error: t("noPermissionDelete", { entity: t("entity.software") }) },
+        { status: 403 }
+      );
     }
 
     await prisma.software.delete({ where: { id: params.id } });
     await bumpTagUsage(software.tags.map((t) => t.slug), -1);
 
-    return NextResponse.json({ message: "软件条目已删除" });
+    return NextResponse.json({ message: t("deleted", { entity: t("entity.software") }) });
   } catch (error) {
-    return NextResponse.json({ error: "删除软件条目失败" }, { status: 500 });
+    return NextResponse.json(
+      { error: t("deleteFailed", { entity: t("entity.software") }) },
+      { status: 500 }
+    );
   }
 }

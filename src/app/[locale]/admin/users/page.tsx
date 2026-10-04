@@ -5,6 +5,8 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table"
 import { Users } from "lucide-react"
+import { getLocale } from "next-intl/server"
+import { formatDate } from "@/lib/utils"
 import { UserActions } from "./UserActions"
 import { UserSearch } from "./UserSearch"
 import { toPositiveInt } from "@/lib/errors"
@@ -25,6 +27,7 @@ export default async function UsersPage({
 }: {
   searchParams: { search?: string; page?: string }
 }) {
+  const locale = await getLocale()
   const search = searchParams.search || ""
   const page = toPositiveInt(searchParams.page ?? null, 1)
   const skip = (page - 1) * PAGE_SIZE
@@ -105,7 +108,7 @@ export default async function UsersPage({
                       {user._count.articles + user._count.questions + user._count.software} items
                     </TableCell>
                     <TableCell className="text-muted-foreground">
-                      {new Date(user.createdAt).toLocaleDateString("zh-CN")}
+                      {formatDate(user.createdAt, locale)}
                     </TableCell>
                     <TableCell className="text-right">
                       <UserActions userId={user.id} currentRole={user.role} />

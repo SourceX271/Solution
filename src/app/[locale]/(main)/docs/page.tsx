@@ -1,23 +1,19 @@
 import Link from "next/link"
 import type { Metadata } from "next"
+import { getTranslations, getLocale } from "next-intl/server"
 import { prisma } from "@/lib/db"
 import { formatDate, cn } from "@/lib/utils"
 import { Eye, ChevronLeft, ChevronRight, Lightbulb, FileText, BookOpen, GraduationCap, Search, PlusCircle } from "lucide-react"
 
 export const revalidate = 60
 
-export const metadata: Metadata = {
-  title: "解决方案",
-  description: "浏览技术解决方案、教程、指南和参考资料。",
-};
-
-const CATEGORIES = [
-  { value: "", label: "全部", icon: FileText },
-  { value: "solution", label: "解决方案", icon: Lightbulb },
-  { value: "tutorial", label: "教程", icon: GraduationCap },
-  { value: "guide", label: "指南", icon: BookOpen },
-  { value: "reference", label: "参考", icon: Search },
-]
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("docs")
+  return {
+    title: t("title"),
+    description: t("metaDescription"),
+  }
+}
 
 const PAGE_SIZE = 12
 
@@ -26,6 +22,18 @@ interface DocsPageProps {
 }
 
 export default async function DocsPage({ searchParams }: DocsPageProps) {
+  const t = await getTranslations("docs")
+  const tc = await getTranslations("common")
+  const locale = await getLocale()
+
+  const CATEGORIES = [
+    { value: "", label: t("categoryAll"), icon: FileText },
+    { value: "solution", label: t("categorySolution"), icon: Lightbulb },
+    { value: "tutorial", label: t("categoryTutorial"), icon: GraduationCap },
+    { value: "guide", label: t("categoryGuide"), icon: BookOpen },
+    { value: "reference", label: t("categoryReference"), icon: Search },
+  ]
+
   const { page: pageStr, category } = await searchParams
   const page = Math.max(1, parseInt(pageStr ?? "1") || 1)
   const cat = category ?? ""
@@ -53,14 +61,14 @@ export default async function DocsPage({ searchParams }: DocsPageProps) {
       {/* Header */}
       <div className="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 animate-fade-in-up">
         <div>
-          <h1 className="text-3xl font-bold gradient-text">解决方案</h1>
-          <p className="mt-2 text-muted-foreground">共 {total} 个方案</p>
+          <h1 className="text-3xl font-bold gradient-text">{t("title")}</h1>
+          <p className="mt-2 text-muted-foreground">{t("totalCount", { total })}</p>
         </div>
         <Link
           href="/docs/new"
           className="btn-gradient inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-medium shadow-lg shadow-primary/25"
         >
-          <PlusCircle className="h-4 w-4" /> 发布方案
+          <PlusCircle className="h-4 w-4" /> {t("publish")}
         </Link>
       </div>
 
@@ -68,7 +76,7 @@ export default async function DocsPage({ searchParams }: DocsPageProps) {
         {/* Sidebar */}
         <aside className="hidden w-48 shrink-0 lg:block">
           <div className="sticky top-20">
-            <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">分类筛选</h3>
+            <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">{tc("categoryFilter")}</h3>
             <nav className="space-y-0.5">
               {CATEGORIES.map((c) => {
                 const Icon = c.icon
@@ -136,7 +144,7 @@ export default async function DocsPage({ searchParams }: DocsPageProps) {
                   {/* Problem */}
                   {article.problem && (
                     <div className="mb-2 rounded-lg bg-amber-50 dark:bg-amber-950/20 px-3 py-2 text-xs text-muted-foreground border-l-2 border-amber-400 line-clamp-2">
-                      <span className="font-medium text-amber-700 dark:text-amber-400">问题：</span>
+                      <span className="font-medium text-amber-700 dark:text-amber-400">{t("problem")}：</span>
                       {article.problem}
                     </div>
                   )}
@@ -152,7 +160,7 @@ export default async function DocsPage({ searchParams }: DocsPageProps) {
                   <div className="mt-auto flex items-center gap-2 text-xs text-muted-foreground">
                     <span className="font-medium text-foreground/70">{article.author.name}</span>
                     <span className="text-border">·</span>
-                    <span>{formatDate(article.createdAt)}</span>
+                    <span>{formatDate(article.createdAt, locale)}</span>
                     <span className="text-border">·</span>
                     <span className="inline-flex items-center gap-1">
                       <Eye className="h-3 w-3" />
@@ -178,7 +186,7 @@ export default async function DocsPage({ searchParams }: DocsPageProps) {
               <div className="inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-muted mb-4">
                 <Lightbulb className="h-8 w-8 text-muted-foreground" />
               </div>
-              <p className="text-muted-foreground">暂无解决方案</p>
+              <p className="text-muted-foreground">{t("noSolutions")}</p>
             </div>
           )}
 
@@ -192,7 +200,7 @@ export default async function DocsPage({ searchParams }: DocsPageProps) {
                   page <= 1 && "pointer-events-none opacity-40"
                 )}
               >
-                <ChevronLeft className="h-4 w-4" />上一页
+                <ChevronLeft className="h-4 w-4" />{tc("previous")}
               </Link>
               <span className="px-4 py-2 text-sm text-muted-foreground font-medium">
                 {page} / {totalPages}
@@ -204,7 +212,7 @@ export default async function DocsPage({ searchParams }: DocsPageProps) {
                   page >= totalPages && "pointer-events-none opacity-40"
                 )}
               >
-                下一页<ChevronRight className="h-4 w-4" />
+                {tc("next")}<ChevronRight className="h-4 w-4" />
               </Link>
             </div>
           )}

@@ -1,13 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { auth } from "@/lib/auth";
-import { questionSchema } from "@/lib/validations";
+import { getQuestionSchema } from "@/lib/validations";
+import { getApiT } from "@/lib/api-i18n";
 import { bumpTagUsage } from "@/lib/tags";
 
 export async function GET(
   req: NextRequest,
   { params }: { params: { id: string } }
 ) {
+  const t = await getApiT("api");
   try {
     const question = await prisma.question.findUnique({
       where: { id: params.id },
@@ -27,7 +29,10 @@ export async function GET(
     });
 
     if (!question) {
-      return NextResponse.json({ error: "问题不存在" }, { status: 404 });
+      return NextResponse.json(
+        { error: t("notFound", { entity: t("entity.question") }) },
+        { status: 404 }
+      );
     }
 
     await prisma.question.update({
@@ -37,7 +42,10 @@ export async function GET(
 
     return NextResponse.json(question);
   } catch (error) {
-    return NextResponse.json({ error: "获取问题失败" }, { status: 500 });
+    return NextResponse.json(
+      { error: t("getFailed", { entity: t("entity.question") }) },
+      { status: 500 }
+    );
   }
 }
 
@@ -45,25 +53,33 @@ export async function PUT(
   req: NextRequest,
   { params }: { params: { id: string } }
 ) {
+  const t = await getApiT("api");
+  const tv = await getApiT("validation");
   try {
     const session = await auth();
     if (!session) {
-      return NextResponse.json({ error: "请先登录" }, { status: 401 });
+      return NextResponse.json({ error: t("unauthorized") }, { status: 401 });
     }
 
     const question = await prisma.question.findUnique({ where: { id: params.id } });
     if (!question) {
-      return NextResponse.json({ error: "问题不存在" }, { status: 404 });
+      return NextResponse.json(
+        { error: t("notFound", { entity: t("entity.question") }) },
+        { status: 404 }
+      );
     }
 
     const userId = (session.user as any).id;
     const userRole = (session.user as any).role;
     if (question.authorId !== userId && userRole !== "ADMIN") {
-      return NextResponse.json({ error: "无权修改此问题" }, { status: 403 });
+      return NextResponse.json(
+        { error: t("noPermissionEdit", { entity: t("entity.question") }) },
+        { status: 403 }
+      );
     }
 
     const body = await req.json();
-    const parsed = questionSchema.safeParse(body);
+    const parsed = getQuestionSchema(tv).safeParse(body);
     if (!parsed.success) {
       return NextResponse.json({ error: parsed.error.errors[0].message }, { status: 400 });
     }
@@ -81,7 +97,10 @@ export async function PUT(
 
     return NextResponse.json(updated);
   } catch (error) {
-    return NextResponse.json({ error: "更新问题失败" }, { status: 500 });
+    return NextResponse.json(
+      { error: t("updateFailed", { entity: t("entity.question") }) },
+      { status: 500 }
+    );
   }
 }
 
@@ -89,10 +108,11 @@ export async function DELETE(
   req: NextRequest,
   { params }: { params: { id: string } }
 ) {
+  const t = await getApiT("api");
   try {
     const session = await auth();
     if (!session) {
-      return NextResponse.json({ error: "请先登录" }, { status: 401 });
+      return NextResponse.json({ error: t("unauthorized") }, { status: 401 });
     }
 
     const question = await prisma.question.findUnique({
@@ -100,20 +120,29 @@ export async function DELETE(
       include: { tags: { select: { slug: true } } },
     });
     if (!question) {
-      return NextResponse.json({ error: "问题不存在" }, { status: 404 });
+      return NextResponse.json(
+        { error: t("notFound", { entity: t("entity.question") }) },
+        { status: 404 }
+      );
     }
 
     const userId = (session.user as any).id;
     const userRole = (session.user as any).role;
     if (question.authorId !== userId && userRole !== "ADMIN") {
-      return NextResponse.json({ error: "无权删除此问题" }, { status: 403 });
+      return NextResponse.json(
+        { error: t("noPermissionDelete", { entity: t("entity.question") }) },
+        { status: 403 }
+      );
     }
 
     await prisma.question.delete({ where: { id: params.id } });
     await bumpTagUsage(question.tags.map((t) => t.slug), -1);
 
-    return NextResponse.json({ message: "问题已删除" });
+    return NextResponse.json({ message: t("deleted", { entity: t("entity.question") }) });
   } catch (error) {
-    return NextResponse.json({ error: "删除问题失败" }, { status: 500 });
+    return NextResponse.json(
+      { error: t("deleteFailed", { entity: t("entity.question") }) },
+      { status: 500 }
+    );
   }
 }

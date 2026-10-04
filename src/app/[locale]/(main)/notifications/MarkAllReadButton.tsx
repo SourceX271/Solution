@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { CheckCheck, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -11,6 +12,8 @@ import { toast } from "sonner";
  * the notifications page. Call the JSON endpoint and refresh instead.
  */
 export function MarkAllReadButton() {
+  const t = useTranslations("notifications");
+  const tc = useTranslations("common");
   const router = useRouter();
   const [loading, setLoading] = useState(false);
 
@@ -20,10 +23,10 @@ export function MarkAllReadButton() {
     try {
       const res = await fetch("/api/notifications/mark-all", { method: "POST" });
       if (!res.ok) throw new Error("request failed");
-      toast.success("已全部标记为已读");
+      toast.success(t("markAllReadSuccess"));
       router.refresh();
     } catch {
-      toast.error("操作失败，请稍后重试");
+      toast.error(tc("operationFailed"));
     } finally {
       setLoading(false);
     }
@@ -37,7 +40,7 @@ export function MarkAllReadButton() {
       className="inline-flex items-center gap-1.5 rounded-full border px-4 py-2 text-xs font-medium hover:bg-accent transition-all shadow-sm disabled:opacity-50"
     >
       {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCheck className="h-3.5 w-3.5" />}
-      全部已读
+      {t("markAllRead")}
     </button>
   );
 }

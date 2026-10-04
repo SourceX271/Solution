@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { auth } from "@/lib/auth";
-import { answerSchema } from "@/lib/validations";
+import { getAnswerSchema } from "@/lib/validations";
+import { getApiT } from "@/lib/api-i18n";
 import { sanitizeHtml } from "@/lib/sanitize";
 import { createNotification } from "@/lib/notifications";
 
@@ -9,25 +10,33 @@ export async function PUT(
   req: NextRequest,
   { params }: { params: { id: string } }
 ) {
+  const t = await getApiT("api");
+  const tv = await getApiT("validation");
   try {
     const session = await auth();
     if (!session) {
-      return NextResponse.json({ error: "请先登录" }, { status: 401 });
+      return NextResponse.json({ error: t("unauthorized") }, { status: 401 });
     }
 
     const answer = await prisma.answer.findUnique({ where: { id: params.id } });
     if (!answer) {
-      return NextResponse.json({ error: "回答不存在" }, { status: 404 });
+      return NextResponse.json(
+        { error: t("notFound", { entity: t("entity.answer") }) },
+        { status: 404 }
+      );
     }
 
     const userId = (session.user as any).id;
     const userRole = (session.user as any).role;
     if (answer.authorId !== userId && userRole !== "ADMIN") {
-      return NextResponse.json({ error: "无权修改此回答" }, { status: 403 });
+      return NextResponse.json(
+        { error: t("noPermissionEdit", { entity: t("entity.answer") }) },
+        { status: 403 }
+      );
     }
 
     const body = await req.json();
-    const parsed = answerSchema.safeParse(body);
+    const parsed = getAnswerSchema(tv).safeParse(body);
     if (!parsed.success) {
       return NextResponse.json({ error: parsed.error.errors[0].message }, { status: 400 });
     }
@@ -42,7 +51,10 @@ export async function PUT(
 
     return NextResponse.json(updated);
   } catch (error) {
-    return NextResponse.json({ error: "更新回答失败" }, { status: 500 });
+    return NextResponse.json(
+      { error: t("updateFailed", { entity: t("entity.answer") }) },
+      { status: 500 }
+    );
   }
 }
 
@@ -50,21 +62,28 @@ export async function DELETE(
   req: NextRequest,
   { params }: { params: { id: string } }
 ) {
+  const t = await getApiT("api");
   try {
     const session = await auth();
     if (!session) {
-      return NextResponse.json({ error: "请先登录" }, { status: 401 });
+      return NextResponse.json({ error: t("unauthorized") }, { status: 401 });
     }
 
     const answer = await prisma.answer.findUnique({ where: { id: params.id } });
     if (!answer) {
-      return NextResponse.json({ error: "回答不存在" }, { status: 404 });
+      return NextResponse.json(
+        { error: t("notFound", { entity: t("entity.answer") }) },
+        { status: 404 }
+      );
     }
 
     const userId = (session.user as any).id;
     const userRole = (session.user as any).role;
     if (answer.authorId !== userId && userRole !== "ADMIN") {
-      return NextResponse.json({ error: "无权删除此回答" }, { status: 403 });
+      return NextResponse.json(
+        { error: t("noPermissionDelete", { entity: t("entity.answer") }) },
+        { status: 403 }
+      );
     }
 
     // Keep the denormalised counters and the question status consistent with
@@ -87,9 +106,12 @@ export async function DELETE(
       });
     });
 
-    return NextResponse.json({ message: "回答已删除" });
+    return NextResponse.json({ message: t("deleted", { entity: t("entity.answer") }) });
   } catch (error) {
-    return NextResponse.json({ error: "删除回答失败" }, { status: 500 });
+    return NextResponse.json(
+      { error: t("deleteFailed", { entity: t("entity.answer") }) },
+      { status: 500 }
+    );
   }
 }
 
@@ -97,10 +119,11 @@ export async function PATCH(
   req: NextRequest,
   { params }: { params: { id: string } }
 ) {
+  const t = await getApiT("api");
   try {
     const session = await auth();
     if (!session) {
-      return NextResponse.json({ error: "请先登录" }, { status: 401 });
+      return NextResponse.json({ error: t("unauthorized") }, { status: 401 });
     }
 
     const answer = await prisma.answer.findUnique({
@@ -108,12 +131,15 @@ export async function PATCH(
       include: { question: { select: { id: true, authorId: true, title: true, slug: true } } },
     });
     if (!answer) {
-      return NextResponse.json({ error: "回答不存在" }, { status: 404 });
+      return NextResponse.json(
+        { error: t("notFound", { entity: t("entity.answer") }) },
+        { status: 404 }
+      );
     }
 
     const userId = (session.user as any).id;
     if (answer.question.authorId !== userId) {
-      return NextResponse.json({ error: "只有提问者可以采纳回答" }, { status: 403 });
+      return NextResponse.json({ error: t("onlyAskerCanAccept") }, { status: 403 });
     }
 
     const updated = await prisma.$transaction(async (tx) => {
@@ -144,12 +170,16 @@ export async function PATCH(
       userId: answer.authorId,
       actorId: userId,
       type: "accepted",
-      message: `${session.user?.name || "提问者"} 采纳了你在「${answer.question.title}」下的回答`,
+      messageKey: "answerAccepted",
+      messageParams: { name: session.user?.name || "Someone", title: answer.question.title },
       link: `/questions/${answer.question.slug}`,
     });
 
     return NextResponse.json(updated);
   } catch (error) {
-    return NextResponse.json({ error: "采纳回答失败" }, { status: 500 });
+    return NextResponse.json(
+      { error: t("acceptFailed") },
+      { status: 500 }
+    );
   }
 }

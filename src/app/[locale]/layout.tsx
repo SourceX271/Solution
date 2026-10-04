@@ -1,5 +1,5 @@
 import { NextIntlClientProvider } from "next-intl";
-import { getMessages } from "next-intl/server";
+import { getMessages, getTranslations } from "next-intl/server";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { routing } from "@/i18n/routing";
@@ -19,11 +19,37 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { locale } = await params;
   const isEn = locale === "en";
+  const t = await getTranslations({ locale, namespace: "common" });
+  const siteName = t("siteName");
+  const description = t("siteDescription");
+  const keywords = t("metaKeywords")
+    .split(",")
+    .map((k) => k.trim())
+    .filter(Boolean);
+
   return {
-    // The root layout cannot know the locale, so tag OG previews here.
+    title: {
+      default: siteName,
+      template: `%s | ${siteName}`,
+    },
+    description,
+    // The root layout cannot know the locale, so every localized field is set
+    // here — otherwise the Chinese defaults leak into /en's <head>.
+    keywords,
     openGraph: {
+      type: "website",
+      siteName,
+      description,
+      url: "/",
+      images: [{ url: "/og-image.png", width: 1200, height: 630, alt: siteName }],
       locale: isEn ? "en_US" : "zh_CN",
       alternateLocale: isEn ? ["zh_CN"] : ["en_US"],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: siteName,
+      description,
+      images: ["/og-image.png"],
     },
     alternates: {
       languages: {

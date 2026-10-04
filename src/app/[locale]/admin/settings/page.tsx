@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Settings } from "lucide-react"
+import { getTranslations } from "next-intl/server"
 import { SettingsForm } from "./SettingsForm"
 
 export const dynamic = "force-dynamic"
@@ -35,19 +36,21 @@ export default async function SettingsPage() {
     }),
   ])
 
+  const t = await getTranslations("admin")
+
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold tracking-tight">网站设置</h2>
-        <p className="text-muted-foreground">管理站点名称、描述、社交媒体链接和功能开关</p>
+        <h2 className="text-2xl font-bold tracking-tight">{t("siteSettingsTitle")}</h2>
+        <p className="text-muted-foreground">{t("siteSettingsDesc")}</p>
       </div>
 
       <Card>
         <CardHeader className="flex flex-row items-center gap-2 space-y-0">
           <Settings className="h-5 w-5" />
           <div>
-            <CardTitle className="text-lg">站点配置</CardTitle>
-            <CardDescription>管理网站基本信息和功能</CardDescription>
+            <CardTitle className="text-lg">{t("siteConfig")}</CardTitle>
+            <CardDescription>{t("siteConfigDesc")}</CardDescription>
           </div>
         </CardHeader>
         <CardContent>

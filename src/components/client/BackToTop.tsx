@@ -2,8 +2,10 @@
 
 import { useEffect, useState } from "react"
 import { ArrowUp } from "lucide-react"
+import { useTranslations } from "next-intl"
 
 export function BackToTop() {
+  const t = useTranslations("common")
   const [visible, setVisible] = useState(false)
 
   useEffect(() => {
@@ -20,7 +22,7 @@ export function BackToTop() {
     <button
       onClick={scrollToTop}
       className={`back-to-top ${visible ? "visible" : ""}`}
-      aria-label="回到顶部"
+      aria-label={t("backToTop")}
     >
       <ArrowUp className="h-4 w-4" />
     </button>

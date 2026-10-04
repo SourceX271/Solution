@@ -1,10 +1,13 @@
 import { hash, compare } from "bcryptjs";
 import { prisma } from "@/lib/db";
+import { getPasswordChangeSchema } from "@/lib/validations";
+import { getApiT } from "@/lib/api-i18n";
 import { apiHandler, successResponse, AppError } from "@/lib/errors";
-import { passwordChangeSchema } from "@/lib/validations";
 import { checkRateLimit, getRateLimitKey } from "@/lib/rate-limit";
 
 export const PUT = apiHandler({ auth: "required" }, async (req, ctx) => {
+  const t = await getApiT("api");
+  const tv = await getApiT("validation");
   // Throttle password attempts: without this, a stolen session (or a shoulder
   // surfer) could brute-force the current password without limit.
   const { allowed } = checkRateLimit(getRateLimitKey(req, "password-change"), {
@@ -12,10 +15,10 @@ export const PUT = apiHandler({ auth: "required" }, async (req, ctx) => {
     maxRequests: 5,
   });
   if (!allowed) {
-    throw new AppError(429, "尝试过于频繁，请稍后再试");
+    throw new AppError(429, t("passwordTooFrequent"));
   }
 
-  const parsed = passwordChangeSchema.safeParse(await req.json());
+  const parsed = getPasswordChangeSchema(tv).safeParse(await req.json());
   if (!parsed.success) {
     throw new AppError(400, parsed.error.errors[0].message);
   }
@@ -27,16 +30,16 @@ export const PUT = apiHandler({ auth: "required" }, async (req, ctx) => {
   });
 
   if (!user || !user.passwordHash) {
-    throw new AppError(400, "该账户使用 OAuth 登录，无法修改密码");
+    throw new AppError(400, t("passwordOAuth"));
   }
 
   const isValid = await compare(currentPassword, user.passwordHash);
   if (!isValid) {
-    throw new AppError(400, "当前密码错误");
+    throw new AppError(400, t("passwordWrong"));
   }
 
   if (await compare(newPassword, user.passwordHash)) {
-    throw new AppError(400, "新密码不能与当前密码相同");
+    throw new AppError(400, t("passwordSame"));
   }
 
   const newHash = await hash(newPassword, 12);
@@ -45,5 +48,5 @@ export const PUT = apiHandler({ auth: "required" }, async (req, ctx) => {
     data: { passwordHash: newHash },
   });
 
-  return successResponse({ message: "密码已更新" });
+  return successResponse({ message: t("passwordUpdated") });
 });

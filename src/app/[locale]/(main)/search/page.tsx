@@ -1,30 +1,38 @@
 import Link from "next/link"
 import type { Metadata } from "next"
+import { getTranslations, getLocale } from "next-intl/server"
 import { prisma } from "@/lib/db"
 import { formatDate, cn } from "@/lib/utils"
 import { Search, FileText, MessageCircle, Package, ArrowRight } from "lucide-react"
 
 export const revalidate = 60;
 
-export const metadata: Metadata = {
-  title: "搜索",
-  description: "搜索解决方案、问答和软件推荐。",
-};
-
-const TYPE_FILTERS = [
-  { value: "", label: "全部", icon: Search },
-  { value: "article", label: "文章", icon: FileText },
-  { value: "question", label: "问答", icon: MessageCircle },
-  { value: "software", label: "软件", icon: Package },
-]
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("search")
+  return {
+    title: t("title"),
+    description: t("metaDescription"),
+  }
+}
 
 interface SearchPageProps {
   searchParams: Promise<{ q?: string; type?: string }>
 }
 
 export default async function SearchPage({ searchParams }: SearchPageProps) {
+  const t = await getTranslations("search")
+  const tc = await getTranslations("common")
+  const tq = await getTranslations("questions")
+  const locale = await getLocale()
   const { q, type: filterType } = await searchParams
   const query = (q ?? "").trim()
+
+  const TYPE_FILTERS = [
+    { value: "", label: t("filterAll"), icon: Search },
+    { value: "article", label: t("filterArticles"), icon: FileText },
+    { value: "question", label: t("filterQuestions"), icon: MessageCircle },
+    { value: "software", label: t("filterSoftware"), icon: Package },
+  ]
 
   if (!query) {
     return (
@@ -32,19 +40,19 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
         <div className="inline-flex h-20 w-20 items-center justify-center rounded-2xl bg-muted mb-6">
           <Search className="h-10 w-10 text-muted-foreground" />
         </div>
-        <h1 className="mb-2 text-2xl font-bold gradient-text">搜索</h1>
-        <p className="text-muted-foreground mb-6">请输入关键词搜索文章、问答和软件</p>
+        <h1 className="mb-2 text-2xl font-bold gradient-text">{t("title")}</h1>
+        <p className="text-muted-foreground mb-6">{t("subtitle")}</p>
         <form action="/search" className="mx-auto flex max-w-md gap-2">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <input
               name="q"
-              placeholder="搜索..."
+              placeholder={t("placeholder")}
               className="w-full rounded-xl border bg-card pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/40 shadow-sm"
             />
           </div>
           <button type="submit" className="btn-gradient rounded-xl px-6 py-2.5 text-sm font-medium">
-            搜索
+            {t("button")}
           </button>
         </form>
       </div>
@@ -93,17 +101,17 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
   const totalResults = articles.length + questions.length + software.length
 
   const sections = [
-    { type: "article", label: "文章", icon: FileText, gradient: "from-blue-500 to-cyan-500", items: articles, toLabel: "title", linkPrefix: "/docs/" },
-    { type: "question", label: "问答", icon: MessageCircle, gradient: "from-amber-500 to-orange-500", items: questions, toLabel: "title", linkPrefix: "/questions/" },
-    { type: "software", label: "软件", icon: Package, gradient: "from-emerald-500 to-teal-500", items: software, toLabel: "name", linkPrefix: "/software/" },
+    { type: "article", label: t("filterArticles"), icon: FileText, gradient: "from-blue-500 to-cyan-500", items: articles, toLabel: "title", linkPrefix: "/docs/" },
+    { type: "question", label: t("filterQuestions"), icon: MessageCircle, gradient: "from-amber-500 to-orange-500", items: questions, toLabel: "title", linkPrefix: "/questions/" },
+    { type: "software", label: t("filterSoftware"), icon: Package, gradient: "from-emerald-500 to-teal-500", items: software, toLabel: "name", linkPrefix: "/software/" },
   ]
 
   return (
     <div className="container mx-auto px-4 py-10 animate-fade-in">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold gradient-text mb-1">搜索结果</h1>
+        <h1 className="text-3xl font-bold gradient-text mb-1">{t("resultsTitle")}</h1>
         <p className="text-muted-foreground">
-          关于 &ldquo;<span className="font-medium text-foreground">{query}</span>&rdquo; 的搜索结果，共 <span className="font-semibold text-primary">{totalResults}</span> 条
+          {t("resultsSummary", { query, count: totalResults })}
         </p>
       </div>
 
@@ -135,8 +143,8 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
           <div className="inline-flex h-20 w-20 items-center justify-center rounded-2xl bg-muted mb-6">
             <Search className="h-10 w-10 text-muted-foreground" />
           </div>
-          <p className="text-muted-foreground text-lg mb-2">未找到相关内容</p>
-          <p className="text-sm text-muted-foreground">请尝试其他关键词</p>
+          <p className="text-muted-foreground text-lg mb-2">{t("noResultsTitle")}</p>
+          <p className="text-sm text-muted-foreground">{tc("tryOtherKeywords")}</p>
         </div>
       ) : (
         <div className="space-y-10">
@@ -169,8 +177,8 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
                           <p className="mt-0.5 text-xs text-muted-foreground line-clamp-1">{item.description}</p>
                         )}
                         <p className="mt-1 text-[11px] text-muted-foreground">
-                          {item.author.name} · {formatDate(item.createdAt)}
-                          {section.type === "question" && <> · {item.answerCount} 回答</>}
+                          {item.author.name} · {formatDate(item.createdAt, locale)}
+                          {section.type === "question" && <> · {tq("answerCount", { count: item.answerCount })}</>}
                         </p>
                       </div>
                       <ArrowRight className="h-4 w-4 text-muted-foreground/50 group-hover:text-primary transition-colors shrink-0" />

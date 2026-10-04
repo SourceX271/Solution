@@ -1,7 +1,6 @@
-﻿import { NextRequest } from "next/server";
+import { NextRequest } from "next/server";
 import { prisma } from "@/lib/db";
 import { apiHandler, successResponse } from "@/lib/errors";
-import { formatDate } from "@/lib/utils";
 
 export const GET = apiHandler({ auth: "required" }, async (req, ctx) => {
   const userId = ctx.session!.user.id;
@@ -88,13 +87,15 @@ export const GET = apiHandler({ auth: "required" }, async (req, ctx) => {
     };
   });
 
-  // Build recent activity
+  // Build recent activity. Return ISO timestamps and sort chronologically —
+  // the client formats them in the active locale (sorting pre-formatted date
+  // strings ordered December after January).
   const recentActivity = [
-    ...articles.map((a) => ({ type: "article", title: a.title, slug: a.slug, date: formatDate(a.createdAt) })),
-    ...questions.map((q) => ({ type: "question", title: q.title, slug: q.slug, date: formatDate(q.createdAt) })),
-    ...software.map((s) => ({ type: "software", title: s.name, slug: s.slug, date: formatDate(s.createdAt) })),
+    ...articles.map((a) => ({ type: "article", title: a.title, slug: a.slug, date: a.createdAt })),
+    ...questions.map((q) => ({ type: "question", title: q.title, slug: q.slug, date: q.createdAt })),
+    ...software.map((s) => ({ type: "software", title: s.name, slug: s.slug, date: s.createdAt })),
   ]
-    .sort((a, b) => b.date.localeCompare(a.date))
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
     .slice(0, 10);
 
   return successResponse({

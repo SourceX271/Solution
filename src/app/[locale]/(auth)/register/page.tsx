@@ -5,8 +5,10 @@ import { useRouter } from "next/navigation"
 import { signIn } from "next-auth/react"
 import Link from "next/link"
 import { Loader2, ArrowRight, User, Mail, Lock } from "lucide-react"
+import { useTranslations } from "next-intl"
 
 export default function RegisterPage() {
+  const t = useTranslations("auth")
   const router = useRouter()
   const [name, setName] = useState("")
   const [email, setEmail] = useState("")
@@ -18,13 +20,13 @@ export default function RegisterPage() {
 
   const validate = () => {
     const errs: Record<string, string> = {}
-    if (!name.trim() || name.trim().length < 2) errs.name = "名称至少2个字符"
-    if (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) errs.email = "请输入有效的邮箱地址"
+    if (!name.trim() || name.trim().length < 2) errs.name = t("nameMin")
+    if (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) errs.email = t("invalidEmail")
     // Keep in sync with registerSchema in src/lib/validations.ts
-    if (!password || password.length < 8) errs.password = "密码至少8位"
-    else if (!/[a-zA-Z]/.test(password)) errs.password = "密码需包含字母"
-    else if (!/[0-9]/.test(password)) errs.password = "密码需包含数字"
-    if (password !== confirmPassword) errs.confirmPassword = "两次密码不一致"
+    if (!password || password.length < 8) errs.password = t("passwordMin")
+    else if (!/[a-zA-Z]/.test(password)) errs.password = t("passwordLetter")
+    else if (!/[0-9]/.test(password)) errs.password = t("passwordDigit")
+    if (password !== confirmPassword) errs.confirmPassword = t("passwordMismatch")
     setErrors(errs)
     return Object.keys(errs).length === 0
   }
@@ -43,7 +45,7 @@ export default function RegisterPage() {
       })
       if (!res.ok) {
         const data = await res.json()
-        throw new Error(data.error || "注册失败")
+        throw new Error(data.error || t("registerFailed"))
       }
 
       const result = await signIn("credentials", {
@@ -58,7 +60,7 @@ export default function RegisterPage() {
       }
       router.refresh()
     } catch (err: any) {
-      setServerError(err.message || "注册失败，请重试")
+      setServerError(err.message || t("registerError"))
     } finally {
       setLoading(false)
     }
@@ -73,20 +75,20 @@ export default function RegisterPage() {
               S
             </div>
           </Link>
-          <h1 className="text-2xl font-bold tracking-tight">创建账号</h1>
-          <p className="mt-2 text-sm text-muted-foreground">加入 Solution 开发者社区</p>
+          <h1 className="text-2xl font-bold tracking-tight">{t("registerTitle")}</h1>
+          <p className="mt-2 text-sm text-muted-foreground">{t("registerSubtitle")}</p>
         </div>
 
         <div className="glass-card p-8">
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="mb-1.5 block text-sm font-medium" htmlFor="name">名称</label>
+              <label className="mb-1.5 block text-sm font-medium" htmlFor="name">{t("name")}</label>
               <div className="relative">
                 <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <input
                   id="name" type="text" value={name}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder="你的名称" maxLength={50}
+                  placeholder={t("namePlaceholder")} maxLength={50}
                   className="w-full rounded-xl border bg-background pl-10 pr-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/40 transition-all"
                 />
               </div>
@@ -94,7 +96,7 @@ export default function RegisterPage() {
             </div>
 
             <div>
-              <label className="mb-1.5 block text-sm font-medium" htmlFor="email">邮箱</label>
+              <label className="mb-1.5 block text-sm font-medium" htmlFor="email">{t("email")}</label>
               <div className="relative">
                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <input
@@ -108,13 +110,13 @@ export default function RegisterPage() {
             </div>
 
             <div>
-              <label className="mb-1.5 block text-sm font-medium" htmlFor="password">密码</label>
+              <label className="mb-1.5 block text-sm font-medium" htmlFor="password">{t("password")}</label>
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <input
                   id="password" type="password" value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="至少8位，含字母和数字" minLength={8}
+                  placeholder={t("passwordPlaceholder")} minLength={8}
                   className="w-full rounded-xl border bg-background pl-10 pr-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/40 transition-all"
                 />
               </div>
@@ -122,13 +124,13 @@ export default function RegisterPage() {
             </div>
 
             <div>
-              <label className="mb-1.5 block text-sm font-medium" htmlFor="confirmPassword">确认密码</label>
+              <label className="mb-1.5 block text-sm font-medium" htmlFor="confirmPassword">{t("confirmPassword")}</label>
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <input
                   id="confirmPassword" type="password" value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
-                  placeholder="再次输入密码" minLength={8}
+                  placeholder={t("confirmPlaceholder")} minLength={8}
                   className="w-full rounded-xl border bg-background pl-10 pr-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/40 transition-all"
                 />
               </div>
@@ -144,13 +146,13 @@ export default function RegisterPage() {
               className="btn-gradient flex w-full items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium shadow-lg shadow-primary/25 disabled:opacity-50 disabled:shadow-none"
             >
               {loading && <Loader2 className="h-4 w-4 animate-spin" />}
-              {loading ? "注册中..." : <>注册 <ArrowRight className="h-4 w-4" /></>}
+              {loading ? t("registerLoading") : <>{t("registerBtn")} <ArrowRight className="h-4 w-4" /></>}
             </button>
           </form>
 
           <p className="mt-6 text-center text-sm text-muted-foreground">
-            已有账号？{" "}
-            <Link href="/login" className="font-medium text-primary hover:underline">登录</Link>
+            {t("hasAccount")}{" "}
+            <Link href="/login" className="font-medium text-primary hover:underline">{t("loginBtn")}</Link>
           </p>
         </div>
       </div>

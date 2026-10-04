@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { auth } from "@/lib/auth";
+import { getApiT } from "@/lib/api-i18n";
 import { checkRateLimit, getRateLimitKey } from "@/lib/rate-limit";
 
 const VOTE_TARGETS = ["article", "question", "answer", "software"] as const;
@@ -22,32 +23,36 @@ async function targetExists(targetType: string, targetId: string): Promise<boole
 }
 
 export async function POST(req: NextRequest) {
+  const t = await getApiT("api");
   try {
     const session = await auth();
     if (!session) {
-      return NextResponse.json({ error: "请先登录" }, { status: 401 });
+      return NextResponse.json({ error: t("unauthorized") }, { status: 401 });
     }
 
     const { allowed } = checkRateLimit(getRateLimitKey(req, "vote"), { windowMs: 60000, maxRequests: 30 });
     if (!allowed) {
-      return NextResponse.json({ error: "操作过于频繁" }, { status: 429 });
+      return NextResponse.json({ error: t("rateLimitedShort") }, { status: 429 });
     }
 
     const body = await req.json();
     const { targetType, targetId, value } = body as { targetType: string; targetId: string; value: number };
 
     if (!targetType || !targetId) {
-      return NextResponse.json({ error: "缺少目标类型或ID" }, { status: 400 });
+      return NextResponse.json({ error: t("missingTarget") }, { status: 400 });
     }
 
     // Whitelist the target type: an arbitrary string used to be accepted and
     // written into the Vote table, creating orphan rows nothing could clean up.
     if (!(VOTE_TARGETS as readonly string[]).includes(targetType)) {
-      return NextResponse.json({ error: "无效的目标类型" }, { status: 400 });
+      return NextResponse.json({ error: t("invalidTargetType") }, { status: 400 });
     }
 
     if (!(await targetExists(targetType, targetId))) {
-      return NextResponse.json({ error: "投票目标不存在" }, { status: 404 });
+      return NextResponse.json(
+        { error: t("notFound", { entity: t("entity.voteTarget") }) },
+        { status: 404 }
+      );
     }
 
     const userId = (session.user as any).id;
@@ -55,7 +60,7 @@ export async function POST(req: NextRequest) {
     // Software rating: allow values 1-5
     if (targetType === "software") {
       if (!Number.isInteger(value) || value < 1 || value > 5) {
-        return NextResponse.json({ error: "评分值必须为1-5的整数" }, { status: 400 });
+        return NextResponse.json({ error: t("ratingRange") }, { status: 400 });
       }
 
       // Write the rating and the denormalised aggregates atomically, otherwise
@@ -92,7 +97,11 @@ export async function POST(req: NextRequest) {
 
       return NextResponse.json({
         voted: !cancelled,
-        message: cancelled ? "已取消评分" : isUpdate ? "已更新评分" : "评分成功",
+        message: cancelled
+          ? t("ratingCancelled")
+          : isUpdate
+            ? t("ratingUpdated")
+            : t("ratingSuccess"),
         rating,
         ratingCount,
       });
@@ -100,7 +109,7 @@ export async function POST(req: NextRequest) {
 
     // Upvote/Downvote for articles, questions, answers (value must be 1 or -1)
     if (value !== 1 && value !== -1) {
-      return NextResponse.json({ error: "投票值必须为1或-1" }, { status: 400 });
+      return NextResponse.json({ error: t("voteRange") }, { status: 400 });
     }
 
     const existing = await prisma.vote.findUnique({
@@ -134,7 +143,7 @@ export async function POST(req: NextRequest) {
             ? [adjustVoteCount(-existing.value) as any]
             : []),
         ]);
-        return NextResponse.json({ voted: false, message: "已取消投票" });
+        return NextResponse.json({ voted: false, message: t("voteCancelled") });
       } else {
         // Switch vote direction: adjust count by the difference (e.g. +1 -> -1 is -2).
         await prisma.$transaction([
@@ -143,7 +152,7 @@ export async function POST(req: NextRequest) {
             ? [adjustVoteCount(value - existing.value) as any]
             : []),
         ]);
-        return NextResponse.json({ voted: true, message: "已更新投票" });
+        return NextResponse.json({ voted: true, message: t("voteUpdated") });
       }
     } else {
       const [vote] = await prisma.$transaction([
@@ -153,14 +162,15 @@ export async function POST(req: NextRequest) {
           : []),
       ]);
 
-      return NextResponse.json({ voted: true, vote, message: "投票成功" }, { status: 201 });
+      return NextResponse.json({ voted: true, vote, message: t("voteSuccess") }, { status: 201 });
     }
   } catch {
-    return NextResponse.json({ error: "操作失败" }, { status: 500 });
+    return NextResponse.json({ error: t("voteFailed") }, { status: 500 });
   }
 }
 
 export async function GET(req: NextRequest) {
+  const t = await getApiT("api");
   const { searchParams } = new URL(req.url);
   const targetType = searchParams.get("targetType");
   const targetId = searchParams.get("targetId");
@@ -168,7 +178,7 @@ export async function GET(req: NextRequest) {
   const userId = (session?.user as any)?.id;
 
   if (!targetType || !targetId) {
-    return NextResponse.json({ error: "Missing params" }, { status: 400 });
+    return NextResponse.json({ error: t("missingParams") }, { status: 400 });
   }
 
   const [upVotes, downVotes, userVote] = await Promise.all([

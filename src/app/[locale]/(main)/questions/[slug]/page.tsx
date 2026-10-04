@@ -1,5 +1,6 @@
 import Link from "next/link"
 import { notFound } from "next/navigation"
+import { getTranslations, getLocale } from "next-intl/server"
 import { prisma } from "@/lib/db"
 import { formatRelativeTime } from "@/lib/utils"
 import { highlightHtmlContent } from "@/lib/highlight"
@@ -25,15 +26,20 @@ interface QuestionPageProps {
 
 export async function generateMetadata({ params }: QuestionPageProps) {
   const { slug } = await params
+  const t = await getTranslations("questions")
   const question = await prisma.question.findUnique({
     where: { slug },
     select: { title: true },
   })
-  if (!question) return { title: "问题未找到" }
+  if (!question) return { title: t("notFoundTitle") }
   return { title: question.title }
 }
 
 export default async function QuestionPage({ params }: QuestionPageProps) {
+  const t = await getTranslations("questions")
+  const tc = await getTranslations("common")
+  const locale = await getLocale()
+
   const { slug } = await params
   const session = await auth()
   const userId = (session?.user as any)?.id
@@ -135,9 +141,9 @@ export default async function QuestionPage({ params }: QuestionPageProps) {
       <div className="container mx-auto px-4 py-8">
         {/* Breadcrumb */}
         <nav className="mb-6 flex items-center gap-1.5 text-sm text-muted-foreground animate-fade-in">
-          <Link href="/" className="hover:text-foreground transition-colors">首页</Link>
+          <Link href="/" className="hover:text-foreground transition-colors">{tc("home")}</Link>
           <ChevronRight className="h-3 w-3" />
-          <Link href="/questions" className="hover:text-foreground transition-colors">问答</Link>
+          <Link href="/questions" className="hover:text-foreground transition-colors">{tc("questions")}</Link>
           <ChevronRight className="h-3 w-3" />
           <span className="text-foreground truncate max-w-[240px] font-medium">{question.title}</span>
         </nav>
@@ -156,21 +162,21 @@ export default async function QuestionPage({ params }: QuestionPageProps) {
                 <span className="text-border">|</span>
                 <span className="inline-flex items-center gap-1.5">
                   <Clock className="h-4 w-4" />
-                  {formatRelativeTime(question.createdAt)}
+                  {formatRelativeTime(question.createdAt, locale)}
                 </span>
                 <span className="text-border">|</span>
                 <span className="inline-flex items-center gap-1.5">
                   <Eye className="h-4 w-4" />
-                  {question.viewCount + 1} 次浏览
+                  {t("viewCount", { count: question.viewCount + 1 })}
                 </span>
                 {question.status === "solved" && (
                   <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 dark:bg-emerald-900/30 px-2.5 py-0.5 text-xs font-medium text-emerald-700 dark:text-emerald-300">
-                    <CheckCircle2 className="h-3 w-3" />已解决
+                    <CheckCircle2 className="h-3 w-3" />{t("statusSolved")}
                   </span>
                 )}
                 {question.status === "open" && (
                   <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 dark:bg-blue-900/30 px-2.5 py-0.5 text-xs font-medium text-blue-700 dark:text-blue-300">
-                    <Clock4 className="h-3 w-3" />待解决
+                    <Clock4 className="h-3 w-3" />{t("statusOpen")}
                   </span>
                 )}
               </div>
@@ -218,7 +224,7 @@ export default async function QuestionPage({ params }: QuestionPageProps) {
             <section className="animate-fade-in-up stagger-1">
               <h2 className="mb-5 flex items-center gap-2 text-lg font-semibold">
                 <MessageCircle className="h-5 w-5 text-primary" />
-                {answers.length} 个回答
+                {t("answerCount", { count: answers.length })}
               </h2>
               <div className="space-y-4">
                 {answers.map((answer) => {
@@ -240,14 +246,14 @@ export default async function QuestionPage({ params }: QuestionPageProps) {
                   <div className="inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-muted mb-3">
                     <MessageCircle className="h-7 w-7 text-muted-foreground" />
                   </div>
-                  <p className="text-muted-foreground">暂无回答，快来写下第一个回答吧</p>
+                  <p className="text-muted-foreground">{t("noAnswers")}</p>
                 </div>
               )}
             </section>
 
             {/* Answer Form */}
             <section className="mt-8 animate-fade-in-up stagger-2">
-              <h2 className="mb-4 text-lg font-semibold">你的回答</h2>
+              <h2 className="mb-4 text-lg font-semibold">{t("yourAnswer")}</h2>
               <AnswerForm questionId={question.id} userId={userId} />
             </section>
           </div>
@@ -255,7 +261,7 @@ export default async function QuestionPage({ params }: QuestionPageProps) {
           {/* Sidebar */}
           <aside className="sticky top-20 hidden w-60 shrink-0 self-start lg:block">
             <div className="glass-card rounded-xl p-4">
-              <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">相关问题</h3>
+              <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("relatedQuestions")}</h3>
               {relatedQuestions.length > 0 ? (
                 <ul className="space-y-2.5">
                   {relatedQuestions.map((rq) => (
@@ -270,13 +276,13 @@ export default async function QuestionPage({ params }: QuestionPageProps) {
                         <span className="inline-flex items-center gap-0.5">
                           <MessageCircle className="h-2.5 w-2.5" />{rq.answerCount}
                         </span>
-                        <span>{rq.voteCount} 票</span>
+                        <span>{rq.voteCount} {tc("votes")}</span>
                       </span>
                     </li>
                   ))}
                 </ul>
               ) : (
-                <p className="text-xs text-muted-foreground">暂无相关问题</p>
+                <p className="text-xs text-muted-foreground">{t("noRelatedQuestions")}</p>
               )}
             </div>
           </aside>

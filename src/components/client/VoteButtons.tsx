@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
+import { useTranslations } from "next-intl"
 import { ThumbsUp, ThumbsDown } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -15,6 +16,7 @@ interface VoteButtonsProps {
 }
 
 export function VoteButtons({ targetType, targetId, upVotes, downVotes, userVote: initialVote }: VoteButtonsProps) {
+  const t = useTranslations("common")
   const { data: session } = useSession()
   const router = useRouter()
   const [userVote, setUserVote] = useState<number | null>(initialVote)
@@ -40,7 +42,7 @@ export function VoteButtons({ targetType, targetId, upVotes, downVotes, userVote
       })
 
       if (!res.ok) {
-        setError("操作失败，请稍后重试")
+        setError(t("operationFailed"))
         return
       }
 
@@ -59,7 +61,7 @@ export function VoteButtons({ targetType, targetId, upVotes, downVotes, userVote
         else setDown((p) => p + 1)
       }
     } catch {
-      setError("网络异常，请稍后重试")
+      setError(t("networkError"))
     } finally {
       setLoading(false)
     }
@@ -72,8 +74,8 @@ export function VoteButtons({ targetType, targetId, upVotes, downVotes, userVote
         onClick={() => handleVote(1)}
         disabled={loading}
         aria-pressed={userVote === 1}
-        aria-label={`赞同，当前 ${up} 票${userVote === 1 ? "（已赞同）" : ""}`}
-        title="赞同"
+        aria-label={`${userVote === 1 ? t("upvoted") : t("upvote")}, ${t("votesCount", { count: up })}`}
+        title={t("upvote")}
         className={cn(
           "inline-flex items-center gap-1 rounded-md px-2 py-1 text-sm transition-colors hover:bg-accent",
           userVote === 1 && "text-green-600"
@@ -87,8 +89,8 @@ export function VoteButtons({ targetType, targetId, upVotes, downVotes, userVote
         onClick={() => handleVote(-1)}
         disabled={loading}
         aria-pressed={userVote === -1}
-        aria-label={`反对，当前 ${down} 票${userVote === -1 ? "（已反对）" : ""}`}
-        title="反对"
+        aria-label={`${userVote === -1 ? t("downvoted") : t("downvote")}, ${t("votesCount", { count: down })}`}
+        title={t("downvote")}
         className={cn(
           "inline-flex items-center gap-1 rounded-md px-2 py-1 text-sm transition-colors hover:bg-accent",
           userVote === -1 && "text-red-600"

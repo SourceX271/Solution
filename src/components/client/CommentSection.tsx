@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react"
 import { useRouter } from "next/navigation"
+import { useTranslations, useLocale } from "next-intl"
 import { Loader2, Send, Trash2, Pencil, Reply, Eye, EyeOff, Bold, Italic, Code, Link, Quote } from "lucide-react"
 import { marked } from "marked"
 import DOMPurify from "dompurify"
@@ -62,15 +63,18 @@ interface CommentSectionProps {
   userId: string | undefined
 }
 
-const MD_SYNTAX = [
-  { label: "B", icon: Bold, wrapper: "**$1**", placeholder: "粗体文字" },
-  { label: "I", icon: Italic, wrapper: "*$1*", placeholder: "斜体文字" },
-  { label: "`", icon: Code, wrapper: "`$1`", placeholder: "代码" },
-  { label: "[]", icon: Link, wrapper: "[$1](url)", placeholder: "链接文字" },
-  { label: '"', icon: Quote, wrapper: "> $1", placeholder: "引用" },
+const MD_SYNTAX_META = [
+  { label: "B", icon: Bold, wrapper: "**$1**", placeholderKey: "boldPlaceholder" },
+  { label: "I", icon: Italic, wrapper: "*$1*", placeholderKey: "italicPlaceholder" },
+  { label: "`", icon: Code, wrapper: "`$1`", placeholderKey: "codePlaceholder" },
+  { label: "[]", icon: Link, wrapper: "[$1](url)", placeholderKey: "linkPlaceholder" },
+  { label: '"', icon: Quote, wrapper: "> $1", placeholderKey: "quotePlaceholder" },
 ]
 
 export function CommentSection({ targetType, targetId, userId }: CommentSectionProps) {
+  const t = useTranslations("comments")
+  const tc = useTranslations("common")
+  const locale = useLocale()
   const router = useRouter()
   const [comments, setComments] = useState<CommentData[]>([])
   const [totalCount, setTotalCount] = useState(0)
@@ -89,6 +93,8 @@ export function CommentSection({ targetType, targetId, userId }: CommentSectionP
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const editTextareaRef = useRef<HTMLTextAreaElement>(null)
   const replyTextareaRef = useRef<HTMLTextAreaElement>(null)
+
+  const MD_SYNTAX = MD_SYNTAX_META.map((s) => ({ ...s, placeholder: t(s.placeholderKey) }))
 
   const fetchComments = useCallback(async () => {
     try {
@@ -117,11 +123,15 @@ export function CommentSection({ targetType, targetId, userId }: CommentSectionP
         setComments(topLevel)
         setTotalCount(rawComments.length)
       } else {
-        setError("评论加载失败，请刷新页面重试")
+        setError(t("loadFailed"))
       }
     } catch {
-      setError("评论加载失败，请检查网络后重试")
+      setError(t("loadFailedNetwork"))
     } finally { setLoading(false) }
+    // `t` must stay out of the deps: useTranslations returns a new function on
+    // every render, and this callback feeds the effect below — depending on it
+    // would refetch comments in an endless loop.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [targetType, targetId])
 
   useEffect(() => { fetchComments() }, [fetchComments])
@@ -148,24 +158,24 @@ export function CommentSection({ targetType, targetId, userId }: CommentSectionP
       } else {
         // Surface why it failed instead of silently doing nothing.
         const data = await res.json().catch(() => null)
-        setError(data?.error || "评论发送失败，请稍后重试")
+        setError(data?.error || t("sendFailed"))
       }
     } catch {
-      setError("评论发送失败，请检查网络后重试")
+      setError(t("sendFailedNetwork"))
     } finally { setSubmitting(false) }
   }
 
   const handleDelete = async (commentId: string) => {
-    if (!window.confirm("确认删除此评论？")) return
+    if (!window.confirm(t("deleteConfirm"))) return
     try {
       const res = await fetch("/api/comments/" + commentId, { method: "DELETE" })
       if (!res.ok) {
-        setError("删除评论失败，请稍后重试")
+        setError(t("deleteFailed"))
         return
       }
       fetchComments()
     } catch {
-      setError("删除评论失败，请检查网络后重试")
+      setError(t("deleteFailedNetwork"))
     }
   }
 
@@ -181,10 +191,10 @@ export function CommentSection({ targetType, targetId, userId }: CommentSectionP
         setEditingId(null); setEditContent(""); setEditPreview(false); fetchComments()
       } else {
         const data = await res.json().catch(() => null)
-        setError(data?.error || "保存失败，请稍后重试")
+        setError(data?.error || t("saveFailed"))
       }
     } catch {
-      setError("保存失败，请检查网络后重试")
+      setError(t("saveFailedNetwork"))
     }
   }
 
@@ -226,20 +236,20 @@ export function CommentSection({ targetType, targetId, userId }: CommentSectionP
         <div className="rounded-lg border p-3 hover:border-muted-foreground/30 transition-colors">
           <div className="mb-2 flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <span className="text-sm font-medium">{comment.author.name ?? "匿名用户"}</span>
-              <span className="text-xs text-muted-foreground">{formatRelativeTime(comment.createdAt)}</span>
+              <span className="text-sm font-medium">{comment.author.name ?? t("anonymous")}</span>
+              <span className="text-xs text-muted-foreground">{formatRelativeTime(comment.createdAt, locale)}</span>
               {comment.updatedAt && comment.updatedAt !== comment.createdAt && (
-                <span className="text-xs text-muted-foreground">（已编辑）</span>
+                <span className="text-xs text-muted-foreground">({t("edited")})</span>
               )}
             </div>
             <div className="flex items-center gap-0.5">
               {canEdit && !isEditing && (
-                <button onClick={() => { setEditingId(comment.id); setEditContent(comment.content); setEditPreview(false) }} className="rounded p-1 text-muted-foreground hover:bg-accent hover:text-foreground transition-colors" title="编辑">
+                <button onClick={() => { setEditingId(comment.id); setEditContent(comment.content); setEditPreview(false) }} className="rounded p-1 text-muted-foreground hover:bg-accent hover:text-foreground transition-colors" title={tc("edit")}>
                   <Pencil className="h-3.5 w-3.5" />
                 </button>
               )}
               {canEdit && (
-                <button onClick={() => handleDelete(comment.id)} className="rounded p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors" title="删除">
+                <button onClick={() => handleDelete(comment.id)} className="rounded p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors" title={tc("delete")}>
                   <Trash2 className="h-3.5 w-3.5" />
                 </button>
               )}
@@ -261,16 +271,16 @@ export function CommentSection({ targetType, targetId, userId }: CommentSectionP
                   onChange={(e) => setEditContent(e.target.value)}
                   className="w-full rounded-md border bg-background p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring resize-y min-h-[60px]"
                   rows={3}
-                  placeholder="编辑评论..."
+                  placeholder={t("editComment")}
                 />
               )}
               <div className="flex items-center justify-between">
                 <button type="button" onClick={() => setEditPreview(!editPreview)} className="inline-flex items-center gap-1 rounded px-2 py-1 text-xs text-muted-foreground hover:bg-accent hover:text-foreground">
-                  {editPreview ? <><EyeOff className="h-3 w-3" />编辑</> : <><Eye className="h-3 w-3" />预览</>}
+                  {editPreview ? <><EyeOff className="h-3 w-3" />{tc("edit")}</> : <><Eye className="h-3 w-3" />{tc("preview")}</>}
                 </button>
                 <div className="flex gap-2">
-                  <button onClick={() => { setEditingId(null); setEditContent(""); setEditPreview(false) }} className="rounded-md border px-3 py-1 text-xs hover:bg-accent transition-colors">取消</button>
-                  <button onClick={() => handleSaveEdit(comment.id)} disabled={!editContent.trim()} className="rounded-md bg-primary px-3 py-1 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-colors">保存</button>
+                  <button onClick={() => { setEditingId(null); setEditContent(""); setEditPreview(false) }} className="rounded-md border px-3 py-1 text-xs hover:bg-accent transition-colors">{tc("cancel")}</button>
+                  <button onClick={() => handleSaveEdit(comment.id)} disabled={!editContent.trim()} className="rounded-md bg-primary px-3 py-1 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-colors">{tc("save")}</button>
                 </div>
               </div>
             </div>
@@ -281,7 +291,7 @@ export function CommentSection({ targetType, targetId, userId }: CommentSectionP
           {!isEditing && userId && depth < 3 && (
             <button onClick={() => { setReplyingTo(isReplying ? null : comment.id); setReplyContent(""); setReplyPreview(false) }} className="mt-2.5 inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs text-muted-foreground hover:bg-accent hover:text-foreground transition-colors">
               <Reply className="h-3 w-3" />
-              {isReplying ? "取消回复" : "回复"}
+              {isReplying ? t("cancelReply") : t("reply")}
             </button>
           )}
 
@@ -298,18 +308,18 @@ export function CommentSection({ targetType, targetId, userId }: CommentSectionP
                   ref={replyTextareaRef}
                   value={replyContent}
                   onChange={(e) => setReplyContent(e.target.value)}
-                  placeholder={"回复 " + (comment.author.name ?? "匿名用户") + "..."}
+                  placeholder={t("replyPlaceholder", { name: comment.author.name ?? t("anonymous") })}
                   className="w-full rounded-md border bg-background p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring resize-y min-h-[60px]"
                   rows={2}
                 />
               )}
               <div className="flex items-center justify-between">
                 <button type="button" onClick={() => setReplyPreview(!replyPreview)} className="inline-flex items-center gap-1 rounded px-2 py-1 text-xs text-muted-foreground hover:bg-accent hover:text-foreground">
-                  {replyPreview ? <><EyeOff className="h-3 w-3" />编辑</> : <><Eye className="h-3 w-3" />预览</>}
+                  {replyPreview ? <><EyeOff className="h-3 w-3" />{tc("edit")}</> : <><Eye className="h-3 w-3" />{tc("preview")}</>}
                 </button>
                 <button type="submit" disabled={!replyContent.trim() || submitting} className="inline-flex items-center gap-1 rounded-md bg-primary px-3 py-1 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-colors">
                   <Send className="h-3 w-3" />
-                  {submitting ? "发送中..." : "回复"}
+                  {submitting ? t("posting") : t("reply")}
                 </button>
               </div>
             </form>
@@ -327,7 +337,7 @@ export function CommentSection({ targetType, targetId, userId }: CommentSectionP
 
   return (
     <div>
-      <h3 className="mb-4 text-lg font-semibold">评论 ({totalCount})</h3>
+      <h3 className="mb-4 text-lg font-semibold">{tc("commentCountLabel", { count: totalCount })}</h3>
 
       <form onSubmit={(e) => handleSubmit(e)} className="mb-6">
         {userId && <MdToolbar textareaRef={textareaRef} />}
@@ -341,7 +351,7 @@ export function CommentSection({ targetType, targetId, userId }: CommentSectionP
             ref={textareaRef}
             value={content}
             onChange={(e) => setContent(e.target.value)}
-            placeholder={userId ? "写下你的评论...（支持 Markdown）" : "请登录后发表评论"}
+            placeholder={userId ? t("placeholder") : t("placeholderLogin")}
             className="w-full rounded-md border bg-background p-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring resize-y min-h-[80px]"
             rows={3}
           />
@@ -350,14 +360,14 @@ export function CommentSection({ targetType, targetId, userId }: CommentSectionP
           <div className="flex items-center gap-2">
             {userId && (
               <button type="button" onClick={() => setPreviewContent(!previewContent)} className="inline-flex items-center gap-1 rounded px-2 py-1 text-xs text-muted-foreground hover:bg-accent hover:text-foreground transition-colors">
-                {previewContent ? <><EyeOff className="h-3 w-3" />编辑</> : <><Eye className="h-3 w-3" />预览</>}
+                {previewContent ? <><EyeOff className="h-3 w-3" />{tc("edit")}</> : <><Eye className="h-3 w-3" />{tc("preview")}</>}
               </button>
             )}
-            <span className="text-[10px] text-muted-foreground hidden sm:inline">支持 Markdown 语法</span>
+            <span className="text-[10px] text-muted-foreground hidden sm:inline">{t("markdownHint")}</span>
           </div>
           <button type="submit" disabled={!content.trim() || submitting} className="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-colors">
             <Send className="h-3 w-3" />
-            {submitting ? "发送中..." : "发表评论"}
+            {submitting ? t("posting") : t("postComment")}
           </button>
         </div>
         {error && (
@@ -370,7 +380,7 @@ export function CommentSection({ targetType, targetId, userId }: CommentSectionP
       ) : comments.length > 0 ? (
         <div className="space-y-2">{comments.map((comment) => renderComment(comment))}</div>
       ) : (
-        <p className="py-8 text-center text-sm text-muted-foreground">暂无评论，来发表第一条评论吧</p>
+        <p className="py-8 text-center text-sm text-muted-foreground">{t("noComments")}</p>
       )}
     </div>
   )

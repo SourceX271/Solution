@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
+import { getApiT } from "@/lib/api-i18n";
 import { writeFile, mkdir } from "fs/promises";
 import path from "path";
 import { randomUUID } from "crypto";
@@ -25,30 +26,31 @@ function detectImageType(buffer: Buffer): "jpg" | "png" | "gif" | "webp" | null 
 }
 
 export async function POST(req: NextRequest) {
+  const t = await getApiT("api");
   try {
     const session = await auth();
     if (!session) {
-      return NextResponse.json({ success: false, error: "请先登录" }, { status: 401 });
+      return NextResponse.json({ success: false, error: t("unauthorized") }, { status: 401 });
     }
 
     const { allowed } = checkRateLimit(getRateLimitKey(req, "upload"), { windowMs: 60000, maxRequests: 10 });
     if (!allowed) {
-      return NextResponse.json({ success: false, error: "上传过于频繁，请稍后再试" }, { status: 429 });
+      return NextResponse.json({ success: false, error: t("uploadTooFrequent") }, { status: 429 });
     }
 
     const formData = await req.formData();
     const file = formData.get("file") as File | null;
 
     if (!file || typeof file === "string") {
-      return NextResponse.json({ success: false, error: "未选择文件" }, { status: 400 });
+      return NextResponse.json({ success: false, error: t("uploadNoFile") }, { status: 400 });
     }
 
     if (!ALLOWED_MIME.includes(file.type)) {
-      return NextResponse.json({ success: false, error: "不支持的文件格式" }, { status: 400 });
+      return NextResponse.json({ success: false, error: t("uploadBadType") }, { status: 400 });
     }
 
     if (file.size > MAX_SIZE) {
-      return NextResponse.json({ success: false, error: "文件不能超过 2MB" }, { status: 400 });
+      return NextResponse.json({ success: false, error: t("uploadTooLarge") }, { status: 400 });
     }
 
     const buffer = Buffer.from(await file.arrayBuffer());
@@ -56,11 +58,11 @@ export async function POST(req: NextRequest) {
     // Trust the bytes, not the filename or the declared MIME type.
     const detected = detectImageType(buffer);
     if (!detected) {
-      return NextResponse.json({ success: false, error: "文件内容不是有效的图片" }, { status: 400 });
+      return NextResponse.json({ success: false, error: t("uploadBadContent") }, { status: 400 });
     }
 
     if (!ALLOWED_EXTENSIONS.has(detected)) {
-      return NextResponse.json({ success: false, error: "不允许的文件扩展名" }, { status: 400 });
+      return NextResponse.json({ success: false, error: t("uploadBadExtension") }, { status: 400 });
     }
 
     // Sanitize: use only UUID, no user-controlled path segment
@@ -73,6 +75,6 @@ export async function POST(req: NextRequest) {
     const url = "/uploads/avatars/" + filename;
     return NextResponse.json({ success: true, url });
   } catch {
-    return NextResponse.json({ success: false, error: "上传失败" }, { status: 500 });
+    return NextResponse.json({ success: false, error: t("uploadFailed") }, { status: 500 });
   }
 }
