@@ -155,7 +155,7 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
         authorName={article.author.name || "Unknown"}
         datePublished={article.createdAt.toISOString()}
         dateModified={article.updatedAt.toISOString()}
-        url={`${siteUrl}/docs/${article.slug}`}
+        url={`${siteUrl}/solutions/${article.slug}`}
       />
       <ViewTracker targetType="article" targetId={article.id} />
       <ReadingProgress />
@@ -164,7 +164,7 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
         <nav className="mb-6 flex items-center gap-1.5 text-sm text-muted-foreground animate-fade-in">
           <Link href="/" className="hover:text-foreground transition-colors">{tc("home")}</Link>
           <ChevronRight className="h-3 w-3" />
-          <Link href="/docs" className="hover:text-foreground transition-colors">{t("title")}</Link>
+          <Link href="/solutions" className="hover:text-foreground transition-colors">{t("title")}</Link>
           <ChevronRight className="h-3 w-3" />
           <span className="text-foreground truncate max-w-[240px] font-medium">{article.title}</span>
         </nav>
@@ -181,7 +181,7 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
                   {relatedArticles.map((ra) => (
                     <Link
                       key={ra.id}
-                      href={`/docs/${ra.slug}`}
+                      href={`/solutions/${ra.slug}`}
                       className="block text-xs text-muted-foreground hover:text-primary transition-colors line-clamp-2"
                     >
                       {ra.title}

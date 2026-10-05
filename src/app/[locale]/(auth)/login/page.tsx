@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { signIn } from "next-auth/react";
 import Link from "next/link";
 import { Loader2, Github, Mail, ArrowRight, Lock } from "lucide-react";
+import { Logo } from "@/components/Logo";
 import { useTranslations } from "next-intl";
 
 function LoginForm() {
@@ -54,9 +55,7 @@ function LoginForm() {
         {/* Header */}
         <div className="mb-8 text-center">
           <Link href="/" className="inline-flex items-center gap-2 mb-6 group">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl gradient-primary text-white font-bold text-base shadow-lg shadow-primary/25 group-hover:shadow-xl transition-shadow">
-              S
-            </div>
+            <Logo className="h-10 w-10 transition-transform duration-300 group-hover:scale-105" />
           </Link>
           <h1 className="text-2xl font-bold tracking-tight">{t("loginTitle")}</h1>
           <p className="mt-2 text-sm text-muted-foreground">{t("loginSubtitle")}</p>

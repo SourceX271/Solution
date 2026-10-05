@@ -5,10 +5,20 @@ import { getApiT } from "@/lib/api-i18n";
 import { generateSlug } from "@/lib/utils";
 import { checkRateLimit, getRateLimitKey } from "@/lib/rate-limit";
 
-export async function GET() {
+export async function GET(req: Request) {
+  const url = new URL(req.url);
+  const q = (url.searchParams.get("q") ?? "").trim();
+  const limit = Math.min(
+    50,
+    Math.max(1, Number.parseInt(url.searchParams.get("limit") ?? "20", 10) || 20)
+  );
+
+  // Powers the tag picker's typeahead: search by name or slug, hottest first.
   const tags = await prisma.tag.findMany({
+    where: q ? { OR: [{ name: { contains: q } }, { slug: { contains: q } }] } : {},
     orderBy: [{ usageCount: "desc" }, { name: "asc" }],
-    take: 50,
+    take: limit,
+    select: { id: true, name: true, slug: true, color: true, usageCount: true },
   });
   return NextResponse.json(tags);
 }

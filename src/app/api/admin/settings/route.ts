@@ -1,44 +1,109 @@
-import { prisma } from "@/lib/db"
-import { auth } from "@/lib/auth"
-import { NextResponse } from "next/server"
-import { z } from "zod"
+import { NextResponse } from "next/server";
+import { z } from "zod";
+import { prisma } from "@/lib/db";
+import { getApiT } from "@/lib/api-i18n";
+import { requireAdminApi } from "@/lib/admin-guard";
+import { logAdminAction } from "@/lib/audit";
+import { revalidateSiteConfig } from "@/lib/revalidate";
+
+/**
+ * Every optional text field has to accept `null`: the settings form sends an
+ * explicit null when a box is cleared, and a plain `.optional()` rejects null —
+ * which made the whole form fail with 400 as soon as one field was empty.
+ */
+const optionalText = (max: number) => z.string().max(max).nullable().optional();
 
 const settingsSchema = z.object({
-  siteName: z.string().max(100).optional(),
+  siteName: z.string().min(1).max(100).optional(),
   siteDescription: z.string().max(500).optional(),
-  logo: z.string().max(500).optional(),
-  keywords: z.string().max(500).optional(),
-  contactEmail: z.string().email().optional().or(z.literal("")),
-  githubUrl: z.string().max(500).optional(),
-  twitterUrl: z.string().max(500).optional(),
-  footerText: z.string().max(500).optional(),
-  icpNumber: z.string().max(100).optional(),
+  logo: optionalText(500),
+  keywords: optionalText(500),
+  contactEmail: z
+    .union([z.string().email().max(200), z.literal("")])
+    .nullable()
+    .optional(),
+  githubUrl: optionalText(500),
+  twitterUrl: optionalText(500),
+  footerText: optionalText(500),
+  icpNumber: optionalText(100),
   enableSolutions: z.boolean().optional(),
   enableQuestions: z.boolean().optional(),
   enableSoftware: z.boolean().optional(),
-  featuredArticle: z.string().optional(),
-  featuredQuestion: z.string().optional(),
-  featuredSoftware: z.string().optional(),
-})
+  // The featured pickers store `__none__` when the admin clears a selection;
+  // normalise it to null so the sentinel never reaches the database.
+  featuredArticle: z.string().max(64).nullable().optional(),
+  featuredQuestion: z.string().max(64).nullable().optional(),
+  featuredSoftware: z.string().max(64).nullable().optional(),
+});
+
+const NONE_SENTINEL = "__none__";
+
+function normalizeFeatured(value: string | null | undefined) {
+  if (value === undefined) return undefined;
+  if (value === null || value === "" || value === NONE_SENTINEL) return null;
+  return value;
+}
+
+export async function GET() {
+  const guard = await requireAdminApi();
+  if (!guard.ok) return guard.response;
+
+  const config = await prisma.siteConfig.upsert({
+    where: { id: "main" },
+    update: {},
+    create: { id: "main" },
+  });
+  return NextResponse.json(config);
+}
 
 export async function PUT(req: Request) {
-  const session = await auth()
-  if (!session || (session.user as any).role !== "ADMIN") {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 403 })
-  }
-  const body = await req.json()
-  const parsed = settingsSchema.safeParse(body)
+  const t = await getApiT("api");
+  const guard = await requireAdminApi();
+  if (!guard.ok) return guard.response;
+
+  const body = await req.json().catch(() => null);
+  const parsed = settingsSchema.safeParse(body);
   if (!parsed.success) {
-    return NextResponse.json({ error: parsed.error.errors[0].message }, { status: 400 })
+    return NextResponse.json(
+      { error: `${t("validationFailed")}: ${parsed.error.errors[0]?.path.join(".")}` },
+      { status: 400 }
+    );
   }
+
+  const { featuredArticle, featuredQuestion, featuredSoftware, ...rest } = parsed.data;
+  const data = {
+    ...rest,
+    featuredArticle: normalizeFeatured(featuredArticle),
+    featuredQuestion: normalizeFeatured(featuredQuestion),
+    featuredSoftware: normalizeFeatured(featuredSoftware),
+  };
+
+  // Drop undefined so an omitted key never overwrites a stored value with null.
+  const cleaned = Object.fromEntries(
+    Object.entries(data).filter(([, value]) => value !== undefined)
+  );
+
   try {
     const config = await prisma.siteConfig.upsert({
       where: { id: "main" },
-      update: parsed.data,
-      create: { id: "main", ...parsed.data },
-    })
-    return NextResponse.json(config)
-  } catch {
-    return NextResponse.json({ error: "Update failed" }, { status: 500 })
+      update: cleaned,
+      create: { id: "main", ...cleaned },
+    });
+
+    await logAdminAction({
+      actor: guard.user,
+      action: "settings.update",
+      targetType: "settings",
+      targetId: "main",
+      targetLabel: config.siteName,
+      metadata: { fields: Object.keys(cleaned) },
+      req,
+    });
+    revalidateSiteConfig();
+
+    return NextResponse.json({ success: true, data: config });
+  } catch (error) {
+    console.error("Admin settings update failed", error);
+    return NextResponse.json({ error: t("updateFailed", { entity: t("entity.settings") }) }, { status: 500 });
   }
 }

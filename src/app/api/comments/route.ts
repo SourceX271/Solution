@@ -93,7 +93,7 @@ export async function POST(req: NextRequest) {
         );
       data.articleId = targetId;
       ownerId = target.authorId;
-      link = `/docs/${target.slug}`;
+      link = `/solutions/${target.slug}`;
     } else if (targetType === "question") {
       const target = await prisma.question.findUnique({
         where: { id: targetId },

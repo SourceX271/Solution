@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="225.7 245 512 512" role="img" aria-labelledby="logo-title logo-desc">
+  <title id="logo-title">Solution</title>
+  <desc id="logo-desc">Solution 标志：四个多边形构成的几何字母组合标记。</desc>
+  <g class="mark">
+    <polygon id="shape-D" points="287.41,266.00 354.25,266.00 449.12,435.38 416.65,489.02" fill="#4527A0"/>
+    <polygon id="shape-V" points="553.63,490.98 520.51,545.78 630.68,737.00 696.29,737.00" fill="#651FFF"/>
+    <polygon id="shape-B" points="552.27,265.00 602.25,265.00 317.54,736.00 267.14,736.00" fill="#2962FF"/>
+    <polygon id="shape-P" points="640.30,265.00 690.24,265.00 405.53,736.00 355.06,736.00" fill="#6200EA"/>
+  </g>
+</svg>

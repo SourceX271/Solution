@@ -1,17 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { auth } from "@/lib/auth";
 import { getApiT } from "@/lib/api-i18n";
+import { requireAdminApi } from "@/lib/admin-guard";
+import { updateUserAccount } from "@/lib/admin-user-actions";
 import { toPositiveInt } from "@/lib/errors";
 
 export async function GET(req: NextRequest) {
   const t = await getApiT("api");
-  try {
-    const session = await auth();
-    if (!session || (session.user as any).role !== "ADMIN") {
-      return NextResponse.json({ error: t("forbiddenAccess") }, { status: 403 });
-    }
+  const guard = await requireAdminApi();
+  if (!guard.ok) return guard.response;
 
+  try {
     const { searchParams } = new URL(req.url);
     const page = toPositiveInt(searchParams.get("page"), 1);
     const limit = toPositiveInt(searchParams.get("limit"), 20, 100);
@@ -39,6 +38,7 @@ export async function GET(req: NextRequest) {
           image: true,
           role: true,
           bio: true,
+          bannedAt: true,
           createdAt: true,
           _count: {
             select: { articles: true, questions: true, answers: true },
@@ -57,40 +57,39 @@ export async function GET(req: NextRequest) {
   }
 }
 
+/**
+ * Legacy single-role endpoint kept for API compatibility. It now delegates to
+ * the same guarded implementation as `/api/admin/users/[id]` — previously it
+ * applied the role straight from the (stale) JWT claim with no self-demote or
+ * last-admin protection.
+ */
 export async function PUT(req: NextRequest) {
   const t = await getApiT("api");
+  const guard = await requireAdminApi();
+  if (!guard.ok) return guard.response;
+
+  const body = await req.json().catch(() => null);
+  const { userId, role } = (body ?? {}) as { userId?: string; role?: string };
+
+  if (!userId || !role) {
+    return NextResponse.json({ error: t("missingParams") }, { status: 400 });
+  }
+  if (role !== "USER" && role !== "ADMIN") {
+    return NextResponse.json({ error: t("invalidRole") }, { status: 400 });
+  }
+
   try {
-    const session = await auth();
-    if (!session || (session.user as any).role !== "ADMIN") {
-      return NextResponse.json({ error: t("forbiddenAccess") }, { status: 403 });
+    const result = await updateUserAccount(guard.user, userId, { role }, req);
+    if (!result.ok) {
+      const message =
+        result.errorKey === "notFound"
+          ? t("notFound", { entity: t("entity.user") })
+          : t(result.errorKey);
+      return NextResponse.json({ error: message }, { status: result.status });
     }
-
-    const body = await req.json();
-    const { userId, role } = body as { userId: string; role: string };
-
-    if (!userId || !role) {
-      return NextResponse.json({ error: t("missingParams") }, { status: 400 });
-    }
-
-    const validRoles = ["USER", "ADMIN"];
-    if (!validRoles.includes(role)) {
-      return NextResponse.json({ error: t("invalidRole") }, { status: 400 });
-    }
-
-    const updated = await prisma.user.update({
-      where: { id: userId },
-      data: { role },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        role: true,
-        createdAt: true,
-      },
-    });
-
-    return NextResponse.json(updated);
+    return NextResponse.json({ success: true, data: result.data });
   } catch (error) {
+    console.error("User role update failed", error);
     return NextResponse.json(
       { error: t("updateFailed", { entity: t("entity.user") }) },
       { status: 500 }

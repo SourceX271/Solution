@@ -1,7 +1,8 @@
 import { prisma } from "@/lib/db"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Settings } from "lucide-react"
-import { getTranslations } from "next-intl/server"
+import { getLocale, getTranslations } from "next-intl/server"
+import { formatDate } from "@/lib/utils"
 import { SettingsForm } from "./SettingsForm"
 
 export const dynamic = "force-dynamic"
@@ -37,12 +38,18 @@ export default async function SettingsPage() {
   ])
 
   const t = await getTranslations("admin")
+  const locale = await getLocale()
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold tracking-tight">{t("siteSettingsTitle")}</h2>
-        <p className="text-muted-foreground">{t("siteSettingsDesc")}</p>
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h2 className="text-2xl font-bold tracking-tight">{t("siteSettingsTitle")}</h2>
+          <p className="mt-1 text-muted-foreground">{t("siteSettingsDesc")}</p>
+        </div>
+        <p className="text-xs text-muted-foreground">
+          {t("updatedAt")}: {formatDate(config.updatedAt, locale)}
+        </p>
       </div>
 
       <Card>
@@ -55,10 +62,26 @@ export default async function SettingsPage() {
         </CardHeader>
         <CardContent>
           <SettingsForm
-            config={JSON.parse(JSON.stringify(config))}
-            articles={JSON.parse(JSON.stringify(articles))}
-            questions={JSON.parse(JSON.stringify(questions))}
-            software={JSON.parse(JSON.stringify(software))}
+            config={{
+              siteName: config.siteName,
+              siteDescription: config.siteDescription,
+              logo: config.logo,
+              keywords: config.keywords,
+              contactEmail: config.contactEmail,
+              githubUrl: config.githubUrl,
+              twitterUrl: config.twitterUrl,
+              footerText: config.footerText,
+              icpNumber: config.icpNumber,
+              featuredArticle: config.featuredArticle,
+              featuredQuestion: config.featuredQuestion,
+              featuredSoftware: config.featuredSoftware,
+              enableSolutions: config.enableSolutions,
+              enableQuestions: config.enableQuestions,
+              enableSoftware: config.enableSoftware,
+            }}
+            articles={articles}
+            questions={questions}
+            software={software}
           />
         </CardContent>
       </Card>

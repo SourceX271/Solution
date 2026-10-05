@@ -76,7 +76,7 @@ export default function ProfilePage() {
   const { user, stats, bookmarks, recentActivity } = profile
 
   const getTargetLink = (type: string, slug: string | undefined) => {
-    const prefix = type === "article" ? "/docs" : type === "question" ? "/questions" : "/software"
+    const prefix = type === "article" ? "/solutions" : type === "question" ? "/questions" : "/software"
     return prefix + "/" + (slug ?? "")
   }
 

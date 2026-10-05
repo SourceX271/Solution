@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { ZodError, ZodSchema } from "zod";
 import { auth } from "@/lib/auth";
 import { getApiT } from "@/lib/api-i18n";
+import { getSessionUser, isActiveAdmin } from "@/lib/admin-guard";
 import { AuthSession } from "@/lib/types";
 
 // AppError
@@ -52,7 +53,10 @@ export function apiHandler(config: HandlerConfig, handler: HandlerFn) {
             { status: 401 }
           );
         }
-        if (session.user.role !== "ADMIN") {
+        // Role is re-read from the database so a demoted or banned admin loses
+        // access immediately instead of when the JWT happens to expire.
+        const currentUser = await getSessionUser();
+        if (!isActiveAdmin(currentUser)) {
           return NextResponse.json(
             { success: false, error: t("forbidden") },
             { status: 403 }

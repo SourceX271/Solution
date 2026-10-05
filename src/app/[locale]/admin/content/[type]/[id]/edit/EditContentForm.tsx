@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter } from "@/i18n/routing"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
@@ -15,8 +15,9 @@ import {
   DialogHeader, DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog"
 import { RichTextEditor } from "./RichTextEditor"
+import { TagPicker } from "@/components/client/TagPicker"
 import { ArrowLeft, Save, Trash2 } from "lucide-react"
-import Link from "next/link"
+import { Link } from "@/i18n/routing"
 import { toast } from "sonner"
 import { useTranslations, useLocale } from "next-intl"
 import { formatDate } from "@/lib/utils"
@@ -52,11 +53,13 @@ export function EditContentForm({ type, item }: EditContentFormProps) {
   const [excerpt, setExcerpt] = useState(item.excerpt || "")
   const [category, setCategory] = useState(item.category || "tutorial")
   const [status, setStatus] = useState(item.status || "draft")
-  const [tags, setTags] = useState(
+  const [tags, setTags] = useState<string[]>(
     // The API returns the tag relation; a raw array used to render as "[object Object]".
     Array.isArray(item.tags)
-      ? item.tags.map((t: { name?: string }) => t.name).filter(Boolean).join(", ")
-      : item.tags || ""
+      ? item.tags
+          .map((t: { name?: string }) => t.name)
+          .filter((name: string | undefined): name is string => Boolean(name))
+      : []
   )
   const [url, setUrl] = useState(item.url || "")
   const [coverImage, setCoverImage] = useState(item.coverImage || "")
@@ -202,7 +205,8 @@ export function EditContentForm({ type, item }: EditContentFormProps) {
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {type === "articles" && (<><SelectItem value="published">{t("statusPublished")}</SelectItem><SelectItem value="draft">{t("statusDraft")}</SelectItem></>)}
-                    {type === "questions" && (<><SelectItem value="open">{t("statusOpen")}</SelectItem><SelectItem value="closed">{t("statusClosed")}</SelectItem><SelectItem value="resolved">{t("statusSolved")}</SelectItem></>)}
+                    {/* Must match the value the public site uses ("solved"), not "resolved". */}
+                    {type === "questions" && (<><SelectItem value="open">{t("statusOpen")}</SelectItem><SelectItem value="closed">{t("statusClosed")}</SelectItem><SelectItem value="solved">{t("statusSolved")}</SelectItem></>)}
                     {type === "software" && (<><SelectItem value="published">{t("statusPublished")}</SelectItem><SelectItem value="pending">{t("statusPending")}</SelectItem></>)}
                   </SelectContent>
                 </Select>
@@ -219,8 +223,13 @@ export function EditContentForm({ type, item }: EditContentFormProps) {
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label>{t("tagsLabel")}</Label>
-                <Input value={tags} onChange={(e) => setTags(e.target.value)} placeholder={t("tagsPlaceholder")} />
+                <Label htmlFor="tags">{t("tagsLabel")}</Label>
+                <TagPicker
+                  id="tags"
+                  value={tags}
+                  onChange={setTags}
+                  placeholder={t("tagsPlaceholder")}
+                />
               </div>
               {(type === "articles" || type === "software") && (
                 <div className="space-y-2">

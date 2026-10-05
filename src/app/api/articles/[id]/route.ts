@@ -3,7 +3,8 @@ import { prisma } from "@/lib/db";
 import { auth } from "@/lib/auth";
 import { getArticleSchema } from "@/lib/validations";
 import { getApiT } from "@/lib/api-i18n";
-import { bumpTagUsage } from "@/lib/tags";
+import { bumpTagUsage, buildTagUpdate, syncTagUsage } from "@/lib/tags";
+import { revalidateContent } from "@/lib/revalidate";
 
 export async function GET(
   req: NextRequest,
@@ -58,7 +59,10 @@ export async function PUT(
       return NextResponse.json({ error: t("unauthorized") }, { status: 401 });
     }
 
-    const article = await prisma.article.findUnique({ where: { id: params.id } });
+    const article = await prisma.article.findUnique({
+      where: { id: params.id },
+      include: { tags: { select: { slug: true } } },
+    });
     if (!article) {
       return NextResponse.json(
         { error: t("notFound", { entity: t("entity.article") }) },
@@ -81,6 +85,10 @@ export async function PUT(
       return NextResponse.json({ error: parsed.error.errors[0].message }, { status: 400 });
     }
 
+    // Tags are optional in the payload: omitted means "leave as-is", an
+    // explicit empty list clears them (and rolls the counters back).
+    const tagUpdate = await buildTagUpdate(parsed.data.tags);
+
     const updated = await prisma.article.update({
       where: { id: params.id },
       data: {
@@ -90,11 +98,19 @@ export async function PUT(
         problem: parsed.data.problem,
         category: parsed.data.category,
         status: parsed.data.status,
+        ...(tagUpdate ? { tags: tagUpdate.data } : {}),
       },
       include: {
         author: { select: { id: true, name: true, image: true } },
+        tags: { select: { name: true, slug: true, color: true } },
       },
     });
+
+    if (tagUpdate) {
+      await syncTagUsage(article.tags.map((tag) => tag.slug), tagUpdate.slugs);
+    }
+    // The detail/list pages are ISR-cached (up to 1h); make the edit visible now.
+    revalidateContent("articles", article.slug);
 
     return NextResponse.json(updated);
   } catch (error) {

@@ -126,7 +126,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
 
   // "查看更多" should stay in the section the user is filtering.
   const moreHref = withLocale(
-    ft === "question" ? "/questions" : ft === "software" ? "/software" : "/docs"
+    ft === "question" ? "/questions" : ft === "software" ? "/software" : "/solutions"
   );
 
   return (
@@ -177,7 +177,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
 
           {/* Quick Links */}
           <div className="mt-8 flex flex-wrap justify-center gap-3 animate-fade-in-up stagger-4">
-            <Link href="/docs" className="inline-flex items-center gap-1.5 rounded-full border bg-card px-4 py-1.5 text-xs text-muted-foreground hover:text-foreground hover:border-primary/30 transition-all shadow-sm hover:shadow-md">
+            <Link href="/solutions" className="inline-flex items-center gap-1.5 rounded-full border bg-card px-4 py-1.5 text-xs text-muted-foreground hover:text-foreground hover:border-primary/30 transition-all shadow-sm hover:shadow-md">
               <BookOpen className="h-3.5 w-3.5 text-blue-500" />{t("typeSolution")}
             </Link>
             <Link href="/questions" className="inline-flex items-center gap-1.5 rounded-full border bg-card px-4 py-1.5 text-xs text-muted-foreground hover:text-foreground hover:border-primary/30 transition-all shadow-sm hover:shadow-md">
@@ -261,7 +261,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
                   const Icon = typeIcons[item.contentType];
                   const linkHref =
                     item.contentType === "article"
-                      ? "/docs/" + item.slug
+                      ? "/solutions/" + item.slug
                       : item.contentType === "question"
                         ? "/questions/" + item.slug
                         : "/software/" + item.slug;

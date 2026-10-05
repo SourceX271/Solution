@@ -3,7 +3,7 @@ import type { Metadata } from "next"
 import { getTranslations, getLocale } from "next-intl/server"
 import { prisma } from "@/lib/db"
 import { formatDate, cn } from "@/lib/utils"
-import { Eye, ChevronLeft, ChevronRight, Lightbulb, FileText, BookOpen, GraduationCap, Search, PlusCircle } from "lucide-react"
+import { Eye, ChevronLeft, ChevronRight, Lightbulb, FileText, BookOpen, GraduationCap, Search, PlusCircle, X } from "lucide-react"
 
 export const revalidate = 60
 
@@ -18,7 +18,7 @@ export async function generateMetadata(): Promise<Metadata> {
 const PAGE_SIZE = 12
 
 interface DocsPageProps {
-  searchParams: Promise<{ page?: string; category?: string }>
+  searchParams: Promise<{ page?: string; category?: string; tag?: string }>
 }
 
 export default async function DocsPage({ searchParams }: DocsPageProps) {
@@ -34,16 +34,19 @@ export default async function DocsPage({ searchParams }: DocsPageProps) {
     { value: "reference", label: t("categoryReference"), icon: Search },
   ]
 
-  const { page: pageStr, category } = await searchParams
+  const { page: pageStr, category, tag: tagSlug } = await searchParams
   const page = Math.max(1, parseInt(pageStr ?? "1") || 1)
   const cat = category ?? ""
+  const tag = tagSlug ?? ""
 
   const where = {
     status: "published" as const,
     ...(cat ? { category: cat } : {}),
+    // Set by the "view all" links on a tag page.
+    ...(tag ? { tags: { some: { slug: tag } } } : {}),
   }
 
-  const [articles, total] = await Promise.all([
+  const [articles, total, activeTag] = await Promise.all([
     prisma.article.findMany({
       where,
       orderBy: { createdAt: "desc" },
@@ -52,6 +55,7 @@ export default async function DocsPage({ searchParams }: DocsPageProps) {
       include: { tags: { select: { name: true, slug: true, color: true } }, author: { select: { name: true, image: true } } },
     }),
     prisma.article.count({ where }),
+    tag ? prisma.tag.findUnique({ where: { slug: tag }, select: { name: true, color: true } }) : null,
   ])
 
   const totalPages = Math.ceil(total / PAGE_SIZE)
@@ -63,9 +67,24 @@ export default async function DocsPage({ searchParams }: DocsPageProps) {
         <div>
           <h1 className="text-3xl font-bold gradient-text">{t("title")}</h1>
           <p className="mt-2 text-muted-foreground">{t("totalCount", { total })}</p>
+          {activeTag && (
+            <span
+              className="mt-3 inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium"
+              style={{ backgroundColor: activeTag.color + "20", color: activeTag.color }}
+            >
+              {activeTag.name}
+              <Link
+                href="/solutions"
+                aria-label={tc("clear")}
+                className="rounded-full p-0.5 transition-colors hover:bg-background/60"
+              >
+                <X className="h-3 w-3" />
+              </Link>
+            </span>
+          )}
         </div>
         <Link
-          href="/docs/new"
+          href="/solutions/new"
           className="btn-gradient inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-medium shadow-lg shadow-primary/25"
         >
           <PlusCircle className="h-4 w-4" /> {t("publish")}
@@ -83,7 +102,7 @@ export default async function DocsPage({ searchParams }: DocsPageProps) {
                 return (
                   <Link
                     key={c.value}
-                    href={`/docs${c.value ? "?category=" + c.value : ""}`}
+                    href={`/solutions${c.value ? "?category=" + c.value : ""}`}
                     className={cn(
                       "flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition-all",
                       cat === c.value
@@ -107,7 +126,7 @@ export default async function DocsPage({ searchParams }: DocsPageProps) {
             {CATEGORIES.slice(0, 4).map((c) => (
               <Link
                 key={c.value}
-                href={`/docs${c.value ? "?category=" + c.value : ""}`}
+                href={`/solutions${c.value ? "?category=" + c.value : ""}`}
                 className={cn(
                   "rounded-full px-3 py-1 text-xs transition-all",
                   cat === c.value
@@ -125,7 +144,7 @@ export default async function DocsPage({ searchParams }: DocsPageProps) {
               {articles.map((article, i) => (
                 <Link
                   key={article.id}
-                  href={`/docs/${article.slug}`}
+                  href={`/solutions/${article.slug}`}
                   className={cn("glass-card group flex flex-col p-5", `animate-fade-in-up stagger-${Math.min(i + 1, 6)}`)}
                 >
                   {/* Category badge */}
@@ -194,7 +213,7 @@ export default async function DocsPage({ searchParams }: DocsPageProps) {
           {totalPages > 1 && (
             <div className="mt-10 flex items-center justify-center gap-2">
               <Link
-                href={`/docs?page=${page - 1}${cat ? "&category=" + cat : ""}`}
+                href={`/solutions?page=${page - 1}${cat ? "&category=" + cat : ""}${tag ? "&tag=" + tag : ""}`}
                 className={cn(
                   "inline-flex items-center gap-1.5 rounded-full border px-4 py-2 text-sm transition-all hover:bg-accent shadow-sm",
                   page <= 1 && "pointer-events-none opacity-40"
@@ -206,7 +225,7 @@ export default async function DocsPage({ searchParams }: DocsPageProps) {
                 {page} / {totalPages}
               </span>
               <Link
-                href={`/docs?page=${page + 1}${cat ? "&category=" + cat : ""}`}
+                href={`/solutions?page=${page + 1}${cat ? "&category=" + cat : ""}${tag ? "&tag=" + tag : ""}`}
                 className={cn(
                   "inline-flex items-center gap-1.5 rounded-full border px-4 py-2 text-sm transition-all hover:bg-accent shadow-sm",
                   page >= totalPages && "pointer-events-none opacity-40"

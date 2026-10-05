@@ -6,6 +6,7 @@ import { useSession } from "next-auth/react"
 import { useTranslations } from "next-intl"
 import Link from "next/link"
 import { RichEditor } from "@/components/client/RichEditor"
+import { TagPicker } from "@/components/client/TagPicker"
 import { Loader2 } from "lucide-react"
 
 export default function AskQuestionPage() {
@@ -14,7 +15,7 @@ export default function AskQuestionPage() {
   const router = useRouter()
   const { data: session, status } = useSession()
   const [title, setTitle] = useState("")
-  const [tags, setTags] = useState("")
+  const [tags, setTags] = useState<string[]>([])
   const [content, setContent] = useState("")
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState("")
@@ -38,9 +39,7 @@ export default function AskQuestionPage() {
         body: JSON.stringify({
           title: title.trim(),
           content,
-          tags: tags
-            ? JSON.stringify(tags.split(",").map((t) => t.trim()).filter(Boolean))
-            : "[]",
+          tags,
         }),
       })
 
@@ -121,13 +120,12 @@ export default function AskQuestionPage() {
 
         {/* Tags */}
         <div>
-          <label className="mb-1.5 block text-sm font-medium">{tc("tags")}</label>
-          <input
-            type="text"
+          <label className="mb-1.5 block text-sm font-medium" htmlFor="tags">{tc("tags")}</label>
+          <TagPicker
+            id="tags"
             value={tags}
-            onChange={(e) => setTags(e.target.value)}
+            onChange={setTags}
             placeholder={tc("tagsPlaceholder")}
-            className="w-full rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
           />
         </div>
 

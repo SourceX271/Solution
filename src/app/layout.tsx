@@ -32,9 +32,7 @@ export const metadata: Metadata = {
     follow: true,
     googleBot: { index: true, follow: true },
   },
-  icons: {
-    icon: "/favicon.ico",
-  },
+  // 站点图标由 src/app/icon.svg 通过 App Router 文件约定自动注入
 };
 
 export default function RootLayout({

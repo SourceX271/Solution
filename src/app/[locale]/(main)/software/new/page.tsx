@@ -7,6 +7,7 @@ import { useTranslations } from "next-intl"
 import Link from "next/link"
 import { Loader2, ArrowLeft } from "lucide-react"
 import { RichEditor } from "@/components/client/RichEditor"
+import { TagPicker } from "@/components/client/TagPicker"
 
 export default function NewSoftwarePage() {
   const t = useTranslations("software")
@@ -18,7 +19,7 @@ export default function NewSoftwarePage() {
   const [description, setDescription] = useState("")
   const [url, setUrl] = useState("")
   const [category, setCategory] = useState("tool")
-  const [tags, setTags] = useState("")
+  const [tags, setTags] = useState<string[]>([])
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState("")
 
@@ -44,7 +45,7 @@ export default function NewSoftwarePage() {
           description: description.trim(),
           url: url.trim() || undefined,
           category,
-          tags: tags ? JSON.stringify(tags.split(",").map((t) => t.trim()).filter(Boolean)) : "[]",
+          tags,
         }),
       })
       if (!res.ok) {
@@ -131,12 +132,12 @@ export default function NewSoftwarePage() {
         </div>
 
         <div>
-          <label className="mb-1.5 block text-sm font-medium">{tc("tags")}</label>
-          <input
-            type="text" value={tags}
-            onChange={(e) => setTags(e.target.value)}
+          <label className="mb-1.5 block text-sm font-medium" htmlFor="tags">{tc("tags")}</label>
+          <TagPicker
+            id="tags"
+            value={tags}
+            onChange={setTags}
             placeholder={t("tagsPlaceholder")}
-            className="w-full rounded-xl border bg-background px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/40 transition-all"
           />
         </div>
 

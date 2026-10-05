@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { getTranslations, getLocale } from "next-intl/server";
 import { prisma } from "@/lib/db";
 import { formatRelativeTime, cn } from "@/lib/utils";
-import { PlusCircle, ChevronLeft, ChevronRight, MessageCircle, CheckCircle2, Clock } from "lucide-react";
+import { PlusCircle, ChevronLeft, ChevronRight, MessageCircle, CheckCircle2, Clock, X } from "lucide-react";
 
 export const revalidate = 60;
 
@@ -18,7 +18,7 @@ export async function generateMetadata(): Promise<Metadata> {
 const PAGE_SIZE = 15;
 
 interface QuestionsPageProps {
-  searchParams: Promise<{ page?: string; status?: string }>;
+  searchParams: Promise<{ page?: string; status?: string; tag?: string }>;
 }
 
 export default async function QuestionsPage({ searchParams }: QuestionsPageProps) {
@@ -32,13 +32,18 @@ export default async function QuestionsPage({ searchParams }: QuestionsPageProps
     { value: "solved", label: t("statusSolved"), icon: CheckCircle2 },
   ];
 
-  const { page: pageStr, status } = await searchParams;
+  const { page: pageStr, status, tag: tagSlug } = await searchParams;
   const page = Math.max(1, parseInt(pageStr ?? "1") || 1);
   const s = status ?? "";
+  const tag = tagSlug ?? "";
 
-  const where = s ? { status: s } : {};
+  const where = {
+    ...(s ? { status: s } : {}),
+    // Set by the "view all" links on a tag page.
+    ...(tag ? { tags: { some: { slug: tag } } } : {}),
+  };
 
-  const [questions, total] = await Promise.all([
+  const [questions, total, activeTag] = await Promise.all([
     prisma.question.findMany({
       where,
       orderBy: { createdAt: "desc" },
@@ -47,6 +52,7 @@ export default async function QuestionsPage({ searchParams }: QuestionsPageProps
       include: { tags: { select: { name: true, slug: true, color: true } }, author: { select: { name: true, image: true } } },
     }),
     prisma.question.count({ where }),
+    tag ? prisma.tag.findUnique({ where: { slug: tag }, select: { name: true, color: true } }) : null,
   ]);
 
   const totalPages = Math.ceil(total / PAGE_SIZE);
@@ -58,6 +64,21 @@ export default async function QuestionsPage({ searchParams }: QuestionsPageProps
         <div>
           <h1 className="text-3xl font-bold gradient-text">{t("title")}</h1>
           <p className="mt-2 text-muted-foreground">{t("totalCount", { total })}</p>
+          {activeTag && (
+            <span
+              className="mt-3 inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium"
+              style={{ backgroundColor: activeTag.color + "20", color: activeTag.color }}
+            >
+              {activeTag.name}
+              <Link
+                href="/questions"
+                aria-label={tc("clear")}
+                className="rounded-full p-0.5 transition-colors hover:bg-background/60"
+              >
+                <X className="h-3 w-3" />
+              </Link>
+            </span>
+          )}
         </div>
         <Link
           href="/questions/ask"
@@ -161,7 +182,7 @@ export default async function QuestionsPage({ searchParams }: QuestionsPageProps
       {totalPages > 1 && (
         <div className="mt-10 flex items-center justify-center gap-2">
           <Link
-            href={`/questions?page=${page - 1}${s ? `&status=${s}` : ""}`}
+            href={`/questions?page=${page - 1}${s ? `&status=${s}` : ""}${tag ? `&tag=${tag}` : ""}`}
             className={cn(
               "inline-flex items-center gap-1.5 rounded-full border px-4 py-2 text-sm transition-all hover:bg-accent shadow-sm",
               page <= 1 && "pointer-events-none opacity-40"
@@ -173,7 +194,7 @@ export default async function QuestionsPage({ searchParams }: QuestionsPageProps
             {page} / {totalPages}
           </span>
           <Link
-            href={`/questions?page=${page + 1}${s ? `&status=${s}` : ""}`}
+            href={`/questions?page=${page + 1}${s ? `&status=${s}` : ""}${tag ? `&tag=${tag}` : ""}`}
             className={cn(
               "inline-flex items-center gap-1.5 rounded-full border px-4 py-2 text-sm transition-all hover:bg-accent shadow-sm",
               page >= totalPages && "pointer-events-none opacity-40"

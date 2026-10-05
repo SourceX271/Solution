@@ -11,6 +11,16 @@ const nextConfig = {
       { protocol: "https", hostname: "*.githubusercontent.com" },
     ],
   },
+  async redirects() {
+    // The public solutions section used to live at /docs. Keep old links,
+    // bookmarks and search-engine results working (308 permanent redirect).
+    return [
+      { source: "/docs", destination: "/solutions", permanent: true },
+      { source: "/docs/:path*", destination: "/solutions/:path*", permanent: true },
+      { source: "/en/docs", destination: "/en/solutions", permanent: true },
+      { source: "/en/docs/:path*", destination: "/en/solutions/:path*", permanent: true },
+    ];
+  },
   async headers() {
     const isDev = process.env.NODE_ENV !== "production";
     const csp = [

@@ -24,7 +24,7 @@ export async function resolveSlugRedirect(
 
   const base =
     targetType === "article"
-      ? "/docs/"
+      ? "/solutions/"
       : targetType === "question"
         ? "/questions/"
         : "/software/";

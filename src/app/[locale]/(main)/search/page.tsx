@@ -101,7 +101,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
   const totalResults = articles.length + questions.length + software.length
 
   const sections = [
-    { type: "article", label: t("filterArticles"), icon: FileText, gradient: "from-blue-500 to-cyan-500", items: articles, toLabel: "title", linkPrefix: "/docs/" },
+    { type: "article", label: t("filterArticles"), icon: FileText, gradient: "from-blue-500 to-cyan-500", items: articles, toLabel: "title", linkPrefix: "/solutions/" },
     { type: "question", label: t("filterQuestions"), icon: MessageCircle, gradient: "from-amber-500 to-orange-500", items: questions, toLabel: "title", linkPrefix: "/questions/" },
     { type: "software", label: t("filterSoftware"), icon: Package, gradient: "from-emerald-500 to-teal-500", items: software, toLabel: "name", linkPrefix: "/software/" },
   ]

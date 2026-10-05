@@ -3,7 +3,8 @@ import { prisma } from "@/lib/db";
 import { auth } from "@/lib/auth";
 import { getQuestionSchema } from "@/lib/validations";
 import { getApiT } from "@/lib/api-i18n";
-import { bumpTagUsage } from "@/lib/tags";
+import { bumpTagUsage, buildTagUpdate, syncTagUsage } from "@/lib/tags";
+import { revalidateContent } from "@/lib/revalidate";
 
 export async function GET(
   req: NextRequest,
@@ -61,7 +62,10 @@ export async function PUT(
       return NextResponse.json({ error: t("unauthorized") }, { status: 401 });
     }
 
-    const question = await prisma.question.findUnique({ where: { id: params.id } });
+    const question = await prisma.question.findUnique({
+      where: { id: params.id },
+      include: { tags: { select: { slug: true } } },
+    });
     if (!question) {
       return NextResponse.json(
         { error: t("notFound", { entity: t("entity.question") }) },
@@ -84,16 +88,25 @@ export async function PUT(
       return NextResponse.json({ error: parsed.error.errors[0].message }, { status: 400 });
     }
 
+    const tagUpdate = await buildTagUpdate(parsed.data.tags);
+
     const updated = await prisma.question.update({
       where: { id: params.id },
       data: {
         title: parsed.data.title,
         content: parsed.data.content,
+        ...(tagUpdate ? { tags: tagUpdate.data } : {}),
       },
       include: {
         author: { select: { id: true, name: true, image: true } },
+        tags: { select: { name: true, slug: true, color: true } },
       },
     });
+
+    if (tagUpdate) {
+      await syncTagUsage(question.tags.map((tag) => tag.slug), tagUpdate.slugs);
+    }
+    revalidateContent("questions", question.slug);
 
     return NextResponse.json(updated);
   } catch (error) {

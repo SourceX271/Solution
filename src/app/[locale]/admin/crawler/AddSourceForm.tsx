@@ -2,6 +2,8 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
+import { useTranslations } from "next-intl"
+import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -12,33 +14,43 @@ import {
   Dialog, DialogContent, DialogDescription, DialogFooter,
   DialogHeader, DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog"
-import { Plus } from "lucide-react"
+import { Plus, Loader2 } from "lucide-react"
+
+const CATEGORIES = ["tech", "ai", "frontend", "backend", "devops", "other"]
 
 export function AddSourceForm() {
   const router = useRouter()
+  const t = useTranslations("admin.crawlerUi")
+  const tc = useTranslations("common")
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const [name, setName] = useState("")
   const [url, setUrl] = useState("")
   const [category, setCategory] = useState("tech")
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    if (!name || !url) return
+  async function handleSubmit(event: React.FormEvent) {
+    event.preventDefault()
+    if (!name.trim() || !url.trim()) return
     setLoading(true)
     try {
       const res = await fetch("/api/admin/crawler", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, url, category }),
+        body: JSON.stringify({ name: name.trim(), url: url.trim(), category }),
       })
+      const data = await res.json().catch(() => null)
       if (res.ok) {
+        toast.success(t("sourceCreated"))
         setOpen(false)
         setName("")
         setUrl("")
         setCategory("tech")
         router.refresh()
+      } else {
+        toast.error(data?.error || t("sourceCreateFailed"))
       }
+    } catch {
+      toast.error(t("sourceCreateFailedNetwork"))
     } finally {
       setLoading(false)
     }
@@ -48,63 +60,63 @@ export function AddSourceForm() {
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button size="sm">
-          <Plus className="h-4 w-4 mr-2" />
-          Add Source
+          <Plus className="mr-2 h-4 w-4" />
+          {t("addSource")}
         </Button>
       </DialogTrigger>
       <DialogContent>
         <form onSubmit={handleSubmit}>
           <DialogHeader>
-            <DialogTitle>Add Crawl Source</DialogTitle>
-            <DialogDescription>
-              Add a new URL for the crawler to fetch content from.
-            </DialogDescription>
+            <DialogTitle>{t("addSourceTitle")}</DialogTitle>
+            <DialogDescription>{t("addSourceDesc")}</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label htmlFor="name">Name</Label>
+              <Label htmlFor="crawl-source-name">{t("sourceName")}</Label>
               <Input
-                id="name"
+                id="crawl-source-name"
                 value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Source name"
+                onChange={(event) => setName(event.target.value)}
+                placeholder={t("sourceNamePlaceholder")}
+                maxLength={100}
                 required
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="url">URL</Label>
+              <Label htmlFor="crawl-source-url">{t("sourceUrl")}</Label>
               <Input
-                id="url"
+                id="crawl-source-url"
                 value={url}
-                onChange={(e) => setUrl(e.target.value)}
+                onChange={(event) => setUrl(event.target.value)}
                 placeholder="https://..."
                 type="url"
+                maxLength={500}
                 required
               />
             </div>
             <div className="space-y-2">
-              <Label>Category</Label>
+              <Label htmlFor="crawl-source-category">{t("sourceCategory")}</Label>
               <Select value={category} onValueChange={setCategory}>
-                <SelectTrigger>
+                <SelectTrigger id="crawl-source-category">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="tech">Tech</SelectItem>
-                  <SelectItem value="ai">AI</SelectItem>
-                  <SelectItem value="frontend">Frontend</SelectItem>
-                  <SelectItem value="backend">Backend</SelectItem>
-                  <SelectItem value="devops">DevOps</SelectItem>
-                  <SelectItem value="other">Other</SelectItem>
+                  {CATEGORIES.map((value) => (
+                    <SelectItem key={value} value={value}>
+                      {value}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
           </div>
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
-              Cancel
+            <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={loading}>
+              {tc("cancel")}
             </Button>
             <Button type="submit" disabled={loading}>
-              {loading ? "Adding..." : "Add Source"}
+              {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              {loading ? t("adding") : t("addSource")}
             </Button>
           </DialogFooter>
         </form>

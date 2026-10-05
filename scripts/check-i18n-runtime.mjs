@@ -23,7 +23,7 @@ const CLEAN_PAGES = ["/en/login", "/en/register", "/en/about", "/en/help", "/en/
 // page -> { expect: English UI markers, forbid: Chinese UI markers }
 const DATA_PAGES = {
   "/en": { expect: ["Popular tags", "Discover solutions"], forbid: ["首页", "查看更多", "热门标签", "发布方案"] },
-  "/en/docs": { expect: ["Solutions"], forbid: ["暂无解决方案", "发布方案", "分类筛选"] },
+  "/en/solutions": { expect: ["Solutions"], forbid: ["暂无解决方案", "发布方案", "分类筛选"] },
   "/en/questions": { expect: ["Q&A"], forbid: ["暂无问题", "提出问题"] },
   "/en/software": { expect: ["Software"], forbid: ["暂无软件", "提交软件"] },
   "/en/search": { expect: ["Search"], forbid: ["搜索结果", "请输入关键词"] },
@@ -58,7 +58,7 @@ for (const [p, spec] of Object.entries(DATA_PAGES)) {
 }
 
 console.log("\n== Chinese locale still Chinese ==");
-for (const [p, marker] of [["/login", "欢迎回来"], ["/about", "关于我们"], ["/docs", "解决方案"]]) {
+for (const [p, marker] of [["/login", "欢迎回来"], ["/about", "关于我们"], ["/solutions", "解决方案"]]) {
   const { body } = await get(p);
   report(body.includes(marker), `${p}  expects "${marker}"`);
 }

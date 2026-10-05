@@ -62,8 +62,18 @@ export const authConfig: NextAuthConfig = {
         const user = await prisma.user.findUnique({ where: { email } });
         if (!user || !user.passwordHash) return null;
 
+        // Banned accounts cannot start a new session. (Existing JWT sessions are
+        // invalidated for privileged surfaces by lib/admin-guard.ts, which
+        // re-reads the flag from the database on every admin request.)
+        if (user.bannedAt) return null;
+
         const isValid = await compare(password, user.passwordHash);
         if (!isValid) return null;
+
+        // Best-effort "last seen" marker for the admin user list.
+        prisma.user
+          .update({ where: { id: user.id }, data: { lastLoginAt: new Date() } })
+          .catch(() => undefined);
 
         return {
           id: user.id,

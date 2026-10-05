@@ -27,7 +27,7 @@ export default async function HelpPage() {
         <h2>{t("gettingStarted")}</h2>
         <ol>
           <li>{t.rich("step1", { link: link("/register") })}</li>
-          <li>{t.rich("step2", { link: link("/docs") })}</li>
+          <li>{t.rich("step2", { link: link("/solutions") })}</li>
           <li>{t.rich("step3", { link: link("/questions") })}</li>
           <li>{t.rich("step4", { link: link("/software") })}</li>
         </ol>

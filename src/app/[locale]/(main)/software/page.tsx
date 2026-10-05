@@ -3,7 +3,7 @@ import type { Metadata } from "next"
 import { getTranslations, getLocale } from "next-intl/server"
 import { prisma } from "@/lib/db"
 import { formatDate, cn } from "@/lib/utils"
-import { Star, ExternalLink, ChevronLeft, ChevronRight, Package, Globe, Wrench, Gamepad2, MoreHorizontal, PlusCircle } from "lucide-react"
+import { Star, ExternalLink, ChevronLeft, ChevronRight, Package, Globe, Wrench, Gamepad2, MoreHorizontal, PlusCircle, X } from "lucide-react"
 
 export const revalidate = 60
 
@@ -33,16 +33,17 @@ function plainText(html: string, max = 200): string {
 const PAGE_SIZE = 12
 
 interface SoftwarePageProps {
-  searchParams: Promise<{ page?: string; category?: string }>
+  searchParams: Promise<{ page?: string; category?: string; tag?: string }>
 }
 
 export default async function SoftwarePage({ searchParams }: SoftwarePageProps) {
   const t = await getTranslations("software")
   const tc = await getTranslations("common")
   const locale = await getLocale()
-  const { page: pageStr, category } = await searchParams
+  const { page: pageStr, category, tag: tagSlug } = await searchParams
   const page = Math.max(1, parseInt(pageStr ?? "1") || 1)
   const cat = category ?? ""
+  const tag = tagSlug ?? ""
 
   const CATEGORIES = [
     { value: "", label: t("categoryAll"), icon: Package },
@@ -66,9 +67,11 @@ export default async function SoftwarePage({ searchParams }: SoftwarePageProps) 
   const where = {
     status: "published" as const,
     ...(cat ? { category: cat } : {}),
+    // Set by the "view all" links on a tag page.
+    ...(tag ? { tags: { some: { slug: tag } } } : {}),
   }
 
-  const [software, total] = await Promise.all([
+  const [software, total, activeTag] = await Promise.all([
     prisma.software.findMany({
       where,
       orderBy: [{ rating: "desc" }, { createdAt: "desc" }],
@@ -77,6 +80,7 @@ export default async function SoftwarePage({ searchParams }: SoftwarePageProps) 
       include: { tags: { select: { name: true, slug: true, color: true } }, author: { select: { name: true } } },
     }),
     prisma.software.count({ where }),
+    tag ? prisma.tag.findUnique({ where: { slug: tag }, select: { name: true, color: true } }) : null,
   ])
 
   const totalPages = Math.ceil(total / PAGE_SIZE)
@@ -88,6 +92,21 @@ export default async function SoftwarePage({ searchParams }: SoftwarePageProps) 
         <div>
           <h1 className="text-3xl font-bold gradient-text">{t("title")}</h1>
           <p className="mt-2 text-muted-foreground">{t("totalCount", { total })}</p>
+          {activeTag && (
+            <span
+              className="mt-3 inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium"
+              style={{ backgroundColor: activeTag.color + "20", color: activeTag.color }}
+            >
+              {activeTag.name}
+              <Link
+                href="/software"
+                aria-label={tc("clear")}
+                className="rounded-full p-0.5 transition-colors hover:bg-background/60"
+              >
+                <X className="h-3 w-3" />
+              </Link>
+            </span>
+          )}
         </div>
         <Link
           href="/software/new"
@@ -188,7 +207,7 @@ export default async function SoftwarePage({ searchParams }: SoftwarePageProps) 
       {totalPages > 1 && (
         <div className="mt-10 flex items-center justify-center gap-2">
           <Link
-            href={`/software?page=${page - 1}${cat ? `&category=${cat}` : ""}`}
+            href={`/software?page=${page - 1}${cat ? `&category=${cat}` : ""}${tag ? `&tag=${tag}` : ""}`}
             className={cn(
               "inline-flex items-center gap-1.5 rounded-full border px-4 py-2 text-sm transition-all hover:bg-accent shadow-sm",
               page <= 1 && "pointer-events-none opacity-40"
@@ -200,7 +219,7 @@ export default async function SoftwarePage({ searchParams }: SoftwarePageProps) 
             {page} / {totalPages}
           </span>
           <Link
-            href={`/software?page=${page + 1}${cat ? `&category=${cat}` : ""}`}
+            href={`/software?page=${page + 1}${cat ? `&category=${cat}` : ""}${tag ? `&tag=${tag}` : ""}`}
             className={cn(
               "inline-flex items-center gap-1.5 rounded-full border px-4 py-2 text-sm transition-all hover:bg-accent shadow-sm",
               page >= totalPages && "pointer-events-none opacity-40"

@@ -44,7 +44,7 @@ export const getArticleSchema = (t: MessageTranslator = identityTranslator) =>
     // renders it; without this field Zod stripped it and the text was lost.
     problem: z.string().max(2000, t("problemMax2000")).optional(),
     category: z.string().min(1),
-    tags: z.string().optional(),
+    tags: z.union([z.string(), z.array(z.string())]).optional(),
     status: z.enum(["draft", "published"]).default("published"),
   });
 
@@ -52,7 +52,7 @@ export const getQuestionSchema = (t: MessageTranslator = identityTranslator) =>
   z.object({
     title: z.string().min(5, t("titleMin5")).max(200),
     content: z.string().min(20, t("contentMin20")).max(50000),
-    tags: z.string().optional(),
+    tags: z.union([z.string(), z.array(z.string())]).optional(),
   });
 
 export const getAnswerSchema = (t: MessageTranslator = identityTranslator) =>
@@ -71,7 +71,7 @@ export const getSoftwareSchema = (t: MessageTranslator = identityTranslator) =>
     description: z.string().min(10, t("descriptionMin10")).max(5000),
     url: z.string().url(t("urlInvalid")).optional().or(z.literal("")),
     category: z.string().min(1),
-    tags: z.string().optional(),
+    tags: z.union([z.string(), z.array(z.string())]).optional(),
   });
 
 export const getProfileSchema = (t: MessageTranslator = identityTranslator) =>

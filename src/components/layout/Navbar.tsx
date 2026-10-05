@@ -10,6 +10,7 @@ import {
   Globe, ChevronDown, BookOpen, MessageCircle, ExternalLink,
 } from "lucide-react"
 import { NotificationBell } from "@/components/client/NotificationBell"
+import { Logo } from "@/components/Logo"
 import { useTheme } from "next-themes"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -22,7 +23,7 @@ import Link from "next/link"
 
 const navLinks = [
   { href: "/", key: "home" as const, icon: null },
-  { href: "/docs", key: "solutions" as const, icon: BookOpen },
+  { href: "/solutions", key: "solutions" as const, icon: BookOpen },
   { href: "/questions", key: "questions" as const, icon: MessageCircle },
   { href: "/software", key: "software" as const, icon: ExternalLink },
 ]
@@ -76,9 +77,10 @@ export const Navbar = memo(function Navbar() {
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
         {/* Logo */}
         <Link href="/" className="flex items-center gap-2 group">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg gradient-primary text-white font-bold text-sm shadow-md shadow-primary/25 group-hover:shadow-lg group-hover:shadow-primary/30 transition-shadow">
-            S
-          </div>
+          <Logo
+            priority
+            className="h-8 w-8 transition-transform duration-300 group-hover:scale-105"
+          />
           <span className="text-xl font-bold tracking-tight gradient-text hidden sm:block">
             Solution
           </span>

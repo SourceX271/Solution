@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { auth } from "@/lib/auth";
 import { getProfileSchema } from "@/lib/validations";
 import { getApiT } from "@/lib/api-i18n";
+import { getSessionUser, isActiveAdmin } from "@/lib/admin-guard";
 
 export async function GET(
   req: NextRequest,
@@ -11,8 +12,11 @@ export async function GET(
   const t = await getApiT("api");
   try {
     const session = await auth();
-    const isOwner = session && (session.user as any).id === params.id;
-    const isAdmin = session && (session.user as any).role === "ADMIN";
+    const viewer = session ? await getSessionUser() : null;
+    const isOwner = viewer?.id === params.id;
+    // Admin status is re-read from the database instead of trusting the role
+    // baked into the JWT at sign-in.
+    const isAdmin = isActiveAdmin(viewer);
 
     const user = await prisma.user.findUnique({
       where: { id: params.id },

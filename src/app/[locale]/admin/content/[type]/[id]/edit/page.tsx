@@ -1,15 +1,16 @@
 import { prisma } from "@/lib/db"
 import { notFound } from "next/navigation"
+import { getTranslations } from "next-intl/server"
 import { EditContentForm } from "./EditContentForm"
 
 export const dynamic = "force-dynamic"
 
 type ContentType = "articles" | "questions" | "software"
 
-const typeMap: Record<ContentType, { model: string; titleField: string }> = {
-  articles: { model: "article", titleField: "title" },
-  questions: { model: "question", titleField: "title" },
-  software: { model: "software", titleField: "name" },
+const typeMap: Record<ContentType, { titleField: string }> = {
+  articles: { titleField: "title" },
+  questions: { titleField: "title" },
+  software: { titleField: "name" },
 }
 
 async function getItem(type: ContentType, id: string) {
@@ -37,16 +38,20 @@ export default async function EditContentPage({
   const item = await getItem(type, params.id)
   if (!item) notFound()
 
+  const t = await getTranslations("admin.contentUi")
   const meta = typeMap[type]
+  const titles: Record<ContentType, string> = {
+    articles: t("editArticle"),
+    questions: t("editQuestion"),
+    software: t("editSoftware"),
+  }
 
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold tracking-tight">
-          Edit {type.slice(0, -1).charAt(0).toUpperCase() + type.slice(0, -1).slice(1)}
-        </h2>
+        <h2 className="text-2xl font-bold tracking-tight">{titles[type]}</h2>
         <p className="text-muted-foreground">
-          Editing: {(item as any)[meta.titleField]}
+          {t("editing")}: {(item as Record<string, unknown>)[meta.titleField] as string}
         </p>
       </div>
 

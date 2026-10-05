@@ -33,7 +33,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
     entries.push(
       { url: `${siteUrl}${prefix}`, lastModified: new Date(), changeFrequency: "daily", priority: 1 },
-      { url: `${siteUrl}${prefix}/docs`, lastModified: new Date(), changeFrequency: "daily", priority: 0.8 },
+      { url: `${siteUrl}${prefix}/solutions`, lastModified: new Date(), changeFrequency: "daily", priority: 0.8 },
       { url: `${siteUrl}${prefix}/questions`, lastModified: new Date(), changeFrequency: "daily", priority: 0.8 },
       { url: `${siteUrl}${prefix}/software`, lastModified: new Date(), changeFrequency: "daily", priority: 0.7 },
       { url: `${siteUrl}${prefix}/search`, lastModified: new Date(), changeFrequency: "weekly", priority: 0.5 },
@@ -41,7 +41,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
     for (const a of articles) {
       entries.push({
-        url: `${siteUrl}${prefix}/docs/${a.slug}`,
+        url: `${siteUrl}${prefix}/solutions/${a.slug}`,
         lastModified: a.updatedAt,
         changeFrequency: "weekly",
         priority: 0.6,

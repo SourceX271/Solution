@@ -17,6 +17,11 @@ model User {
   image         String?
   role          String    @default("USER")
   bio           String?
+  // Moderation: a banned account cannot sign in again and loses every
+  // admin-level server check immediately (see lib/admin-guard.ts).
+  bannedAt      DateTime?
+  banReason     String?
+  lastLoginAt   DateTime?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
@@ -283,4 +288,26 @@ model SlugRedirect {
 
   @@index([targetType])
   @@index([newSlug])
+}
+
+/// Append-only trail of privileged operations.
+///
+/// `actorId`/`actorEmail` are deliberately *not* a relation: the trail must
+/// survive the deletion of the account that produced it, and an audit row must
+/// never block a user delete through a foreign key.
+model AuditLog {
+  id          String   @id @default(cuid())
+  actorId     String
+  actorEmail  String?
+  action      String // e.g. content.delete, user.role.update, settings.update
+  targetType  String? // article | question | software | user | comment | crawler | settings
+  targetId    String?
+  targetLabel String?
+  metadata    String? // JSON blob with action-specific detail
+  ip          String?
+  createdAt   DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([actorId])
+  @@index([action])
 }

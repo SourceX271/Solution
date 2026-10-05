@@ -40,7 +40,7 @@ export default auth((req) => {
     return NextResponse.redirect(new URL(`${base}/`, req.nextUrl));
   }
 
-  const protectedPaths = ["/profile", "/settings", "/notifications", "/questions/ask", "/docs/new", "/software/new"];
+  const protectedPaths = ["/profile", "/settings", "/notifications", "/questions/ask", "/solutions/new", "/software/new"];
   const isProtected = protectedPaths.some((p) => route === p || route.startsWith(`${p}/`));
   if (isProtected && !isLoggedIn) {
     return NextResponse.redirect(new URL(`${base}/login`, req.nextUrl));
@@ -58,7 +58,7 @@ export const config = {
   matcher: [
     "/((?!api|_next|_vercel|static|.*\\..*|uploads|favicon\\.ico).*)",
     "/(zh|en)/:path*",
-    "/docs/new",
+    "/solutions/new",
     "/software/new",
   ],
 };

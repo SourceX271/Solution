@@ -27,7 +27,7 @@ export async function GET() {
   const items = articles
     .map((a) => {
       const title = a.title;
-      const link = siteUrl + "/docs/" + a.slug;
+      const link = siteUrl + "/solutions/" + a.slug;
       const desc = a.excerpt || a.title;
       const author = a.author.name || "Solution";
       const pubDate = new Date(a.createdAt).toUTCString();

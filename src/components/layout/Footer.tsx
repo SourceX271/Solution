@@ -1,6 +1,7 @@
 import Link from "next/link"
 import { prisma } from "@/lib/db"
 import { Github, Twitter, Mail, Globe, Heart } from "lucide-react"
+import { Logo } from "@/components/Logo"
 import { getTranslations, getLocale } from "next-intl/server"
 
 const footerLinks = [
@@ -34,9 +35,7 @@ export async function Footer() {
           {/* Brand */}
           <div className="lg:col-span-2">
             <Link href="/" className="inline-flex items-center gap-2 mb-4 group">
-              <div className="flex h-9 w-9 items-center justify-center rounded-lg gradient-primary text-white font-bold text-sm shadow-md shadow-primary/25">
-                S
-              </div>
+              <Logo className="h-9 w-9 transition-transform duration-300 group-hover:scale-105" />
               <span className="text-xl font-bold tracking-tight gradient-text">
                 {siteName}
               </span>

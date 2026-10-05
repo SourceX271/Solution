@@ -6,6 +6,7 @@ import { useSession } from "next-auth/react"
 import { useTranslations } from "next-intl"
 import Link from "next/link"
 import { RichEditor } from "@/components/client/RichEditor"
+import { TagPicker } from "@/components/client/TagPicker"
 import { Loader2, ArrowLeft } from "lucide-react"
 
 export default function NewDocPage() {
@@ -17,7 +18,7 @@ export default function NewDocPage() {
   const [problem, setProblem] = useState("")
   const [excerpt, setExcerpt] = useState("")
   const [category, setCategory] = useState("solution")
-  const [tags, setTags] = useState("")
+  const [tags, setTags] = useState<string[]>([])
   const [content, setContent] = useState("")
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState("")
@@ -44,7 +45,7 @@ export default function NewDocPage() {
           excerpt: excerpt.trim() || undefined,
           problem: problem.trim(),
           category,
-          tags: tags ? JSON.stringify(tags.split(",").map((t) => t.trim()).filter(Boolean)) : "[]",
+          tags,
         }),
       })
       if (!res.ok) {
@@ -52,7 +53,7 @@ export default function NewDocPage() {
         throw new Error(data.error || tc("publishFailed"))
       }
       const article = await res.json()
-      router.push(`/docs/${article.slug}`)
+      router.push(`/solutions/${article.slug}`)
       router.refresh()
     } catch (err: any) {
       setError(err.message || tc("publishFailedRetry"))
@@ -83,7 +84,7 @@ export default function NewDocPage() {
 
   return (
     <div className="container mx-auto max-w-3xl px-4 py-10 animate-fade-in">
-      <Link href="/docs" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground mb-6 transition-colors">
+      <Link href="/solutions" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground mb-6 transition-colors">
         <ArrowLeft className="h-4 w-4" /> {t("backToList")}
       </Link>
 
@@ -125,12 +126,12 @@ export default function NewDocPage() {
             </select>
           </div>
           <div>
-            <label className="mb-1.5 block text-sm font-medium">{tc("tags")}</label>
-            <input
-              type="text" value={tags}
-              onChange={(e) => setTags(e.target.value)}
+            <label className="mb-1.5 block text-sm font-medium" htmlFor="tags">{tc("tags")}</label>
+            <TagPicker
+              id="tags"
+              value={tags}
+              onChange={setTags}
               placeholder={tc("tagsPlaceholder")}
-              className="w-full rounded-xl border bg-background px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/40 transition-all"
             />
           </div>
         </div>

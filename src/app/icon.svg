@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="225.7 245 512 512" role="img" aria-labelledby="icon-title">
+  <title id="icon-title">Solution</title>
+  <rect x="225.7" y="245" width="512" height="512" rx="96" fill="#ffffff"/>
+  <g class="mark">
+    <polygon points="287.41,266.00 354.25,266.00 449.12,435.38 416.65,489.02" fill="#4527A0"/>
+    <polygon points="553.63,490.98 520.51,545.78 630.68,737.00 696.29,737.00" fill="#651FFF"/>
+    <polygon points="552.27,265.00 602.25,265.00 317.54,736.00 267.14,736.00" fill="#2962FF"/>
+    <polygon points="640.30,265.00 690.24,265.00 405.53,736.00 355.06,736.00" fill="#6200EA"/>
+  </g>
+</svg>
