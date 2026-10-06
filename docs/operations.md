@@ -90,6 +90,10 @@ npm run i18n:check:runtime   # 可选：对 next start -p 3103 做运行期语�
 
 ## 五、部署形态（实现侧事实）
 
+> 本节只讲 **Docker** 形态。**裸机 Linux 部署**（直接 `npm run dev` 或 `node .next/standalone/server.js`）
+> 的文件权限基线、`.env` 放置规则、以及「从 Windows 同步导致权限位被破坏」的修复方法，
+> 见 [permissions.md](./permissions.md)。
+
 `Dockerfile` 三阶段：
 
 | 阶段 | 镜像 | 关键动作 |
