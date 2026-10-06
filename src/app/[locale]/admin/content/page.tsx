@@ -53,15 +53,16 @@ function isContentType(value: string | undefined): value is ContentType {
 export default async function ContentPage({
   searchParams,
 }: {
-  searchParams: { type?: string; status?: string; sort?: string; search?: string; page?: string }
+  searchParams: Promise<{ type?: string; status?: string; sort?: string; search?: string; page?: string }>
 }) {
+  const query = await searchParams
   const t = await getTranslations("admin")
   const tc = await getTranslations("admin.contentUi")
 
-  const type: ContentType = isContentType(searchParams.type) ? searchParams.type : "articles"
-  const status = searchParams.status && searchParams.status !== "all" ? searchParams.status : "all"
-  const sort = SORTS[type].includes(searchParams.sort ?? "") ? (searchParams.sort as string) : "newest"
-  const search = (searchParams.search ?? "").slice(0, 100)
+  const type: ContentType = isContentType(query.type) ? query.type : "articles"
+  const status = query.status && query.status !== "all" ? query.status : "all"
+  const sort = SORTS[type].includes(query.sort ?? "") ? (query.sort as string) : "newest"
+  const search = (query.search ?? "").slice(0, 100)
 
   const searchWhere = search
     ? type === "software"
@@ -96,7 +97,7 @@ export default async function ContentPage({
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
   // Clamp instead of rendering an empty table for ?page=999.
-  const page = Math.min(toPositiveInt(searchParams.page ?? null, 1), totalPages)
+  const page = Math.min(toPositiveInt(query.page ?? null, 1), totalPages)
   const skip = (page - 1) * PAGE_SIZE
 
   let items: Array<{

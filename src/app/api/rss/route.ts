@@ -48,7 +48,7 @@ export async function GET() {
     "<title>Solution</title>" +
     "<link>" + siteUrl + "</link>" +
     "<description>" + t("siteDescription") + "</description>" +
-    "<language>" + (getRequestLocale() === "en" ? "en" : "zh-CN") + "</language>" +
+    "<language>" + ((await getRequestLocale()) === "en" ? "en" : "zh-CN") + "</language>" +
     "<lastBuildDate>" + new Date().toUTCString() + "</lastBuildDate>" +
     '<atom:link href="' + siteUrl + '/api/rss" rel="self" type="application/rss+xml"/>' +
     items +

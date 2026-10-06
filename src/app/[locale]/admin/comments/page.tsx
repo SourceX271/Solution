@@ -19,13 +19,14 @@ const PAGE_SIZE = 20
 export default async function CommentsPage({
   searchParams,
 }: {
-  searchParams: { search?: string; page?: string }
+  searchParams: Promise<{ search?: string; page?: string }>
 }) {
+  const query = await searchParams
   const t = await getTranslations("admin")
   const tc = await getTranslations("admin.commentsUi")
   const locale = await getLocale()
 
-  const search = (searchParams.search ?? "").slice(0, 100)
+  const search = (query.search ?? "").slice(0, 100)
   const where = search
     ? {
         OR: [
@@ -38,7 +39,7 @@ export default async function CommentsPage({
 
   const total = await prisma.comment.count({ where })
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
-  const page = Math.min(toPositiveInt(searchParams.page ?? null, 1), totalPages)
+  const page = Math.min(toPositiveInt(query.page ?? null, 1), totalPages)
   const skip = (page - 1) * PAGE_SIZE
 
   const comments = await prisma.comment.findMany({

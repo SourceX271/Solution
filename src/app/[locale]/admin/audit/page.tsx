@@ -18,16 +18,17 @@ const PAGE_SIZE = 25
 export default async function AuditPage({
   searchParams,
 }: {
-  searchParams: { action?: string; search?: string; page?: string }
+  searchParams: Promise<{ action?: string; search?: string; page?: string }>
 }) {
+  const query = await searchParams
   const tc = await getTranslations("admin.auditUi")
   const locale = await getLocale()
 
   const action =
-    searchParams.action && AUDIT_ACTIONS.includes(searchParams.action as never)
-      ? searchParams.action
+    query.action && AUDIT_ACTIONS.includes(query.action as never)
+      ? query.action
       : "all"
-  const search = (searchParams.search ?? "").slice(0, 100)
+  const search = (query.search ?? "").slice(0, 100)
 
   const where: Record<string, unknown> = {}
   if (action !== "all") where.action = action
@@ -41,7 +42,7 @@ export default async function AuditPage({
 
   const total = await prisma.auditLog.count({ where })
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
-  const page = Math.min(toPositiveInt(searchParams.page ?? null, 1), totalPages)
+  const page = Math.min(toPositiveInt(query.page ?? null, 1), totalPages)
   const skip = (page - 1) * PAGE_SIZE
 
   const entries = await prisma.auditLog.findMany({

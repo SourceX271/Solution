@@ -20,15 +20,16 @@ const LOG_PAGE_SIZE = 20
 export default async function CrawlerPage({
   searchParams,
 }: {
-  searchParams: { logStatus?: string; logPage?: string }
+  searchParams: Promise<{ logStatus?: string; logPage?: string }>
 }) {
+  const query = await searchParams
   const tc = await getTranslations("admin.crawlerUi")
   const tcommon = await getTranslations("common")
   const locale = await getLocale()
 
   const logStatus =
-    searchParams.logStatus === "success" || searchParams.logStatus === "error"
-      ? searchParams.logStatus
+    query.logStatus === "success" || query.logStatus === "error"
+      ? query.logStatus
       : "all"
 
   const logWhere = logStatus === "all" ? {} : { status: logStatus }
@@ -43,7 +44,7 @@ export default async function CrawlerPage({
   ])
 
   const logTotalPages = Math.max(1, Math.ceil(logsTotal / LOG_PAGE_SIZE))
-  const logPage = Math.min(toPositiveInt(searchParams.logPage ?? null, 1), logTotalPages)
+  const logPage = Math.min(toPositiveInt(query.logPage ?? null, 1), logTotalPages)
   const crawlLogs = await prisma.crawlLog.findMany({
     where: logWhere,
     orderBy: { createdAt: "desc" },

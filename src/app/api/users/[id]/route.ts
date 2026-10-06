@@ -7,8 +7,9 @@ import { getSessionUser, isActiveAdmin } from "@/lib/admin-guard";
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  ctx: { params: Promise<{ id: string }> }
 ) {
+  const params = await ctx.params;
   const t = await getApiT("api");
   try {
     const session = await auth();
@@ -52,8 +53,9 @@ export async function GET(
 
 export async function PUT(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  ctx: { params: Promise<{ id: string }> }
 ) {
+  const params = await ctx.params;
   const t = await getApiT("api");
   const tv = await getApiT("validation");
   try {

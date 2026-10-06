@@ -9,8 +9,9 @@ import { createNotification } from "@/lib/notifications";
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  ctx: { params: Promise<{ id: string }> }
 ) {
+  const params = await ctx.params;
   const t = await getApiT("api");
   const tv = await getApiT("validation");
   try {

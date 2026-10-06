@@ -24,17 +24,18 @@ const roleVariant: Record<string, "default" | "secondary" | "warning" | "destruc
 export default async function UsersPage({
   searchParams,
 }: {
-  searchParams: { search?: string; page?: string; role?: string; status?: string }
+  searchParams: Promise<{ search?: string; page?: string; role?: string; status?: string }>
 }) {
+  const query = await searchParams
   const t = await getTranslations("admin")
   const tu = await getTranslations("admin.usersUi")
   const tc = await getTranslations("common")
   const locale = await getLocale()
   const viewer = await getSessionUser()
 
-  const search = (searchParams.search ?? "").slice(0, 100)
-  const role = searchParams.role === "USER" || searchParams.role === "ADMIN" ? searchParams.role : "all"
-  const statusFilter = searchParams.status === "banned" || searchParams.status === "active" ? searchParams.status : "all"
+  const search = (query.search ?? "").slice(0, 100)
+  const role = query.role === "USER" || query.role === "ADMIN" ? query.role : "all"
+  const statusFilter = query.status === "banned" || query.status === "active" ? query.status : "all"
 
   const where: Record<string, unknown> = {}
   if (search) {
@@ -46,7 +47,7 @@ export default async function UsersPage({
 
   const total = await prisma.user.count({ where })
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
-  const page = Math.min(toPositiveInt(searchParams.page ?? null, 1), totalPages)
+  const page = Math.min(toPositiveInt(query.page ?? null, 1), totalPages)
   const skip = (page - 1) * PAGE_SIZE
 
   const [users, allUsers, admins, banned, activeAdmins] = await Promise.all([

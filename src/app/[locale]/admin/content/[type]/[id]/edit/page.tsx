@@ -25,10 +25,11 @@ async function getItem(type: ContentType, id: string) {
 }
 
 export default async function EditContentPage({
-  params,
+  params: paramsPromise,
 }: {
-  params: { type: string; id: string }
+  params: Promise<{ type: string; id: string }>
 }) {
+  const params = await paramsPromise
   const type = params.type as ContentType
 
   if (!["articles", "questions", "software"].includes(type)) {

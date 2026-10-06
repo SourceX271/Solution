@@ -86,8 +86,9 @@ async function findContent(type: ContentType, id: string) {
 
 export async function DELETE(
   req: Request,
-  { params }: { params: { type: string; id: string } }
+  ctx: { params: Promise<{ type: string; id: string }> }
 ) {
+  const params = await ctx.params;
   const t = await getApiT("api");
   const guard = await requireAdminApi();
   if (!guard.ok) return guard.response;
@@ -140,8 +141,9 @@ export async function DELETE(
 
 export async function PUT(
   req: Request,
-  { params }: { params: { type: string; id: string } }
+  ctx: { params: Promise<{ type: string; id: string }> }
 ) {
+  const params = await ctx.params;
   const t = await getApiT("api");
   const guard = await requireAdminApi();
   if (!guard.ok) return guard.response;

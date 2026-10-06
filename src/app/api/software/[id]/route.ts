@@ -8,8 +8,9 @@ import { revalidateContent } from "@/lib/revalidate";
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  ctx: { params: Promise<{ id: string }> }
 ) {
+  const params = await ctx.params;
   const t = await getApiT("api");
   try {
     const software = await prisma.software.findUnique({
@@ -44,8 +45,9 @@ export async function GET(
 
 export async function PUT(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  ctx: { params: Promise<{ id: string }> }
 ) {
+  const params = await ctx.params;
   const t = await getApiT("api");
   const tv = await getApiT("validation");
   try {
@@ -113,8 +115,9 @@ export async function PUT(
 
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  ctx: { params: Promise<{ id: string }> }
 ) {
+  const params = await ctx.params;
   const t = await getApiT("api");
   try {
     const session = await auth();

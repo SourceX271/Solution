@@ -14,7 +14,8 @@ import { ArrowLeft, Mail, CalendarDays, Clock, Pencil } from "lucide-react"
 
 export const dynamic = "force-dynamic"
 
-export default async function AdminUserDetailPage({ params }: { params: { id: string } }) {
+export default async function AdminUserDetailPage({ params: paramsPromise }: { params: Promise<{ id: string }> }) {
+  const params = await paramsPromise
   const t = await getTranslations("admin")
   const tu = await getTranslations("admin.usersUi")
   const locale = await getLocale()

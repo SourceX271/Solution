@@ -30,8 +30,9 @@ function resolveSourceKey(name: string): string | undefined {
 
 export async function POST(
   req: Request,
-  { params }: { params: { id: string } }
+  ctx: { params: Promise<{ id: string }> }
 ) {
+  const params = await ctx.params;
   const t = await getApiT("api")
   const guard = await requireAdminApi()
   if (!guard.ok) return guard.response

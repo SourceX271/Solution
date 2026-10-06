@@ -13,8 +13,8 @@ export type ApiLocale = "zh" | "en";
  * `fetch` calls send it automatically — that keeps API responses (including
  * error messages shown in toasts) in the language the user is browsing.
  */
-export function getRequestLocale(): ApiLocale {
-  const value = cookies().get("NEXT_LOCALE")?.value;
+export async function getRequestLocale(): Promise<ApiLocale> {
+  const value = (await cookies()).get("NEXT_LOCALE")?.value;
   if (value && (routing.locales as readonly string[]).includes(value)) {
     return value as ApiLocale;
   }
@@ -29,7 +29,7 @@ export function getRequestLocale(): ApiLocale {
  * return NextResponse.json({ error: t("unauthorized") }, { status: 401 });
  */
 export async function getApiT(namespace?: string) {
-  const locale = getRequestLocale();
+  const locale = await getRequestLocale();
   return namespace
     ? getTranslations({ locale, namespace })
     : getTranslations({ locale });

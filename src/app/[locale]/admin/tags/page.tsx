@@ -19,13 +19,14 @@ const PAGE_SIZE = 20
 export default async function AdminTagsPage({
   searchParams,
 }: {
-  searchParams: { q?: string; page?: string }
+  searchParams: Promise<{ q?: string; page?: string }>
 }) {
+  const query = await searchParams
   const t = await getTranslations("admin.tagsUi")
   const locale = await getLocale()
 
-  const q = (searchParams.q ?? "").trim()
-  const page = Math.max(1, Number.parseInt(searchParams.page ?? "1", 10) || 1)
+  const q = (query.q ?? "").trim()
+  const page = Math.max(1, Number.parseInt(query.page ?? "1", 10) || 1)
   const where = q
     ? {
         OR: [

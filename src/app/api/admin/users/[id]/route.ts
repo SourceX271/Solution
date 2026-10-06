@@ -21,7 +21,8 @@ function errorResponse(errorKey: UserMutationErrorKey, status: number, t: Awaite
   return NextResponse.json({ error: message }, { status });
 }
 
-export async function PUT(req: Request, { params }: { params: { id: string } }) {
+export async function PUT(req: Request, ctx: { params: Promise<{ id: string }> }) {
+  const params = await ctx.params;
   const t = await getApiT("api");
   const guard = await requireAdminApi();
   if (!guard.ok) return guard.response;
@@ -42,7 +43,8 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
   }
 }
 
-export async function DELETE(req: Request, { params }: { params: { id: string } }) {
+export async function DELETE(req: Request, ctx: { params: Promise<{ id: string }> }) {
+  const params = await ctx.params;
   const t = await getApiT("api");
   const guard = await requireAdminApi();
   if (!guard.ok) return guard.response;
