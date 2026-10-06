@@ -37,6 +37,7 @@
 
 - `docs/README.md` — 项目速览与常用命令
 - `docs/code-audit.md` — 代码审查结论（已修复 / 待处理）
+- `docs/dependency-audit-2026-10.md` — 依赖安全审计修复报告（97 → 7，含残留风险说明）
 - `docs/dev-environment.md` — 环境陷阱与排查
 - `ADMIN-PANEL-ENHANCEMENT-2026-10.md` — 管理后台增强报告
 - `AUDIT-REPORT.md` / `DEPLOY.md` — 历史审计与部署手册

@@ -20,7 +20,10 @@
 **修复**：
 
 - 新增 `src/lib/crawler-ingest.ts`：执行 Python → 按 `sourceUrl` 去重 → 以 `status: "draft"`（审核态）入库，挂在 `crawler@solution.local` 系统账号下 → 每个源与整体各写一条 `CrawlLog`。
-- 新增 `src/instrumentation.ts`：用 `node-cron` 按 `CRAWLER_INTERVAL_HOURS`（默认 24h）定时调用入库逻辑，仅生产环境注册。
+- 新增 `src/lib/crawler-scheduler.ts` + `src/instrumentation.ts`：用 `node-cron` 按 `CRAWLER_INTERVAL_HOURS`（默认 24h）定时调用入库逻辑，仅生产环境注册。
+  （后续为适配 Next 15 的 Edge instrumentation 编译，定时逻辑从 `instrumentation.ts` 拆到
+  `crawler-scheduler.ts`，由 `NEXT_RUNTIME === "nodejs"` 分支内部动态引入，见
+  [dependency-audit-2026-10.md](./dependency-audit-2026-10.md) 第三节第 6 项。）
 - 两个 run 路由接入该逻辑；单源路由增加显示名 → CLI key 的映射（`Dev.to` → `devto`、`Stack Overflow Blog` → `stackoverflow_blog`）。
 - 修复爬虫自身的两个启动级 bug（见下条）。
 
@@ -133,6 +136,7 @@
 | 低 | **`og-image.png` 不存在** | `layout.tsx` 与 `(main)/layout.tsx` 的 metadata 引用 `/og-image.png`，但 `public/` 下没有该文件 → 社交分享图为 404 |
 | 低 | **爬虫合规风险** | 知乎/CSDN 等站点未处理 robots.txt 与站点条款，仅靠随机 UA + 请求延迟缓解，生产环境有法律与 IP 封禁风险 |
 | 低 | **`marked` 类型不匹配** | `marked` v18 同时用于服务端与客户端，`@types/marked` 在 devDependencies 中，代码用 `as string` 绕过 |
+| 低 | **`braces` 传递依赖无上游补丁** | 仅存在于构建/lint 工具链，不在生产产物中；理由与监控条件见 [dependency-audit-2026-10.md](./dependency-audit-2026-10.md) 第四节 |
 
 ---
 
@@ -141,4 +145,14 @@
 - `npx tsc --noEmit` → **exit 0（无类型错误）**
 - 运行时验证：`/logo.svg`、`/icon.svg` 返回 200；首页/登录/注册页正常渲染
 - 爬虫入库链路：真实抓取 → 入库 draft → 去重，均已实测
-- ⚠️ **完整 `next build` 未能在本工作区验证**：当时有常驻的 `next dev -p 3000` 与外部编辑进程并发占用 `.next`，导致构建产物互相破坏（详见 `dev-environment.md`）。请在停止 dev server 后单独运行一次 `npx next build` 确认。
+- **完整 `next build` 已通过**（2026-10，Next 15.5.27 + React 19）：`Compiled successfully`，
+  31/31 静态页 + 全部路由 + middleware。更完整的依赖审计与运行时冒烟测试见
+  [dependency-audit-2026-10.md](./dependency-audit-2026-10.md) 第六节。
+
+---
+
+## 四、依赖安全审计
+
+npm 依赖层面的漏洞修复单独记录在 [dependency-audit-2026-10.md](./dependency-audit-2026-10.md)：
+审计项 97 → 7，critical / moderate 全部清零；剩余 7 项同一根因 `braces`，上游无补丁版本且仅存在于
+构建与 lint 工具链（不在生产产物中），已按「已接受风险」处理并写明监控条件。

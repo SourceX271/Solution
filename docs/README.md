@@ -10,6 +10,8 @@
 
 | 文档 | 内容 |
 |---|---|
+| [dependency-audit-2026-10.md](./dependency-audit-2026-10.md) | 依赖安全审计修复报告：97 → 7 的逐项处置、唯一残留风险（`braces` 无上游补丁）的理由与监控条件、升级引入的行为变更、验证证据 |
+| [npm-audit-after-fix.txt](./npm-audit-after-fix.txt) | 修复后的 `npm audit` 基线快照（对照 [audit-report.txt](./audit-report.txt) 修复前基线） |
 | [code-audit.md](./code-audit.md) | 系统性代码审查结果：13 项已修复问题（含根因与验证方式）+ 9 项待处理问题（按优先级） |
 | [dev-environment.md](./dev-environment.md) | 工程环境陷阱：并发构建冲突、PowerShell 中文编码损坏、沙箱 ACL/spawn 限制、非法 UTF-8 字节的检测与修复 |
 
@@ -19,12 +21,12 @@
 
 | 层 | 技术 |
 |---|---|
-| 框架 | Next.js 14.2（App Router，`output: "standalone"`） |
+| 框架 | Next.js 15.5（App Router，`output: "standalone"`）+ React 19 |
 | 语言 | TypeScript 5.4（strict） |
 | 数据库 | SQLite + Prisma 5（`prisma/schema.prisma`，12 个模型） |
 | 认证 | NextAuth v5 beta：GitHub OAuth + 邮箱密码（bcrypt 12 轮） |
 | 国际化 | next-intl 4（zh / en，`localePrefix: as-needed`） |
-| UI | Tailwind CSS + Radix（shadcn 风格）+ lucide-react + Tiptap 富文本 |
+| UI | Tailwind CSS 3 + Radix（shadcn 风格）+ lucide-react + Tiptap 3 富文本 |
 | 爬虫 | Python 3 + httpx + BeautifulSoup/lxml（`crawler/`，7 个数据源） |
 | 部署 | Docker 多阶段构建 + Nginx + SQLite 数据卷 |
 
@@ -60,7 +62,7 @@ docs/                     本目录
 npm run dev          # 开发服务器（端口 3000）
 npm run build        # 生产构建（⚠️ 需先停掉 dev server，见 dev-environment.md）
 npm run lint         # ESLint
-npx tsc --noEmit --incremental false   # 类型检查（不改动 .next，可随时运行）
+npx tsc --noEmit     # 类型检查（增量缓存写在 .next/cache/tsconfig.tsbuildinfo）
 
 npm run db:push      # 同步 Prisma schema 到数据库
 npm run db:seed      # 导入种子数据
@@ -79,7 +81,13 @@ python -m crawler.main --format jsonl             # 每行一条 JSON
 
 ## 定时爬取
 
-爬虫由 `src/instrumentation.ts` 通过 `node-cron` 定时触发，间隔取 `CRAWLER_INTERVAL_HOURS`（默认 24 小时），**仅在生产环境（`NODE_ENV=production`）注册**。
+爬虫由 `src/instrumentation.ts` → `src/lib/crawler-scheduler.ts` 通过 `node-cron` 定时触发，间隔取 `CRAWLER_INTERVAL_HOURS`（默认 24 小时），**仅在生产环境（`NODE_ENV=production`）注册**。
+
+> 定时逻辑必须留在 `crawler-scheduler.ts` 这类独立模块里，由 `instrumentation.ts` 在
+> `NEXT_RUNTIME === "nodejs"` 的分支**内部**动态引入。应用存在 Edge middleware（next-intl）时，
+> Next 会把 `instrumentation` 同时编译给 Edge runtime，而 webpack 只在 `if` 死分支内丢弃动态
+> import——写成「早退 `return` + 顶层 import」会让 `node-cron` / `child_process` 进入 Edge 包，
+> 构建直接失败。
 
 抓取到的内容以 `status: "draft"` 入库（审核态），需在管理后台 `/admin/content` 审核后才公开；已存在的 `sourceUrl` 会自动跳过。
 
@@ -88,6 +96,8 @@ python -m crawler.main --format jsonl             # 每行一条 JSON
 | 现象 | 先看 |
 |---|---|
 | 构建随机失败（`middleware-manifest.json` 缺失、`/_document` 找不到、`copyfile ENOENT`） | `dev-environment.md` 第 1 节——并发构建冲突 |
+| 构建报 `Module not found: Can't resolve 'child_process' / 'path'`，导入链指向 `src/instrumentation.ts` | 上面的「定时爬取」说明——Node-only 代码必须在 `NEXT_RUNTIME === "nodejs"` 分支内部动态导入 |
+| `next start` 报 `does not work with "output: standalone"` | 预期行为；生产用 `node .next/standalone/server.js`，本地冒烟测试可忽略该警告 |
 | 源码中文乱码 / `invalid UTF-8` | `dev-environment.md` 第 2、6 节 |
 | `SetNamedSecurityInfoW failed`、`pwsh` 无法启动 | `dev-environment.md` 第 4 节 |
 | `prisma db push` / `tsx` 报 `spawn EPERM` | `dev-environment.md` 第 5 节 |

@@ -1,0 +1,201 @@
+# npm audit report
+
+@tiptap/core  <=3.30.3
+Severity: moderate
+Tiptap: mergeAttributes() turns an own __proto__ key into inherited executable DOM attributes - https://github.com/advisories/GHSA-cp6q-959q-f8rh
+fix available via `npm audit fix --force`
+Will install @tiptap/extension-placeholder@3.31.4, which is a breaking change
+node_modules/@tiptap/core
+  @tiptap/extension-blockquote  <=3.0.0-next.8 || 3.22.4 - 3.30.3
+  Depends on vulnerable versions of @tiptap/core
+  node_modules/@tiptap/extension-blockquote
+  @tiptap/extension-bold  <=3.0.0-next.8 || 3.22.4 - 3.30.3
+  Depends on vulnerable versions of @tiptap/core
+  node_modules/@tiptap/extension-bold
+  @tiptap/extension-bubble-menu  <=3.0.0-next.8 || 3.22.4 - 3.30.3
+  Depends on vulnerable versions of @tiptap/core
+  node_modules/@tiptap/extension-bubble-menu
+    @tiptap/react  <=3.0.0-next.8 || 3.22.4 - 3.30.3
+    Depends on vulnerable versions of @tiptap/core
+    Depends on vulnerable versions of @tiptap/extension-bubble-menu
+    Depends on vulnerable versions of @tiptap/extension-floating-menu
+    node_modules/@tiptap/react
+  @tiptap/extension-bullet-list  <=2.27.3
+  Depends on vulnerable versions of @tiptap/core
+  node_modules/@tiptap/extension-bullet-list
+  @tiptap/extension-code  <=3.0.0-next.8 || 3.22.4 - 3.30.3
+  Depends on vulnerable versions of @tiptap/core
+  node_modules/@tiptap/extension-code
+  @tiptap/extension-code-block  <=3.0.0-next.8 || 3.22.4 - 3.30.3
+  Depends on vulnerable versions of @tiptap/core
+  node_modules/@tiptap/extension-code-block
+  @tiptap/extension-document  <=3.0.0-next.8 || 3.22.4 - 3.30.3
+  Depends on vulnerable versions of @tiptap/core
+  node_modules/@tiptap/extension-document
+  @tiptap/extension-dropcursor  <=2.27.3
+  Depends on vulnerable versions of @tiptap/core
+  node_modules/@tiptap/extension-dropcursor
+    @tiptap/starter-kit  <=3.0.0-next.8 || 3.30.0 - 3.30.3
+    Depends on vulnerable versions of @tiptap/core
+    Depends on vulnerable versions of @tiptap/extension-blockquote
+    Depends on vulnerable versions of @tiptap/extension-bold
+    Depends on vulnerable versions of @tiptap/extension-bullet-list
+    Depends on vulnerable versions of @tiptap/extension-code
+    Depends on vulnerable versions of @tiptap/extension-code-block
+    Depends on vulnerable versions of @tiptap/extension-document
+    Depends on vulnerable versions of @tiptap/extension-dropcursor
+    Depends on vulnerable versions of @tiptap/extension-gapcursor
+    Depends on vulnerable versions of @tiptap/extension-hard-break
+    Depends on vulnerable versions of @tiptap/extension-heading
+    Depends on vulnerable versions of @tiptap/extension-history
+    Depends on vulnerable versions of @tiptap/extension-horizontal-rule
+    Depends on vulnerable versions of @tiptap/extension-italic
+    Depends on vulnerable versions of @tiptap/extension-list-item
+    Depends on vulnerable versions of @tiptap/extension-ordered-list
+    Depends on vulnerable versions of @tiptap/extension-paragraph
+    Depends on vulnerable versions of @tiptap/extension-strike
+    Depends on vulnerable versions of @tiptap/extension-text
+    Depends on vulnerable versions of @tiptap/extension-text-style
+    node_modules/@tiptap/starter-kit
+  @tiptap/extension-floating-menu  <=3.0.0-next.8 || 3.22.4 - 3.30.3
+  Depends on vulnerable versions of @tiptap/core
+  node_modules/@tiptap/extension-floating-menu
+  @tiptap/extension-gapcursor  <=2.27.3
+  Depends on vulnerable versions of @tiptap/core
+  node_modules/@tiptap/extension-gapcursor
+  @tiptap/extension-hard-break  <=3.0.0-next.8 || 3.22.4 - 3.30.3
+  Depends on vulnerable versions of @tiptap/core
+  node_modules/@tiptap/extension-hard-break
+  @tiptap/extension-heading  <=3.0.0-next.8 || 3.22.4 - 3.30.3
+  Depends on vulnerable versions of @tiptap/core
+  node_modules/@tiptap/extension-heading
+  @tiptap/extension-history  <=2.27.3
+  Depends on vulnerable versions of @tiptap/core
+  node_modules/@tiptap/extension-history
+  @tiptap/extension-horizontal-rule  <=3.0.0-next.8 || 3.22.4 - 3.30.3
+  Depends on vulnerable versions of @tiptap/core
+  node_modules/@tiptap/extension-horizontal-rule
+  @tiptap/extension-image  <=3.0.0-next.8 || 3.22.4 - 3.30.3
+  Depends on vulnerable versions of @tiptap/core
+  node_modules/@tiptap/extension-image
+  @tiptap/extension-italic  <=3.0.0-next.8 || 3.22.4 - 3.30.3
+  Depends on vulnerable versions of @tiptap/core
+  node_modules/@tiptap/extension-italic
+  @tiptap/extension-link  <=3.0.0-next.8 || 3.22.4 - 3.30.3
+  Depends on vulnerable versions of @tiptap/core
+  node_modules/@tiptap/extension-link
+  @tiptap/extension-list-item  <=2.27.3
+  Depends on vulnerable versions of @tiptap/core
+  node_modules/@tiptap/extension-list-item
+  @tiptap/extension-ordered-list  <=2.27.3
+  Depends on vulnerable versions of @tiptap/core
+  node_modules/@tiptap/extension-ordered-list
+  @tiptap/extension-paragraph  <=3.0.0-next.8 || 3.22.4 - 3.30.3
+  Depends on vulnerable versions of @tiptap/core
+  node_modules/@tiptap/extension-paragraph
+  @tiptap/extension-placeholder  <=2.27.3
+  Depends on vulnerable versions of @tiptap/core
+  node_modules/@tiptap/extension-placeholder
+  @tiptap/extension-strike  <=3.0.0-next.8 || 3.22.4 - 3.30.3
+  Depends on vulnerable versions of @tiptap/core
+  node_modules/@tiptap/extension-strike
+  @tiptap/extension-text  <=3.0.0-next.8 || 3.22.4 - 3.30.3
+  Depends on vulnerable versions of @tiptap/core
+  node_modules/@tiptap/extension-text
+  @tiptap/extension-text-style  <=3.0.0-next.8 || 3.22.4 - 3.30.3
+  Depends on vulnerable versions of @tiptap/core
+  node_modules/@tiptap/extension-text-style
+
+braces  *
+Severity: high
+braces vulnerable to stack-exhaustion denial of service through deeply nested patterns - https://github.com/advisories/GHSA-vfj7-8cjw-p6xm
+fix available via `npm audit fix --force`
+Will install tailwindcss@4.3.3, which is a breaking change
+node_modules/braces
+  chokidar  2.0.0 - 3.6.0
+  Depends on vulnerable versions of braces
+  node_modules/chokidar
+    tailwindcss  <=0.0.0-oxide-insiders.ff2c25f || 0.5.0 - 3.4.19
+    Depends on vulnerable versions of chokidar
+    Depends on vulnerable versions of fast-glob
+    Depends on vulnerable versions of micromatch
+    Depends on vulnerable versions of postcss-nested
+    Depends on vulnerable versions of postcss-selector-parser
+    node_modules/tailwindcss
+  micromatch  >=0.2.0
+  Depends on vulnerable versions of braces
+  node_modules/micromatch
+    fast-glob  *
+    Depends on vulnerable versions of micromatch
+    node_modules/fast-glob
+
+glob  10.2.0 - 10.4.5
+Severity: high
+glob CLI: Command injection via -c/--cmd executes matches with shell:true - https://github.com/advisories/GHSA-5j98-mcp5-4vw2
+fix available via `npm audit fix --force`
+Will install eslint-config-next@16.3.8, which is a breaking change
+node_modules/@next/eslint-plugin-next/node_modules/glob
+  @next/eslint-plugin-next  14.0.5-canary.0 - 15.0.0-rc.1
+  Depends on vulnerable versions of glob
+  node_modules/@next/eslint-plugin-next
+    eslint-config-next  14.0.5-canary.0 - 15.0.0-rc.1
+    Depends on vulnerable versions of @next/eslint-plugin-next
+    node_modules/eslint-config-next
+
+next  9.3.4-canary.0 - 16.3.0-preview.10
+Severity: critical
+Next.js self-hosted applications vulnerable to DoS via Image Optimizer remotePatterns configuration - https://github.com/advisories/GHSA-9g9p-9gw9-jx7f
+Next.js HTTP request deserialization can lead to DoS when using insecure React Server Components - https://github.com/advisories/GHSA-h25m-26qc-wcjf
+Next.js: HTTP request smuggling in rewrites - https://github.com/advisories/GHSA-ggv3-7p47-pfv8
+Next.js: Unbounded next/image disk cache growth can exhaust storage - https://github.com/advisories/GHSA-3x4c-7xq6-9pq8
+Next.js has a Denial of Service with Server Components - https://github.com/advisories/GHSA-q4gf-8mx6-v5v3
+Next.js Vulnerable to Denial of Service with Server Components - https://github.com/advisories/GHSA-8h8q-6873-q5fj
+Next.js's Middleware / Proxy redirects can be cache-poisoned - https://github.com/advisories/GHSA-3g8h-86w9-wvmq
+Next.js vulnerable to cross-site scripting in App Router applications using CSP nonces - https://github.com/advisories/GHSA-ffhc-5mcf-pf4q
+Next.js vulnerable to cache poisoning via collisions in React Server Component cache-busting - https://github.com/advisories/GHSA-vfv6-92ff-j949
+Next.js has cross-site scripting in beforeInteractive scripts with untrusted input - https://github.com/advisories/GHSA-gx5p-jg67-6x7h
+Next.js has a Denial of Service in the Image Optimization API - https://github.com/advisories/GHSA-h64f-5h5j-jqjh
+Next.js vulnerable to server-side request forgery in applications using WebSocket upgrades - https://github.com/advisories/GHSA-c4j6-fc7j-m34r
+Next.js vulnerable to cache poisoning in React Server Component responses - https://github.com/advisories/GHSA-wfc6-r584-vfw7
+Next.js has a Middleware / Proxy bypass in Pages Router applications using i18n - https://github.com/advisories/GHSA-36qx-fr4f-26g5
+Next.js: Denial of Service in App Router using Server Actions - https://github.com/advisories/GHSA-m99w-x7hq-7vfj
+Next.js: Server-Side Request Forgery in Server Actions on custom servers - https://github.com/advisories/GHSA-89xv-2m56-2m9x
+Next.js: Cache confusion of response bodies for requests with bodies - https://github.com/advisories/GHSA-68g3-v927-f742
+Next.js: Cache confusion of response bodies for requests with bodies containing invalid UTF-8 byte sequences - https://github.com/advisories/GHSA-4633-3j49-mh5q
+Next.js: Unbounded Server Action payload in Edge runtime - https://github.com/advisories/GHSA-4c39-4ccg-62r3
+Next.js: Server-Side Request Forgery in rewrites via attacker-controlled destination hostname - https://github.com/advisories/GHSA-p9j2-gv94-2wf4
+Next.js: Unauthenticated disclosure of internal Server Function endpoints - https://github.com/advisories/GHSA-955p-x3mx-jcvp
+Next.js: Unauthenticated Remote Code Execution on windows-hosted servers - https://github.com/advisories/GHSA-p293-qw3h-jr36
+Next.js: Unauthenticated Remote Code Execution in Image Optimization API when AVIF files are used - https://github.com/advisories/GHSA-2xp9-vwfh-vxw4
+Depends on vulnerable versions of postcss
+fix available via `npm audit fix --force`
+Will install next@16.3.8, which is a breaking change
+node_modules/next
+
+postcss  <=8.5.22
+Severity: high
+PostCSS has XSS via Unescaped </style> in its CSS Stringify Output - https://github.com/advisories/GHSA-qx2v-qp2m-jg93
+PostCSS: Arbitrary file read and information disclosure via attacker-controlled sourceMappingURL in CSS comments - https://github.com/advisories/GHSA-6g55-p6wh-862q
+PostCSS: incomplete fix of GHSA-6g55-p6wh-862q — attacker-controlled sourceMappingURL reads arbitrary .map files when `from` is unset - https://github.com/advisories/GHSA-fxqj-rqcc-2cmp
+PostCSS: Path Traversal in Previous Source Map Auto-Loading (sourceMappingURL) leads to Arbitrary .map File Disclosure - https://github.com/advisories/GHSA-r28c-9q8g-f849
+fix available via `npm audit fix --force`
+Will install next@16.3.8, which is a breaking change
+node_modules/next/node_modules/postcss
+
+postcss-selector-parser  <7.1.6
+Severity: moderate
+PostCSS: Quadratic complexity in flat selector parsing allows CPU exhaustion - https://github.com/advisories/GHSA-rj75-hqrm-r3gf
+fix available via `npm audit fix --force`
+Will install tailwindcss@4.3.3, which is a breaking change
+node_modules/postcss-selector-parser
+  postcss-nested  2.0.3 - 6.2.0
+  Depends on vulnerable versions of postcss-selector-parser
+  node_modules/postcss-nested
+
+39 vulnerabilities (29 moderate, 9 high, 1 critical)
+
+To address issues that do not require attention, run:
+  npm audit fix
+
+To address all issues (including breaking changes), run:
+  npm audit fix --force
