@@ -69,9 +69,16 @@ export function RichEditor({
   const initializedRef = useRef(false);
 
   const editor = useEditor({
+    // Tiptap 3 renders on the server by default, which breaks Next.js hydration
+    // because the editor markup depends on the DOM. Opt out and let the client
+    // mount it, as Tiptap's Next.js guide requires.
+    immediatelyRender: false,
     extensions: [
       StarterKit.configure({
         codeBlock: { HTMLAttributes: { class: "code-block" } },
+        // StarterKit 3 bundles Link; disable that copy so the explicit
+        // LinkExtension below stays the single source of link configuration.
+        link: false,
       }),
       Placeholder.configure({ placeholder }),
       ImageExtension.configure({ allowBase64: true }),
