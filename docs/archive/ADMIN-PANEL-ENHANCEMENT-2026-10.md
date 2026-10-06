@@ -1,5 +1,11 @@
 # 管理后台全面分析与增强报告
 
+> **已归档 · 历史快照（2026-10-04）**
+>
+> 本轮改造的结论大多仍然有效（三级鉴权、审计日志、用户处置规则、缓存失效等均沿用至今），但若干数字与清单已过时：
+> 词条数 953 → **1009**；后台已补齐 `/admin/tags`（本文排期里的"低优先级"事项已完成）；框架已升级到 **Next 15.5 + React 19**。
+> 后台的现行说明见文档地图 [../README.md](../README.md) 中的「管理后台」文档。
+
 时间：2026-10-04 · 范围：`D:\Project\Web\Solution`（Next.js 14 App Router 全站 + 管理后台）
 验证状态：`tsc --noEmit` ✅ · `next lint` ✅ · `next build` ✅（28 个页面）· `i18n:check` ✅（953 键）· 运行时断言 **69/69 通过** · 浏览器截图复核 ✅
 
@@ -264,7 +270,7 @@ npm run i18n:check → catalog: 953 keys (zh) / 953 keys (en) / No i18n problems
 权限：DB 降权后 JWT 仍在 → 接口 403、页面 307；恢复 ADMIN → 200
 ```
 
-浏览器复核：Playwright 访问 7 个后台页面（1440×1000）与移动端（420×900）截图存于 [`output/playwright/`](output/playwright)，确认中文界面、图标操作列、筛选器、空状态、移动端抽屉均正常。
+浏览器复核：Playwright 访问 7 个后台页面（1440×1000）与移动端（420×900）截图存于 [`output/playwright/`](../../output/playwright)，确认中文界面、图标操作列、筛选器、空状态、移动端抽屉均正常。
 
 **变更规模**：`git diff --stat` = **38 个已跟踪文件，+2848 / −1149**，另有 22 项新增（含 4 个共享库、3 个 API 模块、3 个新页面目录、2 个边界文件、`output/playwright/` 截图），删除 4 个已被替代的组件。
 
@@ -274,15 +280,15 @@ npm run i18n:check → catalog: 953 keys (zh) / 953 keys (en) / No i18n problems
 
 | 文件 | 作用 |
 |---|---|
-| [`src/lib/admin-guard.ts`](src/lib/admin-guard.ts) | 会话 + 数据库双重校验的统一守卫 |
-| [`src/lib/admin-user-actions.ts`](src/lib/admin-user-actions.ts) | 角色/封禁/删号的业务规则与级联清理 |
-| [`src/lib/audit.ts`](src/lib/audit.ts) | 审计写入（永不抛出）与动作枚举 |
-| [`src/lib/revalidate.ts`](src/lib/revalidate.ts) | 后台写操作触发前台 ISR 失效 |
-| [`src/app/[locale]/admin/AdminShell.tsx`](src/app/[locale]/admin/AdminShell.tsx) | 响应式后台外壳（侧栏/抽屉/语言/主题/登出） |
-| [`src/app/[locale]/admin/dashboard/ActivityChart.tsx`](src/app/[locale]/admin/dashboard/ActivityChart.tsx) | 依赖为零的可访问堆叠柱状图 |
-| [`src/app/[locale]/admin/content/ContentTable.tsx`](src/app/[locale]/admin/content/ContentTable.tsx) | 多选 + 批量操作内容表格 |
-| [`src/app/[locale]/admin/users/[id]/page.tsx`](src/app/[locale]/admin/users/[id]/page.tsx) | 用户详情与账号审计 |
-| [`src/components/admin/AdminFilters.tsx`](src/components/admin/AdminFilters.tsx) | 后台通用搜索框与下拉筛选器 |
+| [`src/lib/admin-guard.ts`](../../src/lib/admin-guard.ts) | 会话 + 数据库双重校验的统一守卫 |
+| [`src/lib/admin-user-actions.ts`](../../src/lib/admin-user-actions.ts) | 角色/封禁/删号的业务规则与级联清理 |
+| [`src/lib/audit.ts`](../../src/lib/audit.ts) | 审计写入（永不抛出）与动作枚举 |
+| [`src/lib/revalidate.ts`](../../src/lib/revalidate.ts) | 后台写操作触发前台 ISR 失效 |
+| [`src/app/[locale]/admin/AdminShell.tsx`](../../src/app/[locale]/admin/AdminShell.tsx) | 响应式后台外壳（侧栏/抽屉/语言/主题/登出） |
+| [`src/app/[locale]/admin/dashboard/ActivityChart.tsx`](../../src/app/[locale]/admin/dashboard/ActivityChart.tsx) | 依赖为零的可访问堆叠柱状图 |
+| [`src/app/[locale]/admin/content/ContentTable.tsx`](../../src/app/[locale]/admin/content/ContentTable.tsx) | 多选 + 批量操作内容表格 |
+| [`src/app/[locale]/admin/users/[id]/page.tsx`](../../src/app/[locale]/admin/users/[id]/page.tsx) | 用户详情与账号审计 |
+| [`src/components/admin/AdminFilters.tsx`](../../src/components/admin/AdminFilters.tsx) | 后台通用搜索框与下拉筛选器 |
 
 ---
 

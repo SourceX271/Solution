@@ -35,9 +35,12 @@
 
 ## 四、文档索引
 
-- `docs/README.md` — 项目速览与常用命令
+全部文档的地图在 `docs/README.md`（分层索引：入门 / 参考 / 运维 / 历史）。常用几份：
+
+- `docs/README.md` — 文档地图、项目速览与常用命令
 - `docs/code-audit.md` — 代码审查结论（已修复 / 待处理）
 - `docs/dependency-audit-2026-10.md` — 依赖安全审计修复报告（97 → 7，含残留风险说明）
 - `docs/dev-environment.md` — 环境陷阱与排查
-- `ADMIN-PANEL-ENHANCEMENT-2026-10.md` — 管理后台增强报告
-- `AUDIT-REPORT.md` / `DEPLOY.md` — 历史审计与部署手册
+- `docs/archive/` — 历史快照：`AUDIT-REPORT.md`（2026-09-30 全站审计）、
+  `ADMIN-PANEL-ENHANCEMENT-2026-10.md`（2026-10-04 后台增强）；均为当时结论，引用前先核对现状
+- `DEPLOY.md`（仓库根目录）— 面向部署者的手册（环境要求、Nginx/SSL、备份、更新、排障）

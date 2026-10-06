@@ -1,5 +1,17 @@
 # Solution 网站全面审计与修复报告
 
+> **已归档 · 历史快照（2026-09-30）**
+>
+> 本文是当时的审计结论与修复记录，**部分内容已过时**，请勿当作现行事实：
+>
+> - 前台解决方案路由 `/docs` 已于 2026-10-05 更名为 `/solutions`（旧 URL 308 重定向）；
+> - 词条数 651 → **1009**（zh/en 对齐），框架已升级到 **Next 15.5 + React 19**（14.x 已 EOL）；
+> - 爬虫定时逻辑已从 `src/instrumentation.ts` 拆到 `src/lib/crawler-scheduler.ts`；
+> - 后台新增了审计日志、评论审核、用户详情、标签管理等模块。
+>
+> 现状请看文档地图 [../README.md](../README.md)、[../code-audit.md](../code-audit.md) 与
+> [../dependency-audit-2026-10.md](../dependency-audit-2026-10.md)。
+
 审计时间：2026-09-30 · 范围：Next.js 14 (App Router) + Prisma/SQLite + next-auth v5 + next-intl + Python 爬虫 + Docker 部署
 验证状态：`tsc --noEmit` ✅ · `next lint` ✅ · `next build` ✅ (exit 0) · 生产服务器 HTTP 冒烟测试 ✅
 
