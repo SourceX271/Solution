@@ -232,3 +232,71 @@ if ($bytes[$pos] -eq 0xE2 -and $bytes[$pos+1] -eq 0x80 -and $bytes[$pos+2] -eq 0
 4. **写入前做条件校验**，尤其是字节级操作与批量替换。
 5. **临时产物用完即删**：本会话产生的 `build*.log`、`tsc*.log`、`.playwright-cli/`、截图等都已清理，避免污染仓库。
 6. **不要删除他人正在使用的目录**：`.next` 可删（可再生），但 `src/`、`prisma/`、`scripts/` 下的临时文件可能是他人未完成的工作，不要擅自清理。
+
+---
+
+## 8. 两类「环境性」失败：`next lint` 的 SWC 缓存、`.git` 写入被拒
+
+这两条都不是代码问题，但会让人误判成代码/依赖坏了。2026-10-06 实测（DSH workspace-write 沙箱）。
+
+### 8.1 `npx next lint` 直接崩溃：SWC 原生模块缓存被拒绝访问
+
+#### 症状
+
+```text
+Error: SWC native addon: secure cache directory C:\Users\<用户>\AppData\Local\swc\swc-native-<SID>: 拒绝访问。 (os error 5)
+    ...
+  code: 'ERR_SWC_NATIVE_CACHE'
+Node.js v24.16.0
+```
+
+命令**退出码 1，且没有任何 lint 结果**（先在 `next lint` 的废弃提示之后抛错）。同一份代码
+`npx eslint src --ext .ts,.tsx` 是 **exit 0**，`npx tsc --noEmit`、`npm run i18n:check` 也都正常。
+
+#### 原因
+
+Next 15 的 `next lint` 需要经 `@swc/core` 加载原生绑定，而 SWC 会把 `.node` 载荷物化到
+**工作区之外**的 `%LOCALAPPDATA%\swc\swc-native-<SID>`；沙箱禁止写工作区外路径，于是 `os error 5`。
+把它指到工作区（`SWC_NATIVE_BINDING_CACHE=D:\...\.swc-cache`）同样失败（`ERR_SWC_NATIVE_CACHE`），不要在这上面耗时间。
+
+#### 处置
+
+- **本仓库内替代**（规则与 `next lint` 相同，都是 `next/core-web-vitals`）：
+
+  ```bash
+  npx eslint src --ext .ts,.tsx
+  ```
+
+- 必须跑官方命令时，请在**普通终端（非沙箱）**执行 `npx next lint`。
+- 顺带提醒：`next lint` 在 Next 15 已被标记 deprecated，Next 16 会移除；迁移方式见
+  [dependency-audit-2026-10.md](./dependency-audit-2026-10.md) 第五节。
+
+### 8.2 `git add/commit/mv` 报 `Unable to create .git/index.lock: Permission denied`
+
+#### 症状
+
+```text
+fatal: Unable to create 'D:/Project/Web/Solution/.git/index.lock': Permission denied
+```
+
+`git status`、`git log`、`git ls-files` 等**只读命令正常**，只有写入 `.git` 的操作失败。
+
+#### 原因
+
+`.git` 目录上有一条针对当前用户 SID 的显式拒绝 ACE：
+
+```powershell
+icacls .git
+# .git S-1-5-21-...-<SID>:(DENY)(W,D,Rc,DC)
+#      S-1-5-21-...-<SID>:(OI)(CI)(IO)(DENY)(W,D,Rc,GW,DC)
+```
+
+即工作区其它路径可写、**唯独 `.git` 被保护**（防止误改仓库历史）。这是沙箱的策略，不是 ACL 损坏，
+不需要（也不应该）用第 4 节的诊断脚本去「修」。
+
+#### 处置
+
+- 先在工作区里照常改文件，把 git 写操作**合并成少数几次**执行。
+- 需要提交时，以**完全访问（danger-full-access）**模式重试那条 git 命令（工具会向用户请求授权）。
+- 排查小技巧：如果某个具体文件 `Move-Item`/`Remove-Item` 报「对路径的访问被拒绝」，但 `Copy-Item` 正常，
+  说明该文件**正被编辑器等进程占用**（未共享删除），与 ACL 无关——先关掉占用它的程序再移动/删除。
