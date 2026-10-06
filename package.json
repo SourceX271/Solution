@@ -70,7 +70,7 @@
     "autoprefixer": "^10.4.0",
     "eslint": "^8.57.0",
     "eslint-config-next": "^14.2.0",
-    "postcss": "^8.4.0",
+    "postcss": "^8.5.29",
     "prettier": "^3.2.0",
     "prettier-plugin-tailwindcss": "^0.5.0",
     "prisma": "^5.14.0",
@@ -78,11 +78,34 @@
     "tsx": "^4.11.0",
     "typescript": "^5.4.0"
   },
+  "overrides": {
+    "postcss": "^8.5.29",
+    "nanoid": "^3.3.19",
+    "source-map-js": "^1.2.2",
+    "browserslist": "^4.29.3",
+    "baseline-browser-mapping": "^2.11.27",
+    "@eslint-community/eslint-utils": "^4.10.1",
+    "js-yaml": "^4.3.2",
+    "esbuild": "^0.28.2",
+    "undici": "^7.29.1",
+    "minimatch@^3": {
+      "brace-expansion": "^1.1.21"
+    },
+    "minimatch@^9": {
+      "brace-expansion": "^2.1.7"
+    },
+    "minimatch@^10": {
+      "brace-expansion": "^5.0.12"
+    },
+    "@next/eslint-plugin-next": {
+      "glob": "^10.5.0"
+    }
+  },
   "allowScripts": {
     "@parcel/watcher@2.5.6": true,
     "@prisma/client@5.22.0": true,
     "@prisma/engines@5.22.0": true,
-    "esbuild@0.28.0": true,
+    "esbuild@0.28.2": true,
     "@swc/core@1.15.41": true,
     "prisma@5.22.0": true,
     "unrs-resolver@1.12.2": true
