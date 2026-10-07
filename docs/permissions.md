@@ -1,8 +1,9 @@
-# 文件权限与部署目录
+# 裸机部署：权限、网络与数据文件
 
-裸机（非 Docker）Linux 部署时的**文件权限基线**、被破坏的常见原因，以及一键修复与校验方法。
+非 Docker 形态（直接 `npm run dev` 或 `node .next/standalone/server.js`）在 Linux 上落地时要处理的三件事：
+**文件权限基线**、**防火墙放行**、**数据库文件的替换与备份**。
 
-本文的命令在 `/srv/www/Solution`（Fedora + xfs，无 sudo 的普通用户）上实测通过，数字均来自实机复核。
+本文命令在 `/srv/www/Solution`（Fedora 44 Server + xfs，普通用户 `main`，`sudo` 需密码）上实测通过，数字均来自实机复核。
 
 > Docker 形态**不需要**关心这些：镜像内的属主与权限由 `Dockerfile` 和命名卷挂载点决定
 > （`RUN mkdir -p /app/data /app/public/uploads/avatars && chown -R nextjs:nodejs …`），
@@ -147,10 +148,13 @@ const p = new PrismaClient();
 |---|---|---|
 | `git status --porcelain` 条目 | 242 | **1**（仅 `M package.json`，来自 `npm install` 更新 `allowScripts` 版本键） |
 | `git diff --summary` 里的 mode change | 242 | **0** |
-| 文件权限 | 242 个 `777` | 250 个 `644` |
+| 文件权限 | 242 个 `777` | 248 个 `644` |
 | 目录权限 | 107 个 `777` | 109 个 `755` |
 | `.env` | `755` | **`600`** |
-| 属主 | 349 个 `main:root` + 11 个 `main:main` | 360 个 **`main:main`** |
+| 属主 | 349 个 `main:root` + 11 个 `main:main` | 358 个 **`main:main`** |
+
+> 表里的「修复后」是**最终态**：最初 chmod 后是 250 个文件 / 360 个属主，随后把两件不该待在仓库里的产物
+> （开发服务日志 `dev.log`、空库备份 `dev.db.bak-*`）移到了仓库外，计数随之变成 248 / 358。
 
 ---
 
@@ -172,6 +176,39 @@ const p = new PrismaClient();
   `file:./dev.db` → `prisma/dev.db`。写成 `file:./prisma/dev.db` 会解析到 `prisma/prisma/dev.db`
   （[operations.md](./operations.md) 第五节差异 4 记录过同一个坑）。
 - 属主与权限：`main:main` + `600`。应用进程与 `prisma` CLI 都以 `main` 运行，因此不牺牲可用性。
+
+### `.env` 缺失时长什么样（两个报错，一个根因）
+
+`.env` 从来不在版本库里，所以每次换机器 / 重新 clone / 重建目录后都会缺。表现是**两个看起来无关的报错**：
+
+```text
+[auth][error] MissingSecret: Please define a `secret`.
+    at assertConfig (@auth/core/lib/utils/assert.js)
+[PrismaClientInitializationError] error: Environment variable not found: DATABASE_URL.
+  -->  schema.prisma:8  url = env("DATABASE_URL")
+```
+
+两者都只是「变量没读到」，**不是依赖版本问题**——`@auth/core` 的 `assertConfig` 从 0.41.2 到 0.41.3
+一直是无条件硬失败（`if (!options.secret?.length) return new MissingSecret(...)`），没有开发环境豁免。
+`prisma db push` 同样会报 P1012，因为它也读 `.env`。
+
+**此时鉴权是 fail-closed 的**，不会把匿名用户放行：`@auth/core` 对 session 请求返回 500，
+而 `next-auth` 的 `parseSessionResponse` 把任何非 OK 响应当成「无会话」返回 `null`，
+于是 `!!req.auth` 恒为 false（这正是 beta.32 修的 GHSA-8fpg-xm3f-6cx3）。
+代价是**登录功能完全不可用**——登录成功后 middleware 仍认为你未登录，受保护页面会一直弹回 `/login`。
+
+诊断与处置：
+
+```bash
+cd /srv/www/Solution
+ls -la .env prisma/.env 2>&1          # 先确认文件在不在（Prisma 只认这两个名字）
+cp -n .env.example .env               # 不在就从模板建
+sed -i "s|^AUTH_SECRET=.*|AUTH_SECRET=\"$(openssl rand -base64 32)\"|" .env
+sed -i "s|^NEXT_PUBLIC_SITE_URL=.*|NEXT_PUBLIC_SITE_URL=\"http://<主机地址>:3000\"|" .env
+chmod 600 .env
+grep -vE '^\s*(#|$)' .env             # 确认 DATABASE_URL 没被注释、拼写正确
+npx prisma db push                    # 建表；成功即说明 .env 已被正确加载
+```
 
 ---
 
@@ -206,7 +243,186 @@ cp prisma/dev.db ~/db-backups/dev.db.$(date +%Y%m%d-%H%M%S)
 
 ---
 
-## 八、相关文档
+## 八、网络访问（firewalld）
+
+Fedora Server 默认启用 firewalld，活动 zone 是 `FedoraServer`。**进程监听在 `*:3000` 不等于外部能访问**，
+必须确认防火墙放行。
+
+### 先分清「进程没起」和「端口没放」
+
+```bash
+ss -ltnp | grep ':3000'                 # 机器内部：进程是否在监听
+firewall-cmd --list-ports               # 当前 zone 放了哪些端口
+sudo firewall-cmd --list-services
+```
+
+外部验证必须在**另一台机器**上做——`curl 127.0.0.1:3000` 只证明进程活着，不证明放行：
+
+```powershell
+Test-NetConnection -ComputerName <host> -Port 3000       # TCP 可达性
+Invoke-WebRequest http://<host>:3000/ -UseBasicParsing   # 再验 HTTP
+```
+
+### 放行
+
+```bash
+sudo firewall-cmd --permanent --zone=FedoraServer --add-port=3000/tcp
+sudo firewall-cmd --reload
+```
+
+`--permanent` 写配置、`--reload` 生效，**两条都要**，否则重启后失效。验收时确认 runtime 与 permanent 都含 `3000/tcp`。
+
+> `firewall-cmd --list-*` 需要 root，非 root 会报 `Authorization failed. Make sure polkit agent is running…`，
+> 这是权限问题不是防火墙没配。
+
+### 只放开局域网（推荐）
+
+```bash
+sudo firewall-cmd --permanent --zone=FedoraServer --remove-port=3000/tcp
+sudo firewall-cmd --permanent --zone=FedoraServer \
+  --add-rich-rule='rule family="ipv4" source address="192.168.50.0/24" port port="3000" protocol="tcp" accept'
+sudo firewall-cmd --reload
+```
+
+### 回滚
+
+```bash
+sudo firewall-cmd --permanent --zone=FedoraServer --remove-port=3000/tcp && sudo firewall-cmd --reload
+```
+
+### SELinux
+
+Fedora 默认 `Enforcing`。Node 以普通用户进程直接监听，**不涉及 `http_port_t` 标签，不需要** `semanage port -a`；
+实测放行后外部即可访问。只有经 httpd/nginx 反代非标准端口时才需要打标签。
+
+### ⚠️ 别把开发服务器长期对外
+
+`next dev` 没有生产优化，会暴露 React 错误浮层与源码映射。把端口开放给他人访问前，先换成生产产物：
+
+```bash
+npm run build && node .next/standalone/server.js
+```
+
+---
+
+## 九、在服务器上更换 SQLite 数据库
+
+SQLite 单文件 + **无 migrations**，所以把别处的 `dev.db` 搬到线上不是 `cp` 一下就完事——它的表结构可能
+已经落后于 `schema.prisma`。完整流程如下，每一步都可独立回退。
+
+### 1. 先比对结构漂移（只读）
+
+```bash
+npx prisma migrate diff \
+  --from-url "file:./<待迁移的库>.db" \
+  --to-schema-datamodel prisma/schema.prisma --script
+```
+
+输出就是「补齐到当前 schema 所需的 SQL」。**先看有没有 `DROP` / `DELETE` / `RENAME`**：纯增量的
+（`ALTER TABLE … ADD COLUMN`、`CREATE TABLE`）可以安全套用；一旦出现 DROP，必须先评估数据损失。
+
+一次真实迁移的差异面（旧桌面库 → 当前 schema），全部是增量：
+
+```sql
+ALTER TABLE "User" ADD COLUMN "banReason" TEXT;
+ALTER TABLE "User" ADD COLUMN "bannedAt" DATETIME;
+ALTER TABLE "User" ADD COLUMN "lastLoginAt" DATETIME;
+CREATE TABLE "AuditLog" ( ... );
+-- 另有 7 条 CREATE INDEX
+```
+
+### 2. 在副本上套迁移，不要动原件
+
+```bash
+cp <原件>.db .tmp-migrated.db
+# 用任意 SQLite 客户端执行第 1 步的全部 SQL（sqlite3 CLI 或 python3 的 sqlite3 模块均可）
+```
+
+### 3. 三方校验
+
+```sql
+PRAGMA integrity_check;      -- 期望 ok
+PRAGMA foreign_key_check;    -- 期望无输出
+```
+
+再逐表逐列与当前 schema 比对（最省事的参照物是本地一份 `db push` 出来的空库），最后让 Prisma 自证：
+
+```bash
+npx prisma migrate diff --from-url "file:./.tmp-migrated.db" \
+  --to-schema-datamodel prisma/schema.prisma --script     # 期望 "This is an empty migration."
+```
+
+### 4. 备份线上库、停服务
+
+```bash
+cd /srv/www/Solution
+mkdir -p ~/db-backups
+cp -p prisma/dev.db ~/db-backups/dev.db.bak-$(date +%Y%m%d-%H%M%S)
+pkill -f 'next dev'          # 文件被占用时不要直接覆盖
+```
+
+### 5. 上传 + 原子替换
+
+```bash
+scp .tmp-migrated.db main@<host>:/srv/www/Solution/prisma/dev.db.new
+```
+
+远端：
+
+```bash
+cd /srv/www/Solution
+mv -f prisma/dev.db.new prisma/dev.db
+chmod 644 prisma/dev.db
+```
+
+先传成 `.new` 再 `mv`，替换是原子的，不会出现半个文件。
+
+### 6. 自证 + 起服务
+
+```bash
+npx prisma db push      # 期望 "The database is already in sync with the Prisma schema."
+# 抽查关键表行数与管理员名单，再起服务：
+setsid nohup npm run dev > /tmp/solution-dev.log 2>&1 < /dev/null &
+```
+
+### ⚠️ 别忘了 `public/uploads/`
+
+**上传的文件不在数据库里**，库里只有 `/uploads/avatars/<uuid>.png` 这样的引用。只搬库会出现
+「数据都在、头像全 404」。换库前把引用全抽出来交叉核对：
+
+```bash
+python3 - <<'PY'
+import sqlite3, re, os
+con = sqlite3.connect("file:prisma/dev.db?mode=ro", uri=True)
+refs = set()
+targets = [("User", ["image"]), ("SiteConfig", ["logo"]),
+           ("Article", ["content", "coverImage"]), ("Question", ["content"]),
+           ("Answer", ["content"]), ("Software", ["content", "icon", "screenshot"]),
+           ("Comment", ["content"])]
+for table, cols in targets:
+    have = {r[1] for r in con.execute('PRAGMA table_info("%s")' % table)}
+    cols = [c for c in cols if c in have]
+    if not cols:
+        continue
+    sel = ", ".join('"%s"' % c for c in cols)
+    for row in con.execute('SELECT %s FROM "%s"' % (sel, table)):
+        for v in row:
+            if isinstance(v, str):
+                refs |= set(re.findall(r"/uploads/[A-Za-z0-9_\-./]+", v))
+for r in sorted(refs):
+    print(("OK  " if os.path.exists("public" + r) else "MISS"), r)
+PY
+```
+
+把 `MISS` 的文件补进 `public/uploads/`，文件 `644`、目录 `755`。
+
+### 回滚
+
+备份在 `~/db-backups/`（**仓库外**，避免污染 `git status`）。回滚即：停服 → `cp` 回去 → 起服。
+
+---
+
+## 十、相关文档
 
 - [operations.md](./operations.md) — 环境变量、数据库、Docker 实现侧事实、发布检查清单
 - [security.md](./security.md) — 密钥现状（`AUTH_SECRET` 轮换未完成）、CSP、认证分层

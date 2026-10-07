@@ -43,7 +43,7 @@
 | 文档 | 内容 |
 |---|---|
 | [operations.md](./operations.md) | 环境变量、本地起步、数据库、构建自检、Docker 实现侧事实、与 DEPLOY.md 的差异清单、发布检查清单 |
-| [permissions.md](./permissions.md) | 裸机 Linux 的**文件权限基线**（目录 755 / 文件 644 / `.env` 600）、Windows 同步破坏权限位的症状、一键修复与校验命令、数据文件与备份位置 |
+| [permissions.md](./permissions.md) | 裸机部署三件事：**文件权限基线**（目录 755 / 文件 644 / `.env` 600）、**firewalld 放行与外部验证**、**在服务器上更换 SQLite 数据库**（结构漂移比对 → 原子替换 → 校验），含 Windows 同步破坏权限位的症状与修复命令 |
 | [dev-environment.md](./dev-environment.md) | 环境陷阱：并发构建冲突、PowerShell 中文编码损坏、ACL/spawn 限制、非法 UTF-8 字节、`next lint` 与 `.git` 的沙箱限制 |
 | [DEPLOY.md](../DEPLOY.md)（根目录） | 部署手册：环境要求、Docker 部署、Nginx/SSL、备份、更新、排障、默认管理员 |
 
@@ -156,6 +156,10 @@ python -m crawler.main --format jsonl             # 每行一条 JSON
 |---|---|
 | `git status` 一大堆改动，但 `git diff --numstat` 几乎为 0 | [permissions.md](./permissions.md) 第二节——从 Windows 同步过来的树丢了 Unix 权限位（`100644 → 100755`），按第三节修复 |
 | `find ... $PRUNE` 报 `路径必须在表达式之前："\)"` 却「看起来执行成功」 | [permissions.md](./permissions.md) 第三节坑 1——变量展开丢失转义 + `xargs -r` 静默吞空输入 |
+| 日志同时出现 `MissingSecret` 与 `Environment variable not found: DATABASE_URL` | [permissions.md](./permissions.md) 第五节——同源，都是 `.env` 没被加载；此时鉴权 fail-closed，登录会一直弹回 `/login` |
+| 端口放行了但外部连不上，或分不清「进程没起」还是「防火墙没放」 | [permissions.md](./permissions.md) 第八节——外部验证必须在另一台机器上做，`curl 127.0.0.1` 不作数 |
+| 要把别处的 `dev.db` 换到服务器上 | [permissions.md](./permissions.md) 第九节——SQLite 无 migrations，先用 `prisma migrate diff` 比对结构漂移再原子替换 |
+| 换库后数据都在，头像却全 404 | [permissions.md](./permissions.md) 第九节——上传文件不在库里，需单独同步 `public/uploads/` |
 | 构建随机失败（`middleware-manifest.json` 缺失、`/_document` 找不到、`copyfile ENOENT`） | [dev-environment.md](./dev-environment.md) 第 1 节——并发构建冲突 |
 | 构建报 `Module not found: Can't resolve 'child_process' / 'path'`，导入链指向 `src/instrumentation.ts` | 本文第四节——Node-only 代码必须在 `NEXT_RUNTIME === "nodejs"` 分支内部动态导入 |
 | `npx next lint` 崩溃：`SWC native addon: secure cache directory … 拒绝访问` / `ERR_SWC_NATIVE_CACHE` | [dev-environment.md](./dev-environment.md) 第 8.1 节——沙箱限制；改用 `npx eslint src --ext .ts,.tsx` |

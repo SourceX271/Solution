@@ -41,6 +41,7 @@
 - `docs/code-audit.md` — 代码审查结论（已修复 / 待处理）
 - `docs/dependency-audit-2026-10.md` — 依赖安全审计修复报告（97 → 7，含残留风险说明）
 - `docs/dev-environment.md` — 环境陷阱与排查
+- `docs/permissions.md` — 裸机部署：文件权限基线、firewalld 放行、在服务器上更换 SQLite 数据库
 - `docs/archive/` — 历史快照：`AUDIT-REPORT.md`（2026-09-30 全站审计）、
   `ADMIN-PANEL-ENHANCEMENT-2026-10.md`（2026-10-04 后台增强）；均为当时结论，引用前先核对现状
 - `DEPLOY.md`（仓库根目录）— 面向部署者的手册（环境要求、Nginx/SSL、备份、更新、排障）
