@@ -4,6 +4,7 @@ import { z } from "zod";
 import { getApiT } from "@/lib/api-i18n";
 import { requireAdminApi } from "@/lib/admin-guard";
 import { logAdminAction } from "@/lib/audit";
+import { readJson } from "@/lib/request";
 
 const crawlerUpdateSchema = z.object({
   name: z.string().min(1).max(100).optional(),
@@ -18,7 +19,7 @@ export async function PUT(req: Request, ctx: { params: Promise<{ id: string }> }
   const guard = await requireAdminApi();
   if (!guard.ok) return guard.response;
 
-  const body = await req.json().catch(() => null);
+  const body = await readJson(req);
   const parsed = crawlerUpdateSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json({ error: t("validationFailed") }, { status: 400 });

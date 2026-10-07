@@ -121,7 +121,7 @@ export default async function SoftwarePage({ searchParams }: SoftwarePageProps) 
         {CATEGORIES.map((c) => (
           <Link
             key={c.value}
-            href={`/software${c.value ? `?category=${c.value}` : ""}`}
+            href={`/software${c.value ? `?category=${c.value}` : ""}${tag ? `${c.value ? "&" : "?"}tag=${tag}` : ""}`}
             className={cn(
               "pill inline-flex items-center gap-1.5 transition-all",
               cat === c.value ? "active shadow-md" : "hover:bg-primary/15"

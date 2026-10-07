@@ -36,11 +36,11 @@
 | `admin/layout.tsx` | `getSessionUser()`：会话 id → **数据库**读 `role`+`bannedAt` | 所有后台**页面** | ✓ |
 | `requireAdminApi()` | 同上 | 所有 `/api/admin/**`、`GET/PUT /api/users` | ✓ |
 | `apiHandler({ auth: "admin" })` | 同上 | 使用该包装的接口 | ✓ |
-| **内容写接口的作者/管理员旁路** | **JWT 里的 `role`** | `/api/articles|questions|software|answers|comments/[id]` 的 PUT/DELETE | ✗ |
+| 内容写接口的作者/管理员旁路 | `getSessionUser()` + `isActiveAdmin()`（2026-10-07 前是 JWT 里的 `role`） | `/api/articles\|questions\|software\|answers\|comments/[id]` 的 PUT/DELETE/PATCH | ✓ |
 
-> 最后一行是当前最值得知悉的授权缺口：**被降权或被封禁的管理员，在 token 过期前仍可通过前台内容接口
-> 修改/删除任何内容**。收口方式是把这些路由的 `session.user.role` 换成 `getSessionUser()` + `isActiveAdmin()`
-> （AGENTS.md 已有相应约定，但历史代码尚未全部迁移）。
+> 上表最后一行过去是最大的授权缺口：**被降权或被封禁的管理员，在 token 过期前仍可通过前台内容接口
+> 修改/删除任何内容**。2026-10-07 已把 5 个文件的判定统一换成回库判定（`isActiveAdmin(await getSessionUser())`），
+> 仅在调用者不是作者时才多一次查询。
 
 自我操作类规则（不依赖角色）：`PUT /api/users/[id]` 要求 `params.id === session.user.id`；
 后台的用户处置规则见 [admin-panel.md](./admin-panel.md) 第三节。
@@ -63,6 +63,9 @@
 | URL 注入 | slug 一律 ASCII 随机串；标签 slug 也强制 ASCII | `lib/utils.ts`、`lib/tags.ts` |
 | 命令注入 | 采集调用改 `execFile` + 参数数组，`source` 走白名单 | `lib/crawler-ingest.ts` |
 | 多态目标 | `targetType` 白名单 + 目标存在性回查 | votes / bookmarks / comments |
+| 请求体容错 | 所有路由用 `readJson(req)`（内部 try/catch → `null`），非法 JSON 一律 **400** 而非 500；`votes`/`bookmarks` 另有 zod 校验（`null` body 不再抛 `TypeError`） | `src/lib/request.ts`、各 `route.ts` |
+| XML 输出 | `/api/rss` 的所有插值过 `escapeXml()`，CDATA 内的 `]]>` 转为 `]]]]><![CDATA[>`（否则改个昵称就能让整个 feed 变成非良构 XML，或在标题里注入任意 item） | `src/app/api/rss/route.ts` |
+| 删除清理 | 删除内容时显式清理多态 `Vote`/`Bookmark`（含 `targetType="answer"`，以及问题级联删除下的答案投票）：`purgeContentRelations()` 在删除前的同一事务内执行 | `src/lib/content-purge.ts` |
 
 **当前 DOMPurify 白名单**（`src/lib/sanitize.ts`）：
 
@@ -81,6 +84,22 @@
 
 统一实现：`src/lib/rate-limit.ts`（**进程内存 Map**，多实例不共享，重启清空）。
 各接口额度见 [api-reference.md](./api-reference.md) 的「限流」表。
+
+**限流 key 的可信来源（2026-10-07 修复）**：`X-Forwarded-For` 是客户端可伪造的请求头，
+早期实现直接取它的第一跳作为 IP，等于把额度交给攻击者控制——每换一个伪造 IP 就得到一个新桶，
+登录防爆破（10 次/10 分钟）与注册/评论/上传/投票额度全部可无限绕过；另一方面不带该头的请求
+会共用一个 `unknown:*` 桶，一个人就能把全站额度打满。
+
+现在：
+
+- `getClientIp(req)` **只在 `TRUST_PROXY=1` 时**采信代理头，并取**最后一跳**（nginx 用
+  `$proxy_add_x_forwarded_for` 追加对端地址，客户端伪造的值留在左边）；否则返回 `null`。
+- key 形如 `ip:<addr>:<suffix>`；拿不到可信 IP 时退化为 `direct:<suffix>`。
+  登录的 suffix 仍含邮箱（`login:<email>`），因此**针对已知账号的撞库依旧被限制**，
+  与是否有 IP 无关。
+- 审计记录（`logAdminAction` 的 IP 字段）复用同一个 `getClientIp`，伪造的头不会进审计表。
+- 反向代理部署（nginx/Caddy/云 LB）请设置 `TRUST_PROXY=1`；直连部署（`docker-compose` 直接把
+  3000 端口对外）保持不设置。无 IP 时额度是"全局的同 suffix 桶"，属于已知取舍（见第六节）。
 
 ---
 
@@ -135,9 +154,10 @@ CSP 要点：`default-src 'self'`；`script-src 'self' 'unsafe-inline' https:`�
 | 优先级 | 事项 |
 |---|---|
 | 高 | **轮换 `AUTH_SECRET` 与 GitHub OAuth Secret**（旧值在 git 历史中；见第六节） |
-| 高 | 把前台内容写接口的 `session.user.role` 换成回库判定，消除「降权后仍可操作」的窗口（第二节） |
+| ~~高~~ | ~~把前台内容写接口的 `session.user.role` 换成回库判定~~ → 已于 2026-10-07 修复（5 个内容写接口改用 `getSessionUser()` + `isActiveAdmin()`） |
 | 中 | 引入 `@auth/prisma-adapter`（或邮箱校验后的账号关联），让 GitHub OAuth 用户真正进入 `User` 表 |
-| 中 | 限流换成 Redis/共享存储；否则多实例部署下额度形同虚设 |
+| 中 | 限流换成 Redis/共享存储；否则多实例部署下额度形同虚设。**直连部署（不设 `TRUST_PROXY`）下，同一 suffix 的额度是全站共享的**：一个客户端可以打满注册/评论额度，取舍见第四节 |
+| 中 | 反向代理部署记得设 `TRUST_PROXY=1`，否则所有请求都退化成共享桶（额度仍生效，但失去按 IP 的区分度） |
 | 中 | 收紧 `sanitizeHtml` 的 `style` 属性；评估给业务接口加 CSRF token |
 | 中 | 建立 `prisma/migrations`，并把部署流程从 `db push` 切到 `migrate deploy` |
 | 低 | 生产环境不要直接发布 app 容器的 3000 端口（当前 compose 直接映射，可绕过 Nginx/HTTPS） |

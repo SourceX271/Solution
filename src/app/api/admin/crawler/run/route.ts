@@ -34,7 +34,8 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       status: result.status,
-      message: result.message,
+      // No `message`: it is a Chinese log line produced by the crawler. The
+      // admin UI renders the structured counters in the reader's language.
       total: result.total,
       added: result.added,
       skipped: result.skipped,

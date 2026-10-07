@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db";
 import type { AdminUser } from "@/lib/admin-guard";
 import { logAdminAction } from "@/lib/audit";
 import { bumpTagUsage } from "@/lib/tags";
+import { purgeContentRelations } from "@/lib/content-purge";
 
 /**
  * Business rules for moderating an account.
@@ -162,21 +163,24 @@ export async function deleteUserAccount(
 
   await prisma.$transaction(
     async (tx) => {
-      await tx.article.deleteMany({ where: { authorId: targetId } });
-      await tx.question.deleteMany({ where: { authorId: targetId } });
-      await tx.software.deleteMany({ where: { authorId: targetId } });
-      await tx.answer.deleteMany({ where: { authorId: targetId } });
-
+      // Polymorphic rows first: deleting a question also cascades its answers,
+      // and neither cascade reaches Vote/Bookmark.
       for (const [type, items] of [
         ["article", articles],
         ["question", questions],
         ["software", software],
       ] as const) {
         if (!items.length) continue;
-        const ids = items.map((item) => item.id);
-        await tx.vote.deleteMany({ where: { targetType: type, targetId: { in: ids } } });
-        await tx.bookmark.deleteMany({ where: { targetType: type, targetId: { in: ids } } });
+        await purgeContentRelations(tx, type, items.map((item) => item.id));
       }
+      if (answers.length > 0) {
+        await purgeContentRelations(tx, "answer", answers.map((answer) => answer.id));
+      }
+
+      await tx.article.deleteMany({ where: { authorId: targetId } });
+      await tx.question.deleteMany({ where: { authorId: targetId } });
+      await tx.software.deleteMany({ where: { authorId: targetId } });
+      await tx.answer.deleteMany({ where: { authorId: targetId } });
 
       // Rows that belong to the account itself.
       await tx.comment.deleteMany({ where: { authorId: targetId } });
@@ -192,7 +196,11 @@ export async function deleteUserAccount(
           select: { accepted: true },
         });
         const stillSolved = remaining.some((answer) => answer.accepted);
-        await tx.question.update({
+        // `updateMany`, not `update`: if the victim answered their *own*
+        // question, that question was already deleted above and `update` threw
+        // P2025, which rolled the whole transaction back and made the account
+        // undeletable (HTTP 500).
+        await tx.question.updateMany({
           where: { id: questionId },
           data: {
             answerCount: remaining.length,

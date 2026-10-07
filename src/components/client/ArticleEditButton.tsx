@@ -86,8 +86,8 @@ export function ArticleEditButton({
 
           <div className="space-y-4">
             <div>
-              <label className="mb-1.5 block text-xs font-medium">{tc("title")}</label>
-              <input
+              <label htmlFor="article-edit-field-1" className="mb-1.5 block text-xs font-medium">{tc("title")}</label>
+              <input id="article-edit-field-1"
                 type="text" value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 className="w-full rounded-lg border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring transition-all"
@@ -96,8 +96,8 @@ export function ArticleEditButton({
             </div>
 
             <div>
-              <label className="mb-1.5 block text-xs font-medium">{t("problemTitle")}</label>
-              <input
+              <label htmlFor="article-edit-field-2" className="mb-1.5 block text-xs font-medium">{t("problemTitle")}</label>
+              <input id="article-edit-field-2"
                 type="text" value={problem}
                 onChange={(e) => setProblem(e.target.value)}
                 placeholder={t("problemPlaceholder")}
@@ -106,8 +106,8 @@ export function ArticleEditButton({
             </div>
 
             <div>
-              <label className="mb-1.5 block text-xs font-medium">{tc("excerpt")}</label>
-              <textarea
+              <label htmlFor="article-edit-field-3" className="mb-1.5 block text-xs font-medium">{tc("excerpt")}</label>
+              <textarea id="article-edit-field-3"
                 value={excerpt}
                 onChange={(e) => setExcerpt(e.target.value)}
                 placeholder={t("excerptPlaceholder")}
@@ -118,8 +118,8 @@ export function ArticleEditButton({
             </div>
 
             <div>
-              <label className="mb-1.5 block text-xs font-medium">{tc("category")}</label>
-              <select
+              <label htmlFor="article-edit-field-4" className="mb-1.5 block text-xs font-medium">{tc("category")}</label>
+              <select id="article-edit-field-4"
                 value={category}
                 onChange={(e) => setCategory(e.target.value)}
                 className="w-full rounded-lg border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring transition-all"
@@ -131,8 +131,8 @@ export function ArticleEditButton({
             </div>
 
             <div>
-              <label className="mb-1.5 block text-xs font-medium">{tc("content")}</label>
-              <RichEditor value={content} onChange={setContent} placeholder={t("editContentPlaceholder")} minHeight="250px" />
+              <label htmlFor="article-edit-editor-label-101" className="mb-1.5 block text-xs font-medium">{tc("content")}</label>
+              <RichEditor id="article-edit-editor-label-101" labelledBy="article-edit-editor-label-101" value={content} onChange={setContent} placeholder={t("editContentPlaceholder")} minHeight="250px" />
             </div>
 
             {error && (

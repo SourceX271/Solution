@@ -244,12 +244,12 @@ export function CommentSection({ targetType, targetId, userId }: CommentSectionP
             </div>
             <div className="flex items-center gap-0.5">
               {canEdit && !isEditing && (
-                <button onClick={() => { setEditingId(comment.id); setEditContent(comment.content); setEditPreview(false) }} className="rounded p-1 text-muted-foreground hover:bg-accent hover:text-foreground transition-colors" title={tc("edit")}>
+                <button onClick={() => { setEditingId(comment.id); setEditContent(comment.content); setEditPreview(false) }} className="rounded p-1 text-muted-foreground hover:bg-accent hover:text-foreground transition-colors" title={tc("edit")} aria-label={tc("edit")}>
                   <Pencil className="h-3.5 w-3.5" />
                 </button>
               )}
               {canEdit && (
-                <button onClick={() => handleDelete(comment.id)} className="rounded p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors" title={tc("delete")}>
+                <button onClick={() => handleDelete(comment.id)} className="rounded p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors" title={tc("delete")} aria-label={tc("delete")}>
                   <Trash2 className="h-3.5 w-3.5" />
                 </button>
               )}

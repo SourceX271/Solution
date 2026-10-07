@@ -39,7 +39,10 @@ export async function POST(
 
   const source = await prisma.crawlSource.findUnique({ where: { id: params.id } })
   if (!source) {
-    return NextResponse.json({ error: "Source not found" }, { status: 404 })
+    return NextResponse.json(
+      { error: t("notFound", { entity: t("entity.crawler") }) },
+      { status: 404 }
+    )
   }
 
   const sourceKey = resolveSourceKey(source.name)
@@ -79,7 +82,9 @@ export async function POST(
 
   return NextResponse.json({
     success: result.status === "success",
-    message: result.message,
+    // `result.message` comes from the crawler and is a Chinese log line; return
+    // the structured fields instead so the admin UI can localize it.
+    status: result.status,
     added: result.added,
     skipped: result.skipped,
     sourceKey: sourceKey ?? null,

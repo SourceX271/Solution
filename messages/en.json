@@ -130,7 +130,9 @@
     "newPasswordMin": "New password must be at least 8 characters",
     "newPasswordPattern": "New password must contain both letters and digits",
     "passwordMismatch": "Passwords do not match",
-    "clear": "Clear"
+    "clear": "Clear",
+    "rateStars": "Rate {star} stars",
+    "madeWith": "Made with care by Solution Team"
   },
   "nav": {
     "home": "Home",
@@ -239,7 +241,8 @@
     "titleHint": "One line on what problem it solves, 2–200 characters",
     "problemHint": "Optional: describe the symptoms you saw",
     "excerptHint": "Optional: summary shown in lists and share cards, up to 500 characters",
-    "contentHint": "{count} characters so far (10 minimum)"
+    "contentHint": "{count} characters so far (10 minimum)",
+    "problemLabel": "Problem"
   },
   "questions": {
     "title": "Q&A",
@@ -474,7 +477,9 @@
   "errors": {
     "title": "Something went wrong",
     "fallback": "An unexpected error occurred, please try again later",
-    "retry": "Retry"
+    "retry": "Retry",
+    "notFoundTitle": "Page not found",
+    "notFoundDescription": "This link may be broken, or the content was removed."
   },
   "editor": {
     "bold": "Bold",

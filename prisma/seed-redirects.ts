@@ -25,22 +25,18 @@ const REDIRECTS: Array<{ oldSlug: string; targetType: string; newSlug: string }>
 
 async function main() {
   for (const r of REDIRECTS) {
-    const exists = await prisma.$queryRawUnsafe<Array<{ n: number }>>(
-      `SELECT COUNT(*) as n FROM "SlugRedirect" WHERE "oldSlug" = ?`,
-      r.oldSlug
-    );
-    if (exists[0]?.n > 0) {
+    // Plain Prisma instead of raw SQL: the old `INSERT` derived the primary key
+    // from `"seed-" + oldSlug.slice(0, 24)` (two legacy slugs sharing their first
+    // 24 UTF-16 units collided) and wrote `datetime('now')` into a `DateTime`
+    // column, i.e. a TEXT timestamp among millisecond integers — SQLite sorts
+    // TEXT above INTEGER, so `createdAt < now` filtered every seeded row out.
+    // Prisma generates the cuid and the millisecond timestamp itself.
+    const existing = await prisma.slugRedirect.findUnique({ where: { oldSlug: r.oldSlug } });
+    if (existing) {
       console.log(`already exists: ${r.oldSlug}`);
       continue;
     }
-    await prisma.$executeRawUnsafe(
-      `INSERT INTO "SlugRedirect" ("id", "oldSlug", "targetType", "newSlug", "createdAt")
-       VALUES (?, ?, ?, ?, datetime('now'))`,
-      "seed-" + r.oldSlug.slice(0, 24),
-      r.oldSlug,
-      r.targetType,
-      r.newSlug
-    );
+    await prisma.slugRedirect.create({ data: r });
     console.log(`redirect: "${r.oldSlug}" -> ${r.targetType}/${r.newSlug}`);
   }
   console.log("Slug redirects seeded.");

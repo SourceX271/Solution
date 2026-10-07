@@ -16,6 +16,8 @@
 | 源码读取异常 | 同一文件瞬时读到 **0 字节** |
 | 类型错误"忽有忽无" | `tsc` 上一次 0 错误，下一次冒出 5 个；修完又冒出新的 |
 | 文件内容自己变了 | 同一文件两次读取字节数不同（11963 → 12039），损坏行已被替换 |
+| 看起来像源码 bug 的构建错误 | `Invariant: no direct app page entry found for /icon.svg`（把 `src/app/icon.svg` 移开就能构建成功，像是该文件有毛病 —— 其实是并发写坏的产物清单） |
+| `next start` 报没有构建产物 | `Could not find a production build in the '.next' directory`（`next dev` 覆盖了生产构建） |
 
 ### 原因
 
@@ -50,6 +52,12 @@ Get-CimInstance Win32_Process -Filter "Name='node.exe'" | ForEach-Object {
 关注输出中的 `next dev`、`next build`、`npm-cli.js run build`、`jest-worker`。
 
 > **经验**：在这个工作区里，任何"构建随机失败"的现象，先怀疑并发，而不是先怀疑代码。
+>
+> 2026-10-07 复现记录：一次会话里我自己跑 `npm run build` 的同时，两个只读审计的子代理也在跑 `next build`，
+> 于是连续两次构建分别报 `PageNotFoundError: Cannot find module for page: /api/articles/route` 与
+> `Invariant: no direct app page entry found for /icon.svg`。逐个把可疑源码文件移开重试是**错误方向**：
+> 正确的判定方式是 `git status` 确认源码没变 + 确认没有第二个构建进程，再 `Remove-Item -Recurse -Force .next` 后重建
+> （本次清理后立即 `✓ Generating static pages (31/31)`，exit 0）。给并行 agent 派活时也要明确"只允许一个进程构建"。
 
 ---
 

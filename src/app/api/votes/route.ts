@@ -1,11 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { auth } from "@/lib/auth";
 import { getApiT } from "@/lib/api-i18n";
 import { checkRateLimit, getRateLimitKey } from "@/lib/rate-limit";
+import { readJson } from "@/lib/request";
 
 const VOTE_TARGETS = ["article", "question", "answer", "software"] as const;
 type VoteTarget = (typeof VOTE_TARGETS)[number];
+
+/**
+ * The body used to be cast instead of validated: `null` (a perfectly valid JSON
+ * document) blew up on destructuring and the catch-all turned it into a 500, and
+ * a string `targetId` reached Prisma and did the same.
+ */
+const voteSchema = z.object({
+  targetType: z.enum(VOTE_TARGETS),
+  targetId: z.string().min(1).max(64),
+  value: z.number().int(),
+});
 
 async function targetExists(targetType: string, targetId: string): Promise<boolean> {
   switch (targetType) {
@@ -35,18 +48,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: t("rateLimitedShort") }, { status: 429 });
     }
 
-    const body = await req.json();
-    const { targetType, targetId, value } = body as { targetType: string; targetId: string; value: number };
-
-    if (!targetType || !targetId) {
+    const body = await readJson(req);
+    const parsed = voteSchema.safeParse(body);
+    if (!parsed.success) {
       return NextResponse.json({ error: t("missingTarget") }, { status: 400 });
     }
-
-    // Whitelist the target type: an arbitrary string used to be accepted and
-    // written into the Vote table, creating orphan rows nothing could clean up.
-    if (!(VOTE_TARGETS as readonly string[]).includes(targetType)) {
-      return NextResponse.json({ error: t("invalidTargetType") }, { status: 400 });
-    }
+    const { targetType, targetId, value } = parsed.data;
 
     if (!(await targetExists(targetType, targetId))) {
       return NextResponse.json(
@@ -112,59 +119,57 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: t("voteRange") }, { status: 400 });
     }
 
-    const existing = await prisma.vote.findUnique({
-      where: { userId_targetType_targetId: { userId, targetType, targetId } },
+    // Everything happens inside one interactive transaction: the "read the old
+    // value, then adjust by the difference" pattern used to run the read
+    // *outside*, so two concurrent switches (two tabs, a retry) both applied
+    // their delta and drove `voteCount` below the real sum (-3 for a single
+    // downvote). Recounting the votes themselves is self-correcting.
+    const outcome = await prisma.$transaction(async (tx) => {
+      const existing = await tx.vote.findUnique({
+        where: { userId_targetType_targetId: { userId, targetType, targetId } },
+      });
+
+      let cancelled = false;
+      if (existing && existing.value === value) {
+        await tx.vote.delete({ where: { id: existing.id } });
+        cancelled = true;
+      } else {
+        // Upsert instead of create: a duplicate request that lost the race would
+        // otherwise raise P2002 and turn into a 500.
+        await tx.vote.upsert({
+          where: { userId_targetType_targetId: { userId, targetType, targetId } },
+          update: { value },
+          create: { userId, targetType, targetId, value },
+        });
+      }
+
+      // Only question/answer carry a denormalized voteCount; article's votes are
+      // counted from the Vote table directly, so nothing to sync there.
+      if (targetType === "question" || targetType === "answer") {
+        const agg = await tx.vote.aggregate({
+          where: { targetType, targetId },
+          _sum: { value: true },
+        });
+        const total = agg._sum.value ?? 0;
+        if (targetType === "question") {
+          await tx.question.update({ where: { id: targetId }, data: { voteCount: total } });
+        } else {
+          await tx.answer.update({ where: { id: targetId }, data: { voteCount: total } });
+        }
+      }
+
+      return { cancelled, isUpdate: !!existing };
     });
 
-    // Only question/answer carry a denormalized voteCount; article's votes are
-    // counted via the Vote table directly, so nothing to sync there.
-    const adjustVoteCount = (delta: number) => {
-      if (targetType === "question") {
-        return prisma.question.update({
-          where: { id: targetId },
-          data: { voteCount: { increment: delta } },
-        });
-      }
-      if (targetType === "answer") {
-        return prisma.answer.update({
-          where: { id: targetId },
-          data: { voteCount: { increment: delta } },
-        });
-      }
-      return null;
-    };
-
-    if (existing) {
-      if (existing.value === value) {
-        // Cancel vote: remove the vote and roll back the count it contributed.
-        await prisma.$transaction([
-          prisma.vote.delete({ where: { id: existing.id } }),
-          ...(targetType === "question" || targetType === "answer"
-            ? [adjustVoteCount(-existing.value) as any]
-            : []),
-        ]);
-        return NextResponse.json({ voted: false, message: t("voteCancelled") });
-      } else {
-        // Switch vote direction: adjust count by the difference (e.g. +1 -> -1 is -2).
-        await prisma.$transaction([
-          prisma.vote.update({ where: { id: existing.id }, data: { value } }),
-          ...(targetType === "question" || targetType === "answer"
-            ? [adjustVoteCount(value - existing.value) as any]
-            : []),
-        ]);
-        return NextResponse.json({ voted: true, message: t("voteUpdated") });
-      }
-    } else {
-      const [vote] = await prisma.$transaction([
-        prisma.vote.create({ data: { userId, targetType, targetId, value } }),
-        ...(targetType === "question" || targetType === "answer"
-          ? [adjustVoteCount(value) as any]
-          : []),
-      ]);
-
-      return NextResponse.json({ voted: true, vote, message: t("voteSuccess") }, { status: 201 });
+    if (outcome.cancelled) {
+      return NextResponse.json({ voted: false, message: t("voteCancelled") });
     }
-  } catch {
+    if (outcome.isUpdate) {
+      return NextResponse.json({ voted: true, message: t("voteUpdated") });
+    }
+    return NextResponse.json({ voted: true, message: t("voteSuccess") }, { status: 201 });
+  } catch (error) {
+    console.error("vote failed", error);
     return NextResponse.json({ error: t("voteFailed") }, { status: 500 });
   }
 }

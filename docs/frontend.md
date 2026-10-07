@@ -131,6 +131,12 @@ src/app/
 > `client/usePublishDraft.ts` 提供，属于 hook 而非组件，未计入上表；它不做 `beforeunload` 拦截——
 > 内容已落盘，刷新最多丢失一个防抖窗口（800ms），回来时横幅可一键恢复。
 
+> **客户端写操作的失败反馈（2026-10-07 修复）**：`AnswerForm` 之前只有 `if (res.ok)`、`try/finally` 没有
+> `catch`，`AcceptButton`/`BookmarkButton` 同样——服务端确定会返回 400/401/404/500（例如回答短于 10 字符
+> 直接 400），用户看到的是"点了没反应"外加一条未捕获的 promise rejection。现在统一用
+> `src/lib/http-error.ts` 的 `readErrorMessage(res, fallback)` 取服务端已本地化的 `error` 文案：
+> 表单类就地渲染 `role="alert"` 提示，按钮类走 sonner toast，网络异常回落到 `common.networkError`。
+
 ### 公式（LaTeX）
 
 `client/math-nodes.ts`（Tiptap 节点，非 .tsx 组件）与 `lib/math.ts`（渲染）构成一条链路：
@@ -177,6 +183,7 @@ src/app/
 | 结构化数据 | `JsonLd.tsx` | 仅 `/solutions/[slug]`（Article）与 `/software/[slug]`（SoftwareApplication）；**问答详情没有** |
 | sitemap | `src/app/sitemap.ts` | `force-dynamic`；5 个静态页 + 每类最多 500 条，zh 与 en 各一套 |
 | robots | `src/app/robots.ts` | 允许 `/`，禁止 `/api`、`/admin`、`/_next`、登录注册与个人页；含 sitemap 地址；后台另有 `noindex` |
+| 404 | `src/app/[locale]/not-found.tsx`（2026-10-07 新增） | 此前所有 `notFound()` 都落到 Next 内置英文页且渲染在本地化 layout 之外（无导航/页脚）。现在渲染 `errors.notFoundTitle/notFoundDescription` + 回首页链接。**HTTP 状态码仍是 200**：详情页因 `auth()` 动态渲染 + 段落有 `loading.tsx`，Shell 先刷出、`notFound()` 后置，状态码已提交 —— 软 404 的成因与候选修法见 [code-audit.md](./code-audit.md) 第 2.1 节 |
 
 ---
 

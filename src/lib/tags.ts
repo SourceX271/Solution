@@ -30,7 +30,13 @@ export async function resolveTags(input: string[]): Promise<TagConnection[]> {
       .replace(/^-+|-+$/g, "");
 
     if (ascii && /^[a-z0-9-]+$/.test(ascii)) {
-      result.push({ name, slug: ascii });
+      // Look the name up first: an admin can rename a tag to a pure-ASCII name
+      // while its slug stays derived (or was set) differently. Skipping this
+      // made `connectOrCreate` insert a second row with the same `Tag.name`,
+      // which the unique constraint rejected — turning content creation into a
+      // 500 for anyone who then typed that name.
+      const existing = await prisma.tag.findUnique({ where: { name } });
+      result.push(existing ? { name, slug: existing.slug } : { name, slug: ascii });
       continue;
     }
 

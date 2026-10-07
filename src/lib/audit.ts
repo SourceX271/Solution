@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db";
+import { getClientIp as trustedClientIp } from "@/lib/rate-limit";
 import type { AdminUser } from "@/lib/admin-guard";
 
 /**
@@ -52,12 +53,16 @@ export function isAuditAction(value: string): value is AuditAction {
   return (AUDIT_ACTIONS as string[]).includes(value);
 }
 
-/** Best-effort client IP, tolerating proxies. */
+/**
+ * Best-effort client IP for audit rows.
+ *
+ * Delegates to the rate-limit helper so both features agree on when the
+ * `X-Forwarded-For` header can be believed (`TRUST_PROXY=1`); otherwise a
+ * spoofed value would end up in the audit trail.
+ */
 export function getClientIp(req?: Request | null): string | undefined {
   if (!req) return undefined;
-  const forwarded = req.headers.get("x-forwarded-for");
-  if (forwarded) return forwarded.split(",")[0]!.trim();
-  return req.headers.get("x-real-ip") ?? undefined;
+  return trustedClientIp(req) ?? undefined;
 }
 
 interface AuditEntry {

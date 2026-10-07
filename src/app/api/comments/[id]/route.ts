@@ -3,6 +3,9 @@ import { prisma } from "@/lib/db";
 import { auth } from "@/lib/auth";
 import { getCommentSchema } from "@/lib/validations";
 import { getApiT } from "@/lib/api-i18n";
+import { readJson } from "@/lib/request";
+import { revalidateContentList } from "@/lib/revalidate";
+import { getSessionUser, isActiveAdmin } from "@/lib/admin-guard";
 
 export async function PUT(
   req: NextRequest,
@@ -26,15 +29,14 @@ export async function PUT(
     }
 
     const userId = (session.user as any).id;
-    const userRole = (session.user as any).role;
-    if (comment.authorId !== userId && userRole !== "ADMIN") {
+    if (comment.authorId !== userId && !isActiveAdmin(await getSessionUser())) {
       return NextResponse.json(
         { error: t("noPermissionEdit", { entity: t("entity.comment") }) },
         { status: 403 }
       );
     }
 
-    const body = await req.json();
+    const body = await readJson(req);
     const parsed = getCommentSchema(tv).safeParse(body);
     if (!parsed.success) {
       return NextResponse.json({ error: parsed.error.errors[0].message }, { status: 400 });
@@ -78,8 +80,7 @@ export async function DELETE(
     }
 
     const userId = (session.user as any).id;
-    const userRole = (session.user as any).role;
-    if (comment.authorId !== userId && userRole !== "ADMIN") {
+    if (comment.authorId !== userId && !isActiveAdmin(await getSessionUser())) {
       return NextResponse.json(
         { error: t("noPermissionDelete", { entity: t("entity.comment") }) },
         { status: 403 }
@@ -93,6 +94,11 @@ export async function DELETE(
     });
 
     await prisma.comment.delete({ where: { id: params.id } });
+
+    // The target's list page renders a comment count and is ISR-cached.
+    revalidateContentList(
+      comment.articleId ? "articles" : comment.softwareId ? "software" : "questions"
+    );
 
     return NextResponse.json({ message: t("deleted", { entity: t("entity.comment") }) });
   } catch (error) {

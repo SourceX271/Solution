@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth";
 import { getProfileSchema } from "@/lib/validations";
 import { getApiT } from "@/lib/api-i18n";
 import { getSessionUser, isActiveAdmin } from "@/lib/admin-guard";
+import { readJson } from "@/lib/request";
 
 export async function GET(
   req: NextRequest,
@@ -69,7 +70,7 @@ export async function PUT(
       return NextResponse.json({ error: t("profileUpdateSelfOnly") }, { status: 403 });
     }
 
-    const body = await req.json();
+    const body = await readJson(req);
     const parsed = getProfileSchema(tv).safeParse(body);
     if (!parsed.success) {
       return NextResponse.json({ error: parsed.error.errors[0].message }, { status: 400 });

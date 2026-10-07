@@ -6,6 +6,8 @@ import { getApiT } from "@/lib/api-i18n";
 import { sanitizeHtml } from "@/lib/sanitize";
 import { checkRateLimit, getRateLimitKey } from "@/lib/rate-limit";
 import { createNotification } from "@/lib/notifications";
+import { readJson } from "@/lib/request";
+import { revalidateContent } from "@/lib/revalidate";
 
 export async function POST(
   req: NextRequest,
@@ -33,7 +35,7 @@ export async function POST(
       );
     }
 
-    const body = await req.json();
+    const body = await readJson(req);
     const parsed = getAnswerSchema(tv).safeParse(body);
     if (!parsed.success) {
       return NextResponse.json({ error: parsed.error.errors[0].message }, { status: 400 });
@@ -71,6 +73,8 @@ export async function POST(
       messageParams: { name: session.user?.name || "Someone", title: question.title },
       link: `/questions/${question.slug}`,
     });
+
+    revalidateContent("questions", question.slug);
 
     return NextResponse.json(answer, { status: 201 });
   } catch (error) {

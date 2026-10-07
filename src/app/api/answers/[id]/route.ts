@@ -5,6 +5,10 @@ import { getAnswerSchema } from "@/lib/validations";
 import { getApiT } from "@/lib/api-i18n";
 import { sanitizeHtml } from "@/lib/sanitize";
 import { createNotification } from "@/lib/notifications";
+import { readJson } from "@/lib/request";
+import { purgeContentRelations } from "@/lib/content-purge";
+import { revalidateContent } from "@/lib/revalidate";
+import { getSessionUser, isActiveAdmin } from "@/lib/admin-guard";
 
 export async function PUT(
   req: NextRequest,
@@ -28,15 +32,14 @@ export async function PUT(
     }
 
     const userId = (session.user as any).id;
-    const userRole = (session.user as any).role;
-    if (answer.authorId !== userId && userRole !== "ADMIN") {
+    if (answer.authorId !== userId && !isActiveAdmin(await getSessionUser())) {
       return NextResponse.json(
         { error: t("noPermissionEdit", { entity: t("entity.answer") }) },
         { status: 403 }
       );
     }
 
-    const body = await req.json();
+    const body = await readJson(req);
     const parsed = getAnswerSchema(tv).safeParse(body);
     if (!parsed.success) {
       return NextResponse.json({ error: parsed.error.errors[0].message }, { status: 400 });
@@ -80,8 +83,7 @@ export async function DELETE(
     }
 
     const userId = (session.user as any).id;
-    const userRole = (session.user as any).role;
-    if (answer.authorId !== userId && userRole !== "ADMIN") {
+    if (answer.authorId !== userId && !isActiveAdmin(await getSessionUser())) {
       return NextResponse.json(
         { error: t("noPermissionDelete", { entity: t("entity.answer") }) },
         { status: 403 }
@@ -90,12 +92,15 @@ export async function DELETE(
 
     // Keep the denormalised counters and the question status consistent with
     // the deleted answer, in a single transaction.
-    await prisma.$transaction(async (tx) => {
+    const questionSlug = await prisma.$transaction(async (tx) => {
+      // `targetType: "answer"` votes have no foreign key and were never cleaned
+      // up anywhere in the app.
+      await purgeContentRelations(tx, "answer", params.id);
       await tx.answer.delete({ where: { id: params.id } });
 
       const question = await tx.question.findUnique({
         where: { id: answer.questionId },
-        select: { answerCount: true, status: true },
+        select: { answerCount: true, status: true, slug: true },
       });
 
       await tx.question.update({
@@ -106,7 +111,11 @@ export async function DELETE(
           ...(answer.accepted && question?.status === "solved" ? { status: "open" } : {}),
         },
       });
+
+      return question?.slug ?? null;
     });
+
+    revalidateContent("questions", questionSlug);
 
     return NextResponse.json({ message: t("deleted", { entity: t("entity.answer") }) });
   } catch (error) {
@@ -177,6 +186,8 @@ export async function PATCH(
       messageParams: { name: session.user?.name || "Someone", title: answer.question.title },
       link: `/questions/${answer.question.slug}`,
     });
+
+    revalidateContent("questions", answer.question.slug);
 
     return NextResponse.json(updated);
   } catch (error) {

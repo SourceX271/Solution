@@ -4,6 +4,7 @@ import { getApiT } from "@/lib/api-i18n";
 import { requireAdminApi } from "@/lib/admin-guard";
 import { updateUserAccount } from "@/lib/admin-user-actions";
 import { toPositiveInt } from "@/lib/errors";
+import { readJson } from "@/lib/request";
 
 export async function GET(req: NextRequest) {
   const t = await getApiT("api");
@@ -68,7 +69,7 @@ export async function PUT(req: NextRequest) {
   const guard = await requireAdminApi();
   if (!guard.ok) return guard.response;
 
-  const body = await req.json().catch(() => null);
+  const body = await readJson(req);
   const { userId, role } = (body ?? {}) as { userId?: string; role?: string };
 
   if (!userId || !role) {

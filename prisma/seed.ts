@@ -23,7 +23,17 @@ async function main() {
   ];
 
   for (const t of tagData) {
-    await prisma.tag.upsert({ where: { slug: t.slug }, update: {}, create: t });
+    // `Tag.name` is unique as well as `Tag.slug`, and content written before the
+    // first seed can already hold this name under a different slug (the crawler
+    // and `resolveTags()` generate random slugs for CJK names). Matching on the
+    // slug alone then hit the name constraint and aborted the whole seed — no
+    // admin account, no content. Reuse whatever exists.
+    const existing = await prisma.tag.findFirst({
+      where: { OR: [{ slug: t.slug }, { name: t.name }] },
+      select: { id: true },
+    });
+    if (existing) continue;
+    await prisma.tag.create({ data: t });
   }
   console.log("Tags created");
 

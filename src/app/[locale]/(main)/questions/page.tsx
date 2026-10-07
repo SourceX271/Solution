@@ -94,7 +94,7 @@ export default async function QuestionsPage({ searchParams }: QuestionsPageProps
         {STATUS_FILTERS.map((f) => (
           <Link
             key={f.value}
-            href={`/questions${f.value ? `?status=${f.value}` : ""}`}
+            href={`/questions${f.value ? `?status=${f.value}` : ""}${tag ? `${f.value ? "&" : "?"}tag=${tag}` : ""}`}
             className={cn(
               "pill inline-flex items-center gap-1.5 transition-all",
               s === f.value ? "active shadow-md" : "hover:bg-primary/15"

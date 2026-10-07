@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getApiT } from "@/lib/api-i18n";
 import { z } from "zod";
+import { readJson } from "@/lib/request";
 
 const viewSchema = z.object({
   targetType: z.enum(["article", "question"]),
@@ -14,7 +15,7 @@ const viewSchema = z.object({
 export async function POST(req: NextRequest) {
   const t = await getApiT("api");
   try {
-    const body = await req.json();
+    const body = await readJson(req);
     const parsed = viewSchema.safeParse(body);
     if (!parsed.success) {
       return NextResponse.json({ error: t("invalidParams") }, { status: 400 });

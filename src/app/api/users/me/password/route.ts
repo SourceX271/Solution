@@ -4,6 +4,7 @@ import { getPasswordChangeSchema } from "@/lib/validations";
 import { getApiT } from "@/lib/api-i18n";
 import { apiHandler, successResponse, AppError } from "@/lib/errors";
 import { checkRateLimit, getRateLimitKey } from "@/lib/rate-limit";
+import { readJson } from "@/lib/request";
 
 export const PUT = apiHandler({ auth: "required" }, async (req, ctx) => {
   const t = await getApiT("api");
@@ -18,7 +19,7 @@ export const PUT = apiHandler({ auth: "required" }, async (req, ctx) => {
     throw new AppError(429, t("passwordTooFrequent"));
   }
 
-  const parsed = getPasswordChangeSchema(tv).safeParse(await req.json());
+  const parsed = getPasswordChangeSchema(tv).safeParse(await readJson(req));
   if (!parsed.success) {
     throw new AppError(400, parsed.error.errors[0].message);
   }

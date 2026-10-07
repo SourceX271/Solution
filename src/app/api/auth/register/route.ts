@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { getRegisterSchema } from "@/lib/validations";
 import { getApiT } from "@/lib/api-i18n";
 import { checkRateLimit, getRateLimitKey } from "@/lib/rate-limit";
+import { readJson } from "@/lib/request";
 
 export async function POST(req: Request) {
   const t = await getApiT("api");
@@ -13,7 +14,7 @@ export async function POST(req: Request) {
     if (!allowed) {
       return NextResponse.json({ error: t("rateLimitedRegister") }, { status: 429 });
     }
-    const body = await req.json();
+    const body = await readJson(req);
     const parsed = getRegisterSchema(tv).safeParse(body);
     if (!parsed.success) {
       return NextResponse.json({ error: parsed.error.errors[0].message }, { status: 400 });
@@ -27,9 +28,19 @@ export async function POST(req: Request) {
     }
 
     const passwordHash = await hash(password, 12);
-    const user = await prisma.user.create({
-      data: { name, email, passwordHash },
-    });
+    let user;
+    try {
+      user = await prisma.user.create({
+        data: { name, email, passwordHash },
+      });
+    } catch (error) {
+      // Two concurrent registrations for the same address: the loser hits the
+      // unique constraint. Treat it as "email taken" (400) rather than a 500.
+      if ((error as { code?: string }).code === "P2002") {
+        return NextResponse.json({ error: t("registerInvalid") }, { status: 400 });
+      }
+      throw error;
+    }
 
     return NextResponse.json({ id: user.id, name: user.name, email: user.email }, { status: 201 });
   } catch (error) {

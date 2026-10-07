@@ -19,7 +19,12 @@ export function ShareButton({ title }: ShareButtonProps) {
       try {
         await navigator.share({ title, url })
         return
-      } catch {}
+      } catch (error) {
+        // Cancelling the sheet rejects with AbortError — that used to fall
+        // through to the clipboard branch and show "copied" for a share the
+        // user had explicitly dismissed.
+        if ((error as DOMException)?.name === "AbortError") return
+      }
     }
 
     try {
@@ -27,7 +32,7 @@ export function ShareButton({ title }: ShareButtonProps) {
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
     } catch {
-      // Fallback: do nothing
+      // Clipboard unavailable (insecure context, permission denied).
     }
   }
 

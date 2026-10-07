@@ -6,6 +6,7 @@ import { requireAdminApi } from "@/lib/admin-guard";
 import { logAdminAction } from "@/lib/audit";
 import { revalidateTags } from "@/lib/revalidate";
 import { mergeTags, recomputeTagUsage } from "@/lib/tags";
+import { readJson } from "@/lib/request";
 
 const mergeSchema = z.object({
   sourceId: z.string().min(1),
@@ -24,7 +25,7 @@ export async function POST(req: Request) {
   const guard = await requireAdminApi();
   if (!guard.ok) return guard.response;
 
-  const body = await req.json().catch(() => null);
+  const body = await readJson(req);
   const parsed = mergeSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json({ error: t("invalidParams") }, { status: 400 });

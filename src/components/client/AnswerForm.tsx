@@ -4,6 +4,7 @@ import { useState, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { useTranslations } from "next-intl"
 import { RichEditor } from "./RichEditor"
+import { readErrorMessage } from "@/lib/http-error"
 import { Loader2, Send, X } from "lucide-react"
 
 interface AnswerFormProps {
@@ -27,6 +28,7 @@ export function AnswerForm({
   const router = useRouter()
   const [submitting, setSubmitting] = useState(false)
   const [success, setSuccess] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const [content, setContent] = useState(editInitialContent || "")
   const isEditing = !!editAnswerId
 
@@ -38,6 +40,7 @@ export function AnswerForm({
     if (!content || submitting) return
 
     setSubmitting(true)
+    setError(null)
     try {
       if (isEditing) {
         const res = await fetch(`/api/answers/${editAnswerId}`, {
@@ -50,6 +53,10 @@ export function AnswerForm({
           setTimeout(() => setSuccess(false), 3000)
           router.refresh()
           onCancelEdit?.()
+        } else {
+          // A rejected write (content shorter than 10 chars → 400, expired
+          // session → 401) used to stop the spinner with no explanation.
+          setError(await readErrorMessage(res, tc("submitFailedRetry")))
         }
       } else {
         const res = await fetch(`/api/questions/${questionId}/answers`, {
@@ -62,12 +69,16 @@ export function AnswerForm({
           setSuccess(true)
           setTimeout(() => setSuccess(false), 3000)
           router.refresh()
+        } else {
+          setError(await readErrorMessage(res, tc("submitFailedRetry")))
         }
       }
+    } catch {
+      setError(tc("networkError"))
     } finally {
       setSubmitting(false)
     }
-  }, [userId, content, questionId, router, submitting, isEditing, editAnswerId, onCancelEdit])
+  }, [userId, content, questionId, router, submitting, isEditing, editAnswerId, onCancelEdit, tc])
 
   if (!userId) {
     return (
@@ -85,6 +96,11 @@ export function AnswerForm({
 
   return (
     <div>
+      {error && (
+        <p role="alert" className="mb-2 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+          {error}
+        </p>
+      )}
       {isEditing && (
         <div className="mb-2 flex items-center justify-between">
           <span className="text-sm font-medium text-muted-foreground">{t("editAnswer")}</span>

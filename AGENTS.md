@@ -251,9 +251,10 @@ Docker 与部署：`Dockerfile`、`docker-compose.yml`、`docker-entrypoint.sh` 
 | # | 事项 | 权威说明 |
 |---|---|---|
 | 1 | **轮换 `AUTH_SECRET` 与 GitHub OAuth Secret**（旧值在 git 历史中） | [docs/security.md](docs/security.md) 第六、八节 |
-| 2 | 前台内容写接口仍用 JWT 里的 `role` 做管理员旁路，降权后 token 过期前仍可操作 | [docs/security.md](docs/security.md) 第二节 |
+| 2 | ~~前台内容写接口仍用 JWT 里的 `role` 做管理员旁路~~ → **已修复（2026-10-07）**：5 个内容写接口改用 `getSessionUser()` + `isActiveAdmin()`（[code-audit.md](docs/code-audit.md) 第一节第 14 条） |
 | 3 | `/api-docs` 页面对外可见但内容已过期（列了不存在的端点），且是唯一硬编码中文的界面 | [docs/api-reference.md](docs/api-reference.md) 文首与第九节 |
-| 4 | 前台内容 `DELETE`、评论/答案写操作未失效 ISR 缓存 | [docs/api-reference.md](docs/api-reference.md) 第九节 |
+| 4 | ~~前台内容 `DELETE`、评论/答案写操作未失效 ISR 缓存~~ → **已修复（2026-10-07）**：创建/删除/评论/答案均调用 `revalidateContent*` | [docs/api-reference.md](docs/api-reference.md) 第九节 |
 | 5 | [DEPLOY.md](DEPLOY.md) 与实现有 10 处不一致（采集间隔、`PYTHON_BIN`、`DATABASE_URL` 等） | [docs/operations.md](docs/operations.md) 第五节 |
 | 6 | 无测试框架、无 CI；限流是进程内存；无 migrations；GitHub OAuth 用户不进 `User` 表 | [docs/architecture.md](docs/architecture.md) 第五节 |
 | 7 | `public/og-image.png` 与 `/favicon.ico` 缺失；4 个无引用组件待清理 | [docs/frontend.md](docs/frontend.md) 第六节 |
+| 8 | 站内跳转仍有约 20 个页面用 `next/link`（`/en` 下多一次 307）；少量日期未按 locale 格式化；未知 slug 仍是 HTTP 200 软 404 | [docs/code-audit.md](docs/code-audit.md) 第二节 |

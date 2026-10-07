@@ -90,8 +90,8 @@ export function SoftwareEditButton({
 
           <div className="space-y-4">
             <div>
-              <label className="mb-1.5 block text-xs font-medium">{tc("name")}</label>
-              <input
+              <label htmlFor="software-edit-field-1" className="mb-1.5 block text-xs font-medium">{tc("name")}</label>
+              <input id="software-edit-field-1"
                 type="text" value={name}
                 onChange={(e) => setName(e.target.value)}
                 className="w-full rounded-lg border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring transition-all"
@@ -100,13 +100,13 @@ export function SoftwareEditButton({
             </div>
 
             <div>
-              <label className="mb-1.5 block text-xs font-medium">{tc("description")}</label>
-              <RichEditor value={description} onChange={setDescription} placeholder={t("editDescriptionPlaceholder")} minHeight="200px" />
+              <label htmlFor="software-edit-editor-label-101" className="mb-1.5 block text-xs font-medium">{tc("description")}</label>
+              <RichEditor id="software-edit-editor-label-101" labelledBy="software-edit-editor-label-101" value={description} onChange={setDescription} placeholder={t("editDescriptionPlaceholder")} minHeight="200px" />
             </div>
 
             <div>
-              <label className="mb-1.5 block text-xs font-medium">{t("urlLabel")}</label>
-              <input
+              <label htmlFor="software-edit-field-2" className="mb-1.5 block text-xs font-medium">{t("urlLabel")}</label>
+              <input id="software-edit-field-2"
                 type="url" value={url}
                 onChange={(e) => setUrl(e.target.value)}
                 placeholder={t("urlPlaceholder")}
@@ -115,8 +115,8 @@ export function SoftwareEditButton({
             </div>
 
             <div>
-              <label className="mb-1.5 block text-xs font-medium">{tc("category")}</label>
-              <select
+              <label htmlFor="software-edit-field-3" className="mb-1.5 block text-xs font-medium">{tc("category")}</label>
+              <select id="software-edit-field-3"
                 value={category}
                 onChange={(e) => setCategory(e.target.value)}
                 className="w-full rounded-lg border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring transition-all"

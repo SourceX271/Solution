@@ -6,6 +6,8 @@ import { useRouter } from "next/navigation"
 import { Bookmark } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useTranslations } from "next-intl"
+import { toast } from "sonner"
+import { readErrorMessage } from "@/lib/http-error"
 
 interface BookmarkButtonProps {
   targetType: string
@@ -36,7 +38,13 @@ export function BookmarkButton({ targetType, targetId, isBookmarked: initial }: 
       })
       if (res.ok) {
         setBookmarked((prev) => !prev)
+      } else {
+        // 401 / 404 / 429 / 500 were all swallowed: the icon simply did not
+        // change and the user had no idea why.
+        toast.error(await readErrorMessage(res, t("submitFailedRetry")))
       }
+    } catch {
+      toast.error(t("networkError"))
     } finally {
       setLoading(false)
     }

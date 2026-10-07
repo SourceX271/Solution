@@ -38,7 +38,8 @@ NextAuth catch-all 的 GET/POST 再导出）。本文按资源列出「路径 / 
 | 裸数组 / 自定义 | `/api/tags` GET 返回数组；`/api/bookmarks` GET 返回数组；`/api/comments` GET 返回 `{comments}`；`/api/search` 返回 `{data, query}`；`/api/votes` GET 返回 `{upVotes,downVotes,userVote}` | 见下 |
 
 错误体：`{ error: string }`（裸 `auth()` 路由）或 `{ success: false, error }`（`apiHandler`），消息已本地化。
-**非法 JSON body** 在未走 `apiHandler` 的路由会落进 `catch` 返回 **500**（而非 400）。
+**非法 JSON body** 一律返回 **400**：所有路由改用 `readJson(req)`（`src/lib/request.ts`，内部 `try/catch` 后返回 `null`），
+再由 zod 判定失败。历史行为曾是 500，已于 2026-10-07 修复（27 个 `route.ts`）。
 
 ### 分页与限额
 
@@ -48,7 +49,8 @@ NextAuth catch-all 的 GET/POST 再导出）。本文按资源列出「路径 / 
 | articles、questions、software 列表 | `page` / `limit` | 1 / 10 | 100 |
 | `GET /api/users`、`/api/admin/tags` | `page` / `limit` | 1 / 20 | 100 |
 | `GET /api/tags` | `limit` | 20 | clamp 1–50 |
-| `GET /api/search` | 无分页 | 每类 5 条 | — |
+| `GET /api/search` | 无分页 | 每类 5 条 | —（`q` 至少 2 字符，超长截断到 100） |
+| `GET /api/comments` | 无分页（线程整体返回，客户端按 `parentId` 嵌套） | — | 单线程最多 500 条，超出时响应带 `truncated: true` |
 
 非法数值（`?page=abc`）由 `toPositiveInt` 兜成默认值，不会 500。
 
@@ -139,14 +141,14 @@ NextAuth catch-all 的 GET/POST 再导出）。本文按资源列出「路径 / 
 
 | 路径 | 方法 | 鉴权 | 入参 | 响应 | 副作用 |
 |---|---|---|---|---|---|
-| `/api/comments` | GET | 公开 | **必填** `targetType` `targetId` | 200 `{comments}`（含 author，升序） | — |
+| `/api/comments` | GET | 公开 | **必填** `targetType` `targetId` | 200 `{comments, truncated}`（含 author，升序，单线程 ≤500 条） | — |
 | `/api/comments` | POST | 登录 | `content`（zod）+ 原始 body 里的 `targetType`/`targetId`/`parentId` | 201 评论；400 `missingTarget`/`invalidTargetType`/`replyTargetMissing`；404；429 | 限流 10/30s；目标白名单 + 存在性 + 父评论同目标校验；通知目标作者 |
 | `/api/comments/[id]` | PUT | 作者或 JWT ADMIN | `getCommentSchema` | 200 | — |
 | `/api/comments/[id]` | DELETE | 作者或 JWT ADMIN | — | 200 | 先把子评论 `parentId` 置 `null`（回复保留）再删除 |
 | `/api/votes` | GET | 可选登录 | **必填** `targetType` `targetId` | `{upVotes,downVotes,userVote}` | — |
-| `/api/votes` | POST | 登录 | `{targetType,targetId,value}`；目标须存在 | software：`value` 1–5 → `{voted,rating,ratingCount}`；其他：`value` ±1 → 新建 201 / 改向 / 取消 200 | 限流 30/60s；software 走交互式事务重算 `rating`；question/answer 同步冗余 `voteCount`（article 不同步） |
+| `/api/votes` | POST | 登录 | `{targetType,targetId,value}`（zod：`targetType` 白名单、`targetId` 1–64、`value` 整数）；目标须存在 | software：`value` 1–5 → `{voted,rating,ratingCount}`；其他：`value` ±1 → 新建 201 / 改向 / 取消 200；400（含 `null`/非法 JSON） | 限流 30/60s；两种分支都在**交互式事务内**读取旧值并用 `aggregate` 重算 `rating`/`voteCount`（绝对值，可自校正），并发切换不再把计数打飞 |
 | `/api/bookmarks` | GET | 登录 | — | **裸数组**（倒序） | — |
-| `/api/bookmarks` | POST | 登录 | `{targetType,targetId}`（article/question/software） | 新增 201 `{bookmarked:true,…}` / 取消 200 `{bookmarked:false,…}` | 取消分支不再校验目标是否仍存在 |
+| `/api/bookmarks` | POST | 登录 | `{targetType,targetId}`（article/question/software，zod） | 新增 201 `{bookmarked:true,…}` / 取消 200 `{bookmarked:false,…}`；400（含 `null`/非法 JSON）；429 | 限流 30/60s；并发重复收藏命中唯一约束时按已收藏返回（不再 500） |
 | `/api/views` | POST | **公开** | `{targetType: article\|question, targetId}` | `{success:true}`；400；404 | `viewCount` +1（与详情 GET 的自增并存） |
 
 ## 七、标签 / 搜索 / 通知 / 上传 / RSS
@@ -155,7 +157,7 @@ NextAuth catch-all 的 GET/POST 再导出）。本文按资源列出「路径 / 
 |---|---|---|---|---|---|
 | `/api/tags` | GET | 公开 | `q` `limit`(20) | **裸数组**，按 `usageCount` 降序 | — |
 | `/api/tags` | POST | 登录 | `{name,slug,color,description}`（手写校验） | 201；400 系列；409 `tagExists`；429 | 限流 10/60s；slug 非 ASCII 时回退 `generateSlug()` |
-| `/api/search` | GET | 公开 | `q`（必填） | `{data:[{type,...}], query}`，每类 5 条 | — |
+| `/api/search` | GET | 公开 | `q`（必填，≥2 字符） | `{data:[{type,...}], query}`，每类 5 条；429 | 限流 60/60s |
 | `/api/notifications` | GET | 登录 | `page`(1) `limit`(10) | `{success,data,total,page,limit,totalPages}` | — |
 | `/api/notifications/[id]` | PATCH | 登录（仅本人） | — | `{success,data:{message}}`；403 | 置 `read:true` |
 | `/api/notifications/[id]` | DELETE | 登录（仅本人） | — | `{success,data:{message}}`；403 | — |
@@ -180,8 +182,8 @@ NextAuth catch-all 的 GET/POST 再导出）。本文按资源列出「路径 / 
 | `/api/admin/users/[id]` | DELETE | — | 事务级级联清理（超时 20s）+ 标签回退 + `revalidateContentList`；审计 `user.delete` |
 | `/api/admin/crawler` | POST | `{name,url,category?,enabled?}` | 审计 `crawler.source.create` |
 | `/api/admin/crawler/[id]` | PUT / DELETE | 同上（PUT 全字段可选） | 审计 `crawler.source.update`/`delete`；删除**保留** CrawlLog |
-| `/api/admin/crawler/run` | POST | `?source=<key>`（可选） | `runCrawler()`（进程内互斥）；审计 `crawler.run` |
-| `/api/admin/crawler/[id]/run` | POST | 路径 id 为 `CrawlSource.id`，名称需能映射到 CLI key | 成功后更新 `lastRun`；审计 `crawler.run`（`scope: single`） |
+| `/api/admin/crawler/run` | POST | `?source=<key>`（可选） | `runCrawler()`（进程内互斥）；审计 `crawler.run`；响应只含 `status/total/added/skipped/sourcesProcessed`（不回传爬虫的中文日志行） |
+| `/api/admin/crawler/[id]/run` | POST | 路径 id 为 `CrawlSource.id`，名称需能映射到 CLI key | 成功后更新 `lastRun`；审计 `crawler.run`（`scope: single`）；404 文案已本地化 |
 | `/api/admin/tags` | GET | `q` `page`(1) `limit`(20) | 返回 `actualCount`（三类内容实际引用数）用于漂移检测 |
 | `/api/admin/tags/[id]` | PUT | `{name?,color?,description?}`（**slug 不可改**） | 审计 `tag.update`；`revalidateTags`；同名冲突 409 |
 | `/api/admin/tags/[id]` | DELETE | `?force=1` 可强制（usage>0 时默认 409 `tagInUse`） | `detachTagEverywhere` + 审计 `tag.delete` + `revalidateTags` |
@@ -195,11 +197,11 @@ NextAuth catch-all 的 GET/POST 再导出）。本文按资源列出「路径 / 
 | # | 现象 | 影响 / 位置 |
 |---|---|---|
 | 1 | **响应格式三种并存**（含 `success` / 不含 / 裸数组） | 前端要写 `d.success !== false ? d.data : d` 这类兼容逻辑，新接口容易踩 |
-| 2 | **非法 JSON → 500** | 未走 `apiHandler` 的路由直接 `await req.json()` 抛错进 `catch` |
+| 2 | ~~**非法 JSON → 500**~~ | 已修复（2026-10-07）：统一走 `readJson(req)`，非法 JSON → 400 |
 | 3 | **前台 DELETE 不失效缓存** | `/api/articles|questions|software/[id]` 的 DELETE、评论/回答的增删改都不调 `revalidate*`，前台最长等 ISR 过期 |
 | 4 | **浏览量三处入口** | 两个详情 GET 读时自增 + `/api/views` 客户端打点；无去重、`/api/views` 无鉴权；software 完全没有浏览计数 |
 | 5 | **JWT 角色旁路** | 内容写接口的管理员判断读 JWT（登录时冻结），被降权的管理员在 token 过期前仍可改删内容；`/api/admin/**` 已回库 |
-| 6 | **`/api/admin/crawler/[id]/run` 的 404 文案硬编码英文** | `"Source not found"`，未走 i18n；`/api/admin/tags/recompute` 的失败消息同样是字面量 |
+| 6 | ~~**`/api/admin/crawler/[id]/run` 的 404 文案硬编码英文**~~ | 已修复（2026-10-07）：改用 `t("notFound", { entity: t("entity.crawler") })`；`/api/admin/tags/recompute` 的失败消息也改成 `t("updateFailed")`；爬虫接口不再回传中文 `message`，只返回结构化计数 |
 | 7 | **标签创建挂在公开路由** | `POST /api/tags`（仅需登录）是后台标签的唯一创建入口，`/api/admin/tags` 只有 GET |
 | 8 | **`/api-docs` 页面与实际不符** | 见文首提示；它是唯一被 `i18n:check` 白名单豁免的界面文件 |
 | 9 | **`GET /api/users/[id]` 的邮箱可见性** | 依 `isOwner \|\| isActiveAdmin(viewer)` 判定，普通访客拿不到 `email`（有意） |

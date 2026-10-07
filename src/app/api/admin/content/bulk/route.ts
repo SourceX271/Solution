@@ -6,6 +6,8 @@ import { requireAdminApi } from "@/lib/admin-guard";
 import { logAdminAction, type AuditAction } from "@/lib/audit";
 import { revalidateContentList } from "@/lib/revalidate";
 import { bumpTagUsage } from "@/lib/tags";
+import { readJson } from "@/lib/request";
+import { purgeContentRelations, type ContentTargetType } from "@/lib/content-purge";
 
 const bulkSchema = z.object({
   type: z.enum(["articles", "questions", "software"]),
@@ -39,7 +41,7 @@ export async function POST(req: Request) {
   const guard = await requireAdminApi();
   if (!guard.ok) return guard.response;
 
-  const body = await req.json().catch(() => null);
+  const body = await readJson(req);
   const parsed = bulkSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json({ error: t("validationFailed") }, { status: 400 });
@@ -81,6 +83,11 @@ export async function POST(req: Request) {
       }
 
       await prisma.$transaction(async (tx) => {
+        // Polymorphic rows have no database-level cascade, and deleting a
+        // question also takes its answers: collect everything first.
+        for (const id of foundIds) {
+          await purgeContentRelations(tx, targetType as ContentTargetType, id);
+        }
         if (type === "articles") {
           await tx.article.deleteMany({ where: { id: { in: foundIds } } });
         } else if (type === "questions") {
@@ -88,9 +95,6 @@ export async function POST(req: Request) {
         } else {
           await tx.software.deleteMany({ where: { id: { in: foundIds } } });
         }
-        // Polymorphic rows have no database-level cascade: clean them explicitly.
-        await tx.vote.deleteMany({ where: { targetType, targetId: { in: foundIds } } });
-        await tx.bookmark.deleteMany({ where: { targetType, targetId: { in: foundIds } } });
       });
 
       for (const [slug, count] of tagUsage) {

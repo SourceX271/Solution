@@ -128,7 +128,8 @@ export async function Footer() {
           <div className="flex items-center gap-4">
             {icpNumber && <p>{icpNumber}</p>}
             <p className="flex items-center gap-1 text-xs">
-              Made with <Heart className="h-3 w-3 text-red-500 fill-red-500" /> by Solution Team
+              <Heart className="h-3 w-3 text-red-500 fill-red-500" aria-hidden="true" />
+              {tc("madeWith")}
             </p>
           </div>
         </div>

@@ -3,6 +3,7 @@ import { requireAdminApi } from "@/lib/admin-guard";
 import { logAdminAction } from "@/lib/audit";
 import { revalidateTags } from "@/lib/revalidate";
 import { recomputeTagUsage } from "@/lib/tags";
+import { getApiT } from "@/lib/api-i18n";
 
 /**
  * Rebuild every Tag.usageCount from the actual relations.
@@ -30,6 +31,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ success: true, ...result });
   } catch (error) {
     console.error("Tag recompute failed", error);
-    return NextResponse.json({ success: false, error: "recomputeFailed" }, { status: 500 });
+    const t = await getApiT("api");
+    return NextResponse.json({ success: false, error: t("updateFailed") }, { status: 500 });
   }
 }

@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth";
 import { getApiT } from "@/lib/api-i18n";
 import { generateSlug } from "@/lib/utils";
 import { checkRateLimit, getRateLimitKey } from "@/lib/rate-limit";
+import { readJson } from "@/lib/request";
 
 export async function GET(req: Request) {
   const url = new URL(req.url);
@@ -36,7 +37,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: t("rateLimitedShort") }, { status: 429 });
     }
 
-    const body = await req.json().catch(() => null);
+    const body = await readJson(req);
     if (!body || typeof body !== "object") {
       return NextResponse.json({ error: t("requestFormatError") }, { status: 400 });
     }

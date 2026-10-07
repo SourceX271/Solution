@@ -5,6 +5,19 @@ import { getCommentSchema } from "@/lib/validations";
 import { getApiT } from "@/lib/api-i18n";
 import { checkRateLimit, getRateLimitKey } from "@/lib/rate-limit";
 import { createNotification } from "@/lib/notifications";
+import { readJson } from "@/lib/request";
+import { revalidateContentList, type PublicContentType } from "@/lib/revalidate";
+
+/** Upper bound on one comment thread; see the GET handler. */
+const MAX_COMMENTS_PER_THREAD = 500;
+
+/** Comment counts appear on the ISR-cached list pages of the target's section. */
+const COMMENT_TARGET_CONTENT: Record<string, PublicContentType> = {
+  article: "articles",
+  question: "questions",
+  answer: "questions",
+  software: "software",
+};
 
 export async function GET(req: NextRequest) {
   const t = await getApiT("api");
@@ -24,15 +37,19 @@ export async function GET(req: NextRequest) {
     else if (targetType === "software") where.softwareId = targetId;
     else return NextResponse.json({ error: t("invalidTargetType") }, { status: 400 });
 
+    // The thread is returned whole (the client nests replies by `parentId`, so
+    // paging would orphan them), but with a hard cap: an unbounded `findMany`
+    // let a hot post send tens of megabytes in one response.
     const comments = await prisma.comment.findMany({
       where,
       orderBy: { createdAt: "asc" },
+      take: MAX_COMMENTS_PER_THREAD,
       include: {
         author: { select: { id: true, name: true, image: true } },
       },
     });
 
-    return NextResponse.json({ comments });
+    return NextResponse.json({ comments, truncated: comments.length >= MAX_COMMENTS_PER_THREAD });
   } catch (error) {
     return NextResponse.json(
       { error: t("getFailed", { entity: t("entity.comment") }) },
@@ -55,7 +72,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: t("commentTooFrequent") }, { status: 429 });
     }
 
-    const body = await req.json();
+    const body = await readJson(req);
     const parsed = getCommentSchema(tv).safeParse(body);
     if (!parsed.success) {
       return NextResponse.json({ error: parsed.error.errors[0].message }, { status: 400 });
@@ -169,6 +186,8 @@ export async function POST(req: NextRequest) {
         link,
       });
     }
+
+    revalidateContentList(COMMENT_TARGET_CONTENT[targetType]);
 
     return NextResponse.json(comment, { status: 201 });
   } catch (error) {

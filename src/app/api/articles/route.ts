@@ -5,7 +5,9 @@ import { getArticleSchema } from "@/lib/validations";
 import { getApiT } from "@/lib/api-i18n";
 import { generateSlug } from "@/lib/utils";
 import { resolveTags, parseTagInput, bumpTagUsage } from "@/lib/tags";
+import { revalidateContentList } from "@/lib/revalidate";
 import { toPositiveInt } from "@/lib/errors";
+import { readJson } from "@/lib/request";
 
 export async function GET(req: NextRequest) {
   const t = await getApiT("api");
@@ -59,7 +61,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: t("unauthorized") }, { status: 401 });
     }
 
-    const body = await req.json();
+    const body = await readJson(req);
     const parsed = getArticleSchema(tv).safeParse(body);
     if (!parsed.success) {
       return NextResponse.json({ error: parsed.error.errors[0].message }, { status: 400 });
@@ -92,6 +94,9 @@ export async function POST(req: NextRequest) {
     });
 
     await bumpTagUsage(tagConnections.map((t) => t.slug), 1);
+    // Without this the ISR-cached list/homepage kept hiding the new solution for
+    // up to a minute even though the author was redirected to it.
+    revalidateContentList("articles");
 
     return NextResponse.json(article, { status: 201 });
   } catch (error) {

@@ -102,7 +102,7 @@ export default async function DocsPage({ searchParams }: DocsPageProps) {
                 return (
                   <Link
                     key={c.value}
-                    href={`/solutions${c.value ? "?category=" + c.value : ""}`}
+                    href={`/solutions${c.value ? "?category=" + c.value : ""}${tag ? `${c.value ? "&" : "?"}tag=${tag}` : ""}`}
                     className={cn(
                       "flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition-all",
                       cat === c.value
@@ -163,7 +163,7 @@ export default async function DocsPage({ searchParams }: DocsPageProps) {
                   {/* Problem */}
                   {article.problem && (
                     <div className="mb-2 rounded-lg bg-amber-50 dark:bg-amber-950/20 px-3 py-2 text-xs text-muted-foreground border-l-2 border-amber-400 line-clamp-2">
-                      <span className="font-medium text-amber-700 dark:text-amber-400">{t("problem")}：</span>
+                      <span className="font-medium text-amber-700 dark:text-amber-400">{t("problemLabel")}</span>
                       {article.problem}
                     </div>
                   )}

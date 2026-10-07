@@ -88,8 +88,8 @@ export function QuestionEditButton({ questionId, initialTitle, initialContent, u
           </div>
           <div className="space-y-3">
             <div>
-              <label className="mb-1 block text-xs font-medium">{tc("title")}</label>
-              <input
+              <label htmlFor="question-edit-field-1" className="mb-1 block text-xs font-medium">{tc("title")}</label>
+              <input id="question-edit-field-1"
                 type="text"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
@@ -98,8 +98,8 @@ export function QuestionEditButton({ questionId, initialTitle, initialContent, u
               />
             </div>
             <div>
-              <label className="mb-1 block text-xs font-medium">{tc("content")}</label>
-              <RichEditor
+              <label htmlFor="question-edit-editor-label-101" className="mb-1 block text-xs font-medium">{tc("content")}</label>
+              <RichEditor id="question-edit-editor-label-101" labelledBy="question-edit-editor-label-101"
                 value={content}
                 onChange={setContent}
                 placeholder={t("editContentPlaceholder")}

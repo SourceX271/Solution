@@ -33,6 +33,9 @@ export default function ProfilePage() {
         .then((d) => {
           if (d.success !== false) setProfile(d.data ?? d)
         })
+        // A rejected request used to end as an unhandled promise rejection with
+        // the page stuck on its skeleton.
+        .catch(() => setProfile(null))
         .finally(() => setLoading(false))
     } else if (status === "unauthenticated") {
       setLoading(false)

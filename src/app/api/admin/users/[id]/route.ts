@@ -4,6 +4,7 @@ import { getApiT } from "@/lib/api-i18n";
 import { requireAdminApi } from "@/lib/admin-guard";
 import { updateUserAccount, deleteUserAccount, type UserMutationErrorKey } from "@/lib/admin-user-actions";
 import { revalidateContentList } from "@/lib/revalidate";
+import { readJson } from "@/lib/request";
 
 const userUpdateSchema = z.object({
   role: z.enum(["USER", "ADMIN"]).optional(),
@@ -27,7 +28,7 @@ export async function PUT(req: Request, ctx: { params: Promise<{ id: string }> }
   const guard = await requireAdminApi();
   if (!guard.ok) return guard.response;
 
-  const body = await req.json().catch(() => null);
+  const body = await readJson(req);
   const parsed = userUpdateSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json({ error: t("validationFailed") }, { status: 400 });

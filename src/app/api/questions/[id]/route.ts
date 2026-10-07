@@ -4,7 +4,10 @@ import { auth } from "@/lib/auth";
 import { getQuestionSchema } from "@/lib/validations";
 import { getApiT } from "@/lib/api-i18n";
 import { bumpTagUsage, buildTagUpdate, syncTagUsage } from "@/lib/tags";
-import { revalidateContent } from "@/lib/revalidate";
+import { revalidateContent, revalidateContentList } from "@/lib/revalidate";
+import { purgeContentRelations } from "@/lib/content-purge";
+import { readJson } from "@/lib/request";
+import { getSessionUser, isActiveAdmin } from "@/lib/admin-guard";
 
 export async function GET(
   req: NextRequest,
@@ -76,15 +79,14 @@ export async function PUT(
     }
 
     const userId = (session.user as any).id;
-    const userRole = (session.user as any).role;
-    if (question.authorId !== userId && userRole !== "ADMIN") {
+    if (question.authorId !== userId && !isActiveAdmin(await getSessionUser())) {
       return NextResponse.json(
         { error: t("noPermissionEdit", { entity: t("entity.question") }) },
         { status: 403 }
       );
     }
 
-    const body = await req.json();
+    const body = await readJson(req);
     const parsed = getQuestionSchema(tv).safeParse(body);
     if (!parsed.success) {
       return NextResponse.json({ error: parsed.error.errors[0].message }, { status: 400 });
@@ -143,16 +145,21 @@ export async function DELETE(
     }
 
     const userId = (session.user as any).id;
-    const userRole = (session.user as any).role;
-    if (question.authorId !== userId && userRole !== "ADMIN") {
+    if (question.authorId !== userId && !isActiveAdmin(await getSessionUser())) {
       return NextResponse.json(
         { error: t("noPermissionDelete", { entity: t("entity.question") }) },
         { status: 403 }
       );
     }
 
-    await prisma.question.delete({ where: { id: params.id } });
+    await prisma.$transaction(async (tx) => {
+      // Answers go with the question (schema cascade), but their polymorphic
+      // votes/bookmarks do not — collect them before the row disappears.
+      await purgeContentRelations(tx, "question", params.id);
+      await tx.question.delete({ where: { id: params.id } });
+    });
     await bumpTagUsage(question.tags.map((t) => t.slug), -1);
+    revalidateContentList("questions");
 
     return NextResponse.json({ message: t("deleted", { entity: t("entity.question") }) });
   } catch (error) {

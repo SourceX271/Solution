@@ -54,7 +54,7 @@ src/
 crawler/                      Python 采集器（main.py CLI + sources/ 7 个源）
 prisma/                       schema.prisma、seed.ts、seed-redirects.ts
 scripts/                      check-i18n.mjs、check-i18n-runtime.mjs
-messages/                     zh.json / en.json（各 1075 键）
+messages/                     zh.json / en.json（各 1080 键）
 docs/                         本目录
 ```
 

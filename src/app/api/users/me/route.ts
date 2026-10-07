@@ -3,10 +3,11 @@ import { prisma } from "@/lib/db";
 import { getProfileSchema } from "@/lib/validations";
 import { getApiT } from "@/lib/api-i18n";
 import { apiHandler, successResponse, AppError } from "@/lib/errors";
+import { readJson } from "@/lib/request";
 
 export const PUT = apiHandler({ auth: "required" }, async (req, ctx) => {
   const tv = await getApiT("validation");
-  const body = await req.json();
+  const body = await readJson(req);
   const parsed = getProfileSchema(tv).safeParse(body);
 
   if (!parsed.success) {

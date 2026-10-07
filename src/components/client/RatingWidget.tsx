@@ -69,7 +69,7 @@ export function RatingWidget({ softwareId, currentRating, userId }: RatingWidget
           onMouseEnter={() => !loading && setHover(star)}
           onMouseLeave={() => setHover(0)}
           className="transition-transform hover:scale-110 disabled:cursor-default"
-          aria-label={`Rate ${star} stars`}
+          aria-label={t("rateStars", { star })}
         >
           <Star
             className={cn(

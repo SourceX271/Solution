@@ -119,6 +119,52 @@
 
 修复后 `npx tsc --noEmit` 从 5 个错误变为 **0 错误**。
 
+### 14. 全面缺陷排查（2026-10-07，三路并行审计）
+
+按「安全 → 数据一致性 → 前台可用性」分批修复，每条都有可复现证据（HTTP 实测或直连 Prisma 对比）。
+
+**输入健壮性与安全**
+
+| 问题 | 证据 | 修复 |
+|---|---|---|
+| **限流 key 由客户端 `X-Forwarded-For` 决定** | 轮换该头 6 次请求，第 6 次才 429；换头即重置额度 = 登录撞库/注册/评论/上传额度可无限绕过；不带头的请求共用 `unknown:*` 桶，一人可打满全站 | `getClientIp()` 仅在 `TRUST_PROXY=1` 时取**最后一跳**；否则退化为 `direct:<suffix>`；审计 IP 复用同一函数 |
+| **非法 JSON → 500**（27 个 `route.ts`） | `POST /api/views` 传 `{not json` → 500 `记录失败` | 新增 `src/lib/request.ts` 的 `readJson()`，非法 JSON 一律 400；实测 4 个接口全部 400 |
+| **`/api/votes`、`/api/bookmarks` 直接解构 body** | 传 `null`（合法 JSON）→ `TypeError: Cannot destructure property ... of 'null'` → 500；数字 `targetId` 直达 Prisma → 500 | 两处改 zod（白名单 + 长度 + 整数），非法一律 400 |
+| **`/api/bookmarks` 无限流** | 脚本可无限写表 | 补 30/60s |
+| **`/api/search` 无最小长度、无限流** | `?q=a` 即触发三张表 `contains` 全表扫描 | `q` ≥ 2 字符、截断 100、限流 60/60s |
+| **`/api/rss` 字符串拼 XML** | 昵称 `A&B` 的用户发一篇文章，整个 feed 变成 non-well-formed；标题含 `]]>` 可击穿 CDATA 注入任意 XML | 新增 `escapeXml()` / `escapeCdata()` 并逐处套用 |
+
+**数据一致性**
+
+| 问题 | 证据 | 修复 |
+|---|---|---|
+| **删除内容不清理多态 `Vote`/`Bookmark`** | 老库里 4 条 Vote、1 条 Bookmark **100% 是孤儿**；`targetType="answer"` 在全部 5 条删除路径上都没有清理 | 新增 `purgePolymorphicRows()`（`src/lib/content-purge.ts`），前台三个 DELETE / 答案删除 / 后台内容删除 / 批量删除 / 删号全部接入 |
+| **并发投票把 `voteCount` 打飞** | 两次并发切换后 `Question.voteCount = -3`，而真实和为 -1，无重算入口 | 投票分支改为交互式事务内读取 + `aggregate` 重算绝对值（自校正），并用 `upsert` 消除 P2002 |
+| **后台删号在"自问自答"用户上必然 500** | `affectedQuestionIds` 含已被删除的问题 → `question.update` 抛 P2025 → 整个事务回滚 → 接口 500、用户删不掉 | 改为 `updateMany`（记录不存在时静默跳过） |
+| **`resolveTags` 的 name/slug 不一致** | 管理员把标签改名为纯 ASCII 后，任何用户再提交该名 → `connectOrCreate` 建新记录 → `Tag.name` 唯一冲突 → 内容创建 500 | ASCII 分支先按 `name` 回查复用 |
+| **唯一约束冲突一律 500** | 并发收藏第二次报 `P2002`；并发注册同理 | 收藏命中 P2002 时按"已收藏"返回；投票改 `upsert` |
+| **`seed.ts` 在 name/slug 冲突时整脚本退出 1** | 库中已有同 `name` 不同 `slug` 的标签时 `upsert({where:{slug}})` 撞 `Tag.name` 唯一约束，管理员账号都不会创建 | 先按 `slug` 或 `name` 回查，命中即复用 |
+| **`seed-redirects.ts` 用 raw SQL 写时间与 id** | `id` 截断到 24 字符会碰撞；`datetime('now')` 写入 TEXT，导致 `createdAt < now` 的过滤匹配 0 行 | 改走 Prisma `create`（cuid + 毫秒时间） |
+
+**缓存与权限**
+
+| 问题 | 证据 | 修复 |
+|---|---|---|
+| **创建/删除不失效 ISR** | 列表页与首页不读 cookie、确实走 ISR（60s/300s）：发布后新内容不出现、**删除后旧条目仍挂在列表上，点进去 404** | POST/DELETE 补 `revalidateContent` / `revalidateContentList`；答案与评论写操作失效所属详情页 |
+| **前台写接口用 JWT 冻结的 `role` 做管理员旁路**（欠账 2） | 降权/封禁的管理员在 token 过期前（默认 30 天）仍可改删任何人的内容 | 5 个文件的判定统一换成 `getSessionUser()` + `isActiveAdmin()` |
+
+**前台可用性**
+
+| 问题 | 证据 | 修复 |
+|---|---|---|
+| **回答提交/采纳/收藏失败时完全静默** | 三个组件只有 `if (res.ok)`、`try/finally` 无 `catch`；服务端确定会返回 400（如回答短于 10 字符）、401、404、500 | 新增 `src/lib/http-error.ts` 的 `readErrorMessage()`；`AnswerForm` 补 `error` 状态与 `role="alert"` 提示，`AcceptButton`/`BookmarkButton` 用 sonner toast，个人中心 `fetch` 补 `.catch` |
+| **没有 `not-found.tsx`** | 5 处 `notFound()` 全部落到 Next 内置英文 404，且渲染在本地化 layout 之外（无导航/页脚/返回入口） | 新增 `src/app/[locale]/not-found.tsx`（`errors.notFoundTitle/notFoundDescription` + 回首页按钮）。**注意：HTTP 状态码仍是 200**（见第二节） |
+| **筛选 pill 丢掉 `tag` 参数** | 从标签页进来后点状态/分类筛选会被踢出标签范围，分页链接却保留 | 三个列表页的筛选链接改为拼上 `tag` |
+| **11 个 `<label>` 缺 `htmlFor`** | 三个内联编辑表单点标签不聚焦、读屏报无标签控件 | 全部补齐：8 个普通控件走 `htmlFor`/`id`，3 个内容字段走 `<RichEditor labelledBy>`（映射 `aria-labelledby`） |
+| **图标按钮缺 `aria-label`** | `AcceptButton` 与 `CommentSection` 的编辑/删除按钮只有 `title` | 已补；`CommentSection` 的 Markdown 工具栏按钮仍是 `title` + 文本内容，未逐个改 |
+| **取消系统分享被当成"已复制"** | `navigator.share` 的 `AbortError` 被空 catch 吞掉后继续走剪贴板分支 | 区分 `AbortError` 直接 return |
+| **三处用户可见文案绕过 i18n** | `RatingWidget` 的英文 `aria-label`、页脚的 `Made with … by Solution Team`、`solutions` 页的硬编码全角 `：` | 三个词条（`common.rateStars`/`common.madeWith`/`docs.problemLabel`），`i18n:check` 从 1075 → 1080 键 |
+
 ---
 
 ## 二、待处理
@@ -137,6 +183,16 @@
 | 低 | **爬虫合规风险** | 知乎/CSDN 等站点未处理 robots.txt 与站点条款，仅靠随机 UA + 请求延迟缓解，生产环境有法律与 IP 封禁风险 |
 | 低 | **`marked` 类型不匹配** | `marked` v18 同时用于服务端与客户端，`@types/marked` 在 devDependencies 中，代码用 `as string` 绕过 |
 | 低 | **`braces` 传递依赖无上游补丁** | 仅存在于构建/lint 工具链，不在生产产物中；理由与监控条件见 [dependency-audit-2026-10.md](./dependency-audit-2026-10.md) 第四节 |
+
+### 2.1 2026-10-07 排查后仍未处理的项
+
+| 优先级 | 问题 | 说明 / 建议 |
+|---|---|---|
+| 中 | **未知 slug 返回 HTTP 200（软 404）** | 详情页因 `auth()` 而动态渲染，`solutions/[slug]`、`questions/[slug]` 等段落都有 `loading.tsx`，Shell 先刷出、`notFound()` 后置 → 状态码已提交为 200。页面内容已本地化（见 1.14），但 SEO 与监控拿不到 404。可选方案：把存在性检查移到 `generateMetadata`，或对该段落去掉 `loading.tsx`，或在 middleware 里先做一次存在性校验。已验证：`/solutions/<unknown>` 与 `/en/...` 都是 200 + 自定义 404 页面 |
+| 中 | **站内跳转仍用 `next/link`** | 约 20 个页面/组件（Navbar、Footer、三个列表页、详情页、登录注册、通知、个人中心）用 `next/link` / `next/navigation` 的 `useRouter`。因 `NEXT_LOCALE` cookie 存在，next-intl 中间件会 307 回 `/en/*`，**没有复现"掉回中文"**，代价是每次站内点击多一跳 307。修法：把 `import Link from "next/link"` 换成 `import { Link } from "@/i18n/routing"`，`useRouter` 同理（只调 `refresh()` 的可保留） |
+| 低 | **`toLocaleTimeString()`/`toLocaleString()` 未传 locale** | `questions/ask`、`software/new`、`solutions/new` 的草稿"已保存于"时间与首页的 `s.value.toLocaleString()` 按运行环境默认语言输出，与 `formatDate(date, locale)` 的约定不一致 |
+| 低 | **`GET /api/comments` 仍是每次返回整条线程** | 已加 500 条硬上限与 `truncated` 标记（`AGENTS.md §2.4` 的分页约定未套用），嵌套结构决定了真正的分页需要游标 + 客户端改树 |
+| 低 | **限流在直连部署下退化为全局桶** | 见 [security.md](./security.md) 第四节：无 `TRUST_PROXY` 时同一 suffix 共享额度，一个客户端可打满注册/评论额度 |
 
 ---
 

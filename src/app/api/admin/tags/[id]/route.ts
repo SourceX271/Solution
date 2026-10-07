@@ -6,6 +6,7 @@ import { requireAdminApi } from "@/lib/admin-guard";
 import { logAdminAction } from "@/lib/audit";
 import { revalidateTags } from "@/lib/revalidate";
 import { detachTagEverywhere } from "@/lib/tags";
+import { readJson } from "@/lib/request";
 
 /**
  * The tag `slug` is deliberately not editable: it is the public URL
@@ -33,7 +34,7 @@ export async function PUT(req: Request, ctx: { params: Promise<{ id: string }> }
     return NextResponse.json({ error: t("notFound", { entity: t("entity.tag") }) }, { status: 404 });
   }
 
-  const body = await req.json().catch(() => null);
+  const body = await readJson(req);
   const parsed = tagUpdateSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json({ error: t("invalidParams") }, { status: 400 });

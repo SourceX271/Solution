@@ -5,7 +5,9 @@ import { getApiT } from "@/lib/api-i18n";
 import { requireAdminApi } from "@/lib/admin-guard";
 import { logAdminAction } from "@/lib/audit";
 import { revalidateContent } from "@/lib/revalidate";
+import { purgeContentRelations } from "@/lib/content-purge";
 import { buildTagUpdate, bumpTagUsage, syncTagUsage } from "@/lib/tags";
+import { readJson } from "@/lib/request";
 
 const contentUpdateSchema = z.object({
   title: z.string().min(2).max(200).optional(),
@@ -56,14 +58,6 @@ const TARGET_BY_TYPE: Record<ContentType, string> = {
   software: "software",
 };
 
-/** Remove polymorphic Vote/Bookmark rows that point at deleted content. */
-async function purgeOrphans(targetType: string, targetId: string) {
-  await Promise.all([
-    prisma.vote.deleteMany({ where: { targetType, targetId } }),
-    prisma.bookmark.deleteMany({ where: { targetType, targetId } }),
-  ]);
-}
-
 async function findContent(type: ContentType, id: string) {
   switch (type) {
     case "articles":
@@ -106,18 +100,25 @@ export async function DELETE(
   try {
     switch (type) {
       case "articles":
-        await prisma.article.delete({ where: { id } });
-        await purgeOrphans("article", id);
+        await prisma.$transaction(async (tx) => {
+          await purgeContentRelations(tx, "article", id);
+          await tx.article.delete({ where: { id } });
+        });
         await bumpTagUsage(existing.tags.map((tag) => tag.slug), -1);
         break;
       case "questions":
-        await prisma.question.delete({ where: { id } });
-        await purgeOrphans("question", id);
+        await prisma.$transaction(async (tx) => {
+          // Cascades the answers, so their votes/bookmarks are collected too.
+          await purgeContentRelations(tx, "question", id);
+          await tx.question.delete({ where: { id } });
+        });
         await bumpTagUsage(existing.tags.map((tag) => tag.slug), -1);
         break;
       case "software":
-        await prisma.software.delete({ where: { id } });
-        await purgeOrphans("software", id);
+        await prisma.$transaction(async (tx) => {
+          await purgeContentRelations(tx, "software", id);
+          await tx.software.delete({ where: { id } });
+        });
         await bumpTagUsage(existing.tags.map((tag) => tag.slug), -1);
         break;
     }
@@ -153,7 +154,7 @@ export async function PUT(
     return NextResponse.json({ error: t("invalidType") }, { status: 400 });
   }
 
-  const body = await req.json().catch(() => null);
+  const body = await readJson(req);
   const parsed = contentUpdateSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json(
