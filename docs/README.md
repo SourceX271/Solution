@@ -84,8 +84,7 @@ src/components/       ui（Radix 封装）/ client（交互）/ layout / admin�
 crawler/              Python 爬虫（入口 crawler/main.py，必须 python -m crawler.main）
 prisma/               schema、seed、旧 slug 重定向脚本
 scripts/              check-i18n.mjs、check-i18n-runtime.mjs
-docs/                 本目录
-output/playwright/    2026-10 后台增强时的浏览器复核截图（被归档报告引用）
+docs/                 本目录（配图与复核截图在 docs/assets/）
 ```
 
 ---
@@ -143,7 +142,7 @@ python -m crawler.main --format jsonl             # 每行一条 JSON
 | `src/app/icon.svg` | 浏览器图标 | 由 App Router 文件约定自动注入 `<link rel="icon">`，无需在 metadata 中配置 |
 | `src/components/Logo.tsx` | logo 组件 | 尺寸用 `className` 控制（导航 `h-8`、页脚 `h-9`、登录/注册 `h-10`、后台 `h-7`） |
 | `docs/audit-report.txt` · `docs/npm-audit-after-fix.txt` | 依赖审计基线 | 分别为修复前 / 修复后的 `npm audit` 原始输出，供 [dependency-audit-2026-10.md](./dependency-audit-2026-10.md) 对照 |
-| `output/playwright/*.png` | 后台复核截图 | 8 张（含移动端），被归档的后台增强报告引用 |
+| `docs/assets/playwright/*.png` | 后台复核截图 | 8 张（含移动端），被归档的后台增强报告引用 |
 
 > ⚠️ 两个已知的资源缺口：`public/og-image.png` **不存在**，但根 layout 与 `[locale]/layout.tsx` 共引用 4 次
 > （社交分享图会 404）；`/favicon.ico` 同样没有（标签页图标靠 `icon.svg`，浏览器请求 `/favicon.ico` 会 404）。
@@ -184,3 +183,5 @@ python -m crawler.main --format jsonl             # 每行一条 JSON
 4. **历史结论进归档**：带日期的报告/快照放入 `docs/archive/`，并在文首标注哪些内容已过时；
    不要直接删——审计与决策链路需要可追溯。
 5. **临时产物不要进仓库**：`*.log`、`.tmp-*`、截图等用完即删（见 `AGENTS.md` 的提交约定）。
+6. **配图统一放 `docs/assets/`**：截图、示意图、复核证据都进这个目录（如 `docs/assets/playwright/`），
+   不要再在仓库根新增 `output/`、`screenshots/` 这类工具目录（`/output/`、`/.playwright-cli/` 已在 `.gitignore` 里）。

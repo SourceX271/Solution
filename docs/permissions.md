@@ -239,7 +239,7 @@ cp prisma/dev.db ~/db-backups/dev.db.$(date +%Y%m%d-%H%M%S)
 | `node_modules/` | `npm ci` 落的权限是对的；里面有 `sharp`、`@swc/core`、`esbuild` 等**原生二进制**依赖可执行位，批量 `644` 会把它们弄坏 |
 | `.next/` | 构建/dev 产物，Next 自己管理；且体量大（实测 74 MB） |
 | `.git/` | git 自行管理；在受限沙箱里对它的写入可能被显式拒绝，见 [dev-environment.md](./dev-environment.md) 第 8.2 节 |
-| `output/` | 归档的后台复核截图，属于仓库内容，跟着 `644/755` 一起归一即可 |
+| `docs/assets/` | 文档配图与归档的后台复核截图（`docs/assets/playwright/*.png`），属于仓库内容，跟着 `644/755` 一起归一即可 |
 
 ---
 

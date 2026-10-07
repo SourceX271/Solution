@@ -270,9 +270,9 @@ npm run i18n:check → catalog: 953 keys (zh) / 953 keys (en) / No i18n problems
 权限：DB 降权后 JWT 仍在 → 接口 403、页面 307；恢复 ADMIN → 200
 ```
 
-浏览器复核：Playwright 访问 7 个后台页面（1440×1000）与移动端（420×900）截图存于 [`output/playwright/`](../../output/playwright)，确认中文界面、图标操作列、筛选器、空状态、移动端抽屉均正常。
+浏览器复核：Playwright 访问 7 个后台页面（1440×1000）与移动端（420×900）截图存于 [`docs/assets/playwright/`](../assets/playwright)，确认中文界面、图标操作列、筛选器、空状态、移动端抽屉均正常。
 
-**变更规模**：`git diff --stat` = **38 个已跟踪文件，+2848 / −1149**，另有 22 项新增（含 4 个共享库、3 个 API 模块、3 个新页面目录、2 个边界文件、`output/playwright/` 截图），删除 4 个已被替代的组件。
+**变更规模**：`git diff --stat` = **38 个已跟踪文件，+2848 / −1149**，另有 22 项新增（含 4 个共享库、3 个 API 模块、3 个新页面目录、2 个边界文件、`docs/assets/playwright/` 截图），删除 4 个已被替代的组件。
 
 > 说明：`src/app/layout.tsx`、`src/components/layout/{Footer,Navbar}.tsx`、`src/app/[locale]/(auth)/{login,register}/page.tsx`、`public/`、`src/components/Logo.tsx`、`src/app/icon.svg` 是本次会话开始前就已存在的未提交改动，不是本轮产生的（合计仅 12 行增删）。
 

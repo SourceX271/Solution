@@ -33,6 +33,10 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
+# tool output（文档配图统一放 docs/assets/，这里只忽略工具临时产物）
+/output/
+/.playwright-cli/
+
 # python
 __pycache__/
 *.pyc
