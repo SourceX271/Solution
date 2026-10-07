@@ -5,6 +5,7 @@ import { prisma } from "@/lib/db"
 import { formatDate, formatRelativeTime } from "@/lib/utils"
 import { sanitizeHtml } from "@/lib/sanitize"
 import { toRenderableHtml } from "@/lib/render"
+import { renderMathInHtml } from "@/lib/math"
 import { auth } from "@/lib/auth"
 import { resolveSlugRedirect } from "@/lib/slug-redirect"
 import { RatingWidget } from "@/components/client/RatingWidget"
@@ -86,7 +87,7 @@ export default async function SoftwarePage({ params }: SoftwarePageProps) {
       }))
     : false
 
-  const descriptionHtml = await sanitizeHtml(toRenderableHtml(software.description))
+  const descriptionHtml = renderMathInHtml(await sanitizeHtml(toRenderableHtml(software.description)))
 
   const isAuthor = userId === software.author.id
   const canEdit = isAuthor || userRole === "ADMIN"

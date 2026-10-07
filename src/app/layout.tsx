@@ -1,5 +1,8 @@
 import type { Metadata } from "next";
 import "./globals.css";
+// KaTeX styles come with the formula renderer (src/lib/math.ts). The fonts they
+// reference are only downloaded on pages that actually contain a formula.
+import "katex/dist/katex.min.css";
 
 export const metadata: Metadata = {
   title: {

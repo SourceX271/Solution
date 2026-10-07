@@ -15,6 +15,7 @@
     "crawler:run": "python -m crawler.main",
     "i18n:check": "node scripts/check-i18n.mjs",
     "i18n:check:runtime": "node scripts/check-i18n-runtime.mjs",
+    "math:check": "tsx scripts/check-math.ts",
     "postinstall": "prisma generate"
   },
   "dependencies": {
@@ -45,6 +46,7 @@
     "dompurify": "^3.4.16",
     "highlight.js": "^11.11.1",
     "isomorphic-dompurify": "^3.16.0",
+    "katex": "^0.16.47",
     "lucide-react": "^0.577.0",
     "marked": "^18.0.5",
     "next": "^15.5.27",
@@ -61,6 +63,7 @@
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
+    "@types/katex": "^0.16.8",
     "@types/marked": "^5.0.2",
     "@types/node": "^20.12.0",
     "@types/node-cron": "^3.0.11",

@@ -115,7 +115,7 @@ src/app/
 | 组件 | 作用 | 主要接口 |
 |---|---|---|
 | `PublishShell` | 三个发布页共用的外壳：返回链接、标题与说明、页面级错误汇总、`Field`（label + 提示 + 计数器 + 字段错误，并用 `cloneElement` 把 `id`/`aria-*` 接到控件上）、草稿恢复横幅、`TipsCard`、粘性提交栏、Ctrl/⌘+Enter 提交 | — |
-| `RichEditor` | Tiptap 3 富文本编辑器（所见即所得/源码/分屏），同文件另导出只读 `RichContent`；可选的 `id`/`labelledBy`/`describedBy`/`invalid` 会写到可编辑区，供 `<Field>` 接上标签与错误 | `POST /api/upload` |
+| `RichEditor` | Tiptap 3 富文本编辑器（所见即所得 / Markdown·HTML 源码 / 分屏预览）；**支持 LaTeX 公式**（`$…$`、`$$…$$`、`\(…\)`、`\[…\]`，输入与粘贴都会转成公式节点，双击可编辑）；同文件另导出只读 `RichContent`；可选的 `id`/`labelledBy`/`describedBy`/`invalid` 会写到可编辑区，供 `<Field>` 接上标签与错误 | `POST /api/upload` |
 | `CommentSection` | 评论区：列表、发表、回复、编辑、删除 | `/api/comments*` |
 | `AnswerForm` / `AnswerItem` / `AcceptButton` | 答题、展示（投票/采纳/编辑/删除）、采纳按钮 | `/api/questions/[id]/answers`、`/api/answers/[id]` |
 | `VoteButtons` / `RatingWidget` / `BookmarkButton` | 顶踩投票、1–5 星评分、收藏开关 | `POST /api/votes`、`POST /api/bookmarks` |
@@ -129,6 +129,23 @@ src/app/
 > 发布页的草稿自动保存（`localStorage`，键为 `publish:<类型>:<用户 id>`，7 天过期）与恢复横幅由
 > `client/usePublishDraft.ts` 提供，属于 hook 而非组件，未计入上表；它不做 `beforeunload` 拦截——
 > 内容已落盘，刷新最多丢失一个防抖窗口（800ms），回来时横幅可一键恢复。
+
+### 公式（LaTeX）
+
+`client/math-nodes.ts`（Tiptap 节点，非 .tsx 组件）与 `lib/math.ts`（渲染）构成一条链路：
+
+| 环节 | 行为 |
+|---|---|
+| 编辑 | `$…$` / `$$…$$` 输入或粘贴时由 InputRule/PasteRule 转成 `mathInline` / `mathBlock` 原子节点，`data-latex` 保存源码；双击（或回车）打开对话框编辑，工具栏有 Σ（行内）与 √（块级）两个入口 |
+| 存储 | 序列化为 `<span data-math="inline" data-latex="…">` / `<div data-math="block" …>`，`data-*` 在 `sanitizeHtml` 的白名单内（`ALLOW_DATA_ATTR: true`） |
+| 渲染 | `renderMathInHtml()`：先识别节点，再处理 `$…$`、`$$…$$`、`\(…\)`、`\[…\]` 文本分隔符；`<code>`/`<pre>` 内跳过，`$5 and $10` 这类价格不会被误判 |
+| 顺序 | **必须先净化再渲染**：KaTeX 需要内联 `style`，而白名单刻意不允许用户输入携带 `style`；KaTeX 用 `trust: false`，`\href` 之类不会生成链接 |
+| 移动端/无服务端 | 服务端详情页（solutions/questions/software）与客户端 `RichContent`、编辑器预览共用同一函数；KaTeX CSS 在根 layout 引入（字体按需下载） |
+| 回归 | `npm run math:check`（`scripts/check-math.ts`，18 个用例：分隔符、代码块跳过、价格不误判、节点往返、`trust` 关闭） |
+
+> 文本 → Markdown 转换前会先把公式节点还原成 `$…$`（`mathElementsToDelimiters()`），否则 turndown
+> 会静默丢弃自定义节点；Markdown 切回富文本时用 `insertContentAt(..., { applyInputRules: true })`，
+> 让 `$…$` 文本重新变成节点。
 
 ### `components/layout/`（3）
 

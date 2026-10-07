@@ -12,8 +12,17 @@ import { marked } from "marked";
 import DOMPurify from "dompurify";
 import {
   Bold, Italic, Heading2, List, ListOrdered, Code, Quote,
-  Link as LinkIcon, Image as ImageIcon, Eye, Pencil, Columns, Strikethrough, Undo, Redo
+  Link as LinkIcon, Image as ImageIcon, Eye, Pencil, Columns, Strikethrough, Undo, Redo,
+  Brackets, Radical, Sigma,
 } from "lucide-react";
+import { MathBlock, MathInline } from "./math-nodes";
+import { renderLatex, renderMathInHtml, mathElementsToDelimiters } from "@/lib/math";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
+} from "@/components/ui/dialog";
 
 marked.setOptions({ breaks: true, gfm: true });
 
@@ -34,6 +43,15 @@ function sanitizePreviewHtml(html: string): string {
   } catch {
     return html.replace(/</g, "&lt;").replace(/>/g, "&gt;");
   }
+}
+
+/**
+ * Preview pipeline: sanitise first, then expand formulas. KaTeX markup needs its
+ * inline styles, which the allow-list deliberately rejects on user input — so it
+ * has to be produced after the sanitiser has run, never before.
+ */
+function buildPreviewHtml(html: string): string {
+  return renderMathInHtml(sanitizePreviewHtml(html));
 }
 
 const turndownService = new TurndownService({
@@ -74,11 +92,22 @@ export function RichEditor({
   const tc = useTranslations("common");
   const te = useTranslations("editor");
   const [mode, setMode] = useState<"wysiwyg" | "source" | "split">("wysiwyg");
+  const [sourceFormat, setSourceFormat] = useState<"markdown" | "html">("markdown");
   const [sourceContent, setSourceContent] = useState("");
   const [previewHtml, setPreviewHtml] = useState("");
+  const [mathDialog, setMathDialog] = useState<{ display: boolean; pos: number | null } | null>(null);
+  const [mathDraft, setMathDraft] = useState("");
   const sourceRef = useRef<HTMLTextAreaElement>(null);
   const splitSourceRef = useRef<HTMLTextAreaElement>(null);
   const initializedRef = useRef(false);
+
+  // The node views are created once, when the editor mounts; the ref keeps the
+  // double-click handler pointing at the current React state.
+  const mathEditRef = useRef<(latex: string, pos: number, display: boolean) => void>(() => {});
+  mathEditRef.current = (latex, pos, display) => {
+    setMathDraft(latex);
+    setMathDialog({ display, pos });
+  };
 
   const editor = useEditor({
     // Tiptap 3 renders on the server by default, which breaks Next.js hydration
@@ -98,6 +127,9 @@ export function RichEditor({
         openOnClick: false,
         HTMLAttributes: { rel: "noopener noreferrer", target: "_blank" },
       }),
+      // LaTeX: `$…$` inline, `$$…$$` block; double-click opens the edit dialog.
+      MathInline.configure({ onEdit: (latex, pos) => mathEditRef.current(latex, pos, false) }),
+      MathBlock.configure({ onEdit: (latex, pos) => mathEditRef.current(latex, pos, true) }),
     ],
     content: value || "",
     editable: !readOnly,
@@ -153,40 +185,57 @@ export function RichEditor({
     }
   }, [value]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Convert to markdown when switching to source mode
-  const switchToSource = useCallback(() => {
-    if (!editor) return;
-    const html = editor.getHTML();
+  /** Editor HTML → source buffer (Markdown, or the HTML itself). */
+  const toSource = useCallback((html: string, format: "markdown" | "html") => {
+    if (format === "html") return html || "";
     try {
-      const md = turndownService.turndown(html);
-      setSourceContent(md || "");
+      // Turn math nodes back into `$…$` first: turndown does not know about
+      // custom nodes and would drop them from the Markdown output entirely.
+      return turndownService.turndown(mathElementsToDelimiters(html)) || "";
     } catch {
-      setSourceContent(html || "");
+      return html || "";
     }
-    setMode("source");
-  }, [editor]);
+  }, []);
 
-  const switchToSplit = useCallback(() => {
-    if (!editor) return;
-    const html = editor.getHTML();
-    try {
-      const md = turndownService.turndown(html);
-      setSourceContent(md || "");
-    } catch {
-      setSourceContent(html || "");
-    }
-    setMode("split");
-  }, [editor]);
+  /** Source buffer → editor HTML. */
+  const fromSource = useCallback((source: string, format: "markdown" | "html") => {
+    if (format === "html") return source;
+    return (marked.parse(source) as string) || "";
+  }, []);
+
+  const enterMode = useCallback(
+    (next: "source" | "split") => {
+      if (!editor) return;
+      setSourceContent(toSource(editor.getHTML(), sourceFormat));
+      setMode(next);
+    },
+    [editor, sourceFormat, toSource]
+  );
+
+  const switchToSource = useCallback(() => enterMode("source"), [enterMode]);
+  const switchToSplit = useCallback(() => enterMode("split"), [enterMode]);
+
+  /** Flip the source view between Markdown and raw HTML, converting in place. */
+  const switchFormat = useCallback(
+    (next: "markdown" | "html") => {
+      if (next === sourceFormat) return;
+      const html = fromSource(sourceContent, sourceFormat);
+      setSourceFormat(next);
+      setSourceContent(toSource(html, next));
+    },
+    [sourceFormat, sourceContent, fromSource, toSource]
+  );
 
   // Update preview when source content changes
   useEffect(() => {
     if (mode === "source" || mode === "split") {
       try {
         if (sourceContent.trim()) {
-          const html = marked.parse(sourceContent) as string;
+          const html = fromSource(sourceContent, sourceFormat);
           // The preview is injected with dangerouslySetInnerHTML, so sanitise it
-          // the same way every other HTML sink in the app does.
-          setPreviewHtml(sanitizePreviewHtml(html));
+          // the same way every other HTML sink in the app does, then expand the
+          // formulas (KaTeX needs styles the sanitiser strips from user input).
+          setPreviewHtml(buildPreviewHtml(html));
         } else {
           setPreviewHtml("");
         }
@@ -197,7 +246,7 @@ export function RichEditor({
     // Translators are new function identities on every render, so they are
     // intentionally not dependencies.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sourceContent, mode]);
+  }, [sourceContent, sourceFormat, mode]);
 
   // Sync editor changes to parent
   useEffect(() => {
@@ -222,36 +271,55 @@ export function RichEditor({
   }, [mode, minHeight, sourceContent]);
 
   const handleSourceChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    const md = e.target.value;
-    setSourceContent(md);
-    try {
-      if (md.trim()) {
-        const html = marked.parse(md) as string;
-        setPreviewHtml(html || "");
-        onChange?.(html);
-      } else {
-        setPreviewHtml("");
-        onChange?.("");
-      }
-    } catch {
-      onChange?.(md);
-    }
-  }, [onChange]);
+    const next = e.target.value;
+    setSourceContent(next);
+    const html = fromSource(next, sourceFormat);
+    setPreviewHtml(buildPreviewHtml(html));
+    onChange?.(html);
+  }, [fromSource, sourceFormat, onChange]);
 
   const switchToWysiwyg = useCallback(() => {
     if (!editor) return;
-    if (sourceContent.trim()) {
-      try {
-        const html = marked.parse(sourceContent) as string;
-        editor.commands.setContent(html || "");
-        onChange?.(html || "");
-      } catch {
-        editor.commands.setContent(sourceContent);
-        onChange?.(sourceContent);
-      }
+    const html = fromSource(sourceContent, sourceFormat);
+    if (html.trim()) {
+      // One insertion path for both formats: whatever the source, `$…$` text is
+      // turned into math nodes by the input rules, while already-tagged
+      // `<span data-math>` nodes pass through untouched.
+      editor
+        .chain()
+        .insertContentAt({ from: 0, to: editor.state.doc.content.size }, html, {
+          applyInputRules: true,
+        })
+        .run();
+      onChange?.(editor.getHTML());
     }
     setMode("wysiwyg");
-  }, [editor, sourceContent, onChange]);
+  }, [editor, sourceContent, sourceFormat, fromSource, onChange]);
+
+  /** Insert a new formula, or update the one that was double-clicked. */
+  const applyMath = useCallback(() => {
+    if (!editor || !mathDialog) return;
+    const latex = mathDraft.trim();
+    if (!latex) return;
+    if (mathDialog.pos === null) {
+      editor
+        .chain()
+        .focus()
+        .insertContent({ type: mathDialog.display ? "mathBlock" : "mathInline", attrs: { latex } })
+        .run();
+    } else {
+      const pos = mathDialog.pos;
+      editor
+        .chain()
+        .focus()
+        .command(({ tr }) => {
+          tr.setNodeMarkup(pos, undefined, { latex });
+          return true;
+        })
+        .run();
+    }
+    setMathDialog(null);
+  }, [editor, mathDialog, mathDraft]);
 
   const insertLink = useCallback(() => {
     if (!editor) return;
@@ -332,6 +400,25 @@ export function RichEditor({
                   <ImageIcon className="h-3.5 w-3.5" />
                 </button>
                 <Divider />
+                <button
+                  type="button"
+                  onClick={() => { setMathDraft(""); setMathDialog({ display: false, pos: null }); }}
+                  className={btnClass(editor.isActive("mathInline"))}
+                  title={te("inlineMath")}
+                  aria-label={te("inlineMath")}
+                >
+                  <Sigma className="h-3.5 w-3.5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setMathDraft(""); setMathDialog({ display: true, pos: null }); }}
+                  className={btnClass(editor.isActive("mathBlock"))}
+                  title={te("blockMath")}
+                  aria-label={te("blockMath")}
+                >
+                  <Radical className="h-3.5 w-3.5" />
+                </button>
+                <Divider />
                 <button type="button" onClick={() => editor.chain().focus().undo().run()} className={btnClass(false, !editor.can().undo())} title={te("undo")}>
                   <Undo className="h-3.5 w-3.5" />
                 </button>
@@ -341,6 +428,30 @@ export function RichEditor({
               </>
             )}
           </div>
+
+          {/* Source format switcher: Markdown or raw HTML */}
+          {(mode === "source" || mode === "split") && (
+            <div className="flex items-center gap-0.5 shrink-0" role="group" aria-label={te("sourceFormat")}>
+              <button
+                type="button"
+                onClick={() => switchFormat("markdown")}
+                title={te("markdownSource")}
+                aria-pressed={sourceFormat === "markdown"}
+                className={btnClass(sourceFormat === "markdown")}
+              >
+                <Columns className="h-3.5 w-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={() => switchFormat("html")}
+                title={te("htmlSource")}
+                aria-pressed={sourceFormat === "html"}
+                className={btnClass(sourceFormat === "html")}
+              >
+                <Brackets className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          )}
 
           {/* Mode switchers */}
           <div className="flex items-center gap-0.5 shrink-0">
@@ -373,7 +484,7 @@ export function RichEditor({
             onChange={handleSourceChange}
             className="w-full rounded-md border border-input bg-background p-4 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-ring resize-none"
             style={{ minHeight }}
-            placeholder={te("sourcePlaceholder")}
+            placeholder={sourceFormat === "html" ? te("htmlSourcePlaceholder") : te("sourcePlaceholder")}
           />
           <details className="rounded-md border border-input bg-background group" open>
             <summary className="cursor-pointer px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground select-none">
@@ -404,7 +515,7 @@ export function RichEditor({
             value={sourceContent}
             onChange={handleSourceChange}
             className="w-full border-r border-input bg-background p-4 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-inset focus:ring-ring resize-none"
-            placeholder={te("sourcePlaceholder")}
+            placeholder={sourceFormat === "html" ? te("htmlSourcePlaceholder") : te("sourcePlaceholder")}
           />
           <div className="bg-muted/20 p-4 overflow-auto">
             {previewHtml ? (
@@ -415,11 +526,69 @@ export function RichEditor({
           </div>
         </div>
       )}
+
+      {/* LaTeX dialog: insert a new formula or edit the double-clicked one */}
+      <Dialog open={mathDialog !== null} onOpenChange={(open) => { if (!open) setMathDialog(null); }}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>{mathDialog?.pos === null ? te("mathInsertTitle") : te("mathEditTitle")}</DialogTitle>
+            <DialogDescription>{te("mathHint")}</DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label htmlFor={`${id ?? "rich-editor"}-math-latex`}>{te("mathLabel")}</Label>
+              <Textarea
+                id={`${id ?? "rich-editor"}-math-latex`}
+                value={mathDraft}
+                onChange={(event) => setMathDraft(event.target.value)}
+                placeholder={te("mathPlaceholder")}
+                rows={3}
+                className="font-mono text-sm"
+                autoFocus
+                onKeyDown={(event) => {
+                  if ((event.ctrlKey || event.metaKey) && event.key === "Enter") {
+                    event.preventDefault();
+                    applyMath();
+                  }
+                }}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <span className="text-sm font-medium">{te("mathPreview")}</span>
+              <div className="min-h-[3.5rem] overflow-x-auto rounded-md border bg-background px-3 py-2 text-sm">
+                {mathDraft.trim() ? (
+                  <div dangerouslySetInnerHTML={{ __html: renderLatex(mathDraft.trim(), mathDialog?.display ?? false) }} />
+                ) : (
+                  <p className="text-muted-foreground">{te("mathPreviewEmpty")}</p>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setMathDialog(null)}>
+              {tc("cancel")}
+            </Button>
+            <Button type="button" onClick={applyMath} disabled={!mathDraft.trim()}>
+              {mathDialog?.pos === null ? te("mathInsert") : te("mathUpdate")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
 
 export function RichContent({ html }: { html: string }) {
   // Sanitise by default: this is a raw-HTML sink and previously trusted its input.
-  return <div className="prose-custom max-w-none" dangerouslySetInnerHTML={{ __html: sanitizePreviewHtml(html) }} />;
+  // Formulas are expanded afterwards (KaTeX markup needs styles the allow-list
+  // strips from user-supplied HTML).
+  return (
+    <div
+      className="prose-custom max-w-none"
+      dangerouslySetInnerHTML={{ __html: buildPreviewHtml(html) }}
+    />
+  );
 }

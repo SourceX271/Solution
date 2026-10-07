@@ -66,8 +66,8 @@
 | 语言 | TypeScript 5.4（strict） |
 | 数据库 | SQLite + Prisma 5（`prisma/schema.prisma`，**15 个模型**，只有 `db push`） |
 | 认证 | NextAuth v5 beta：GitHub OAuth + 邮箱密码（bcrypt 12 轮），纯 JWT 会话 |
-| 国际化 | next-intl 4（zh / en，`localePrefix: as-needed`，各 1040 键） |
-| UI | Tailwind CSS 3 + Radix（shadcn 风格）+ lucide-react + Tiptap 3 富文本 + sonner |
+| 国际化 | next-intl 4（zh / en，`localePrefix: as-needed`，各 1054 键） |
+| UI | Tailwind CSS 3 + Radix（shadcn 风格）+ lucide-react + Tiptap 3 富文本 + KaTeX 公式 + sonner |
 | 爬虫 | Python 3 + httpx + BeautifulSoup/lxml（`crawler/`，7 个数据源） |
 | 部署 | Docker 多阶段构建 + Nginx + SQLite 数据卷 |
 
@@ -99,6 +99,7 @@ npx tsc --noEmit     # 类型检查（增量缓存写 .next/cache/tsconfig.tsbui
 
 npm run i18n:check          # 中英词条对齐 + 无硬编码中文（秒级，提交前必跑）
 npm run i18n:check:runtime  # 对运行中的服务做语言泄漏检查（默认 http://127.0.0.1:3103）
+npm run math:check          # LaTeX 渲染管线回归（18 个用例，见 frontend.md「公式」）
 
 npm run db:push      # 同步 Prisma schema 到数据库
 npm run db:seed      # 导入种子数据
@@ -144,6 +145,7 @@ python -m crawler.main --format jsonl             # 每行一条 JSON
 | `docs/audit-report.txt` · `docs/npm-audit-after-fix.txt` | 依赖审计基线 | 分别为修复前 / 修复后的 `npm audit` 原始输出，供 [dependency-audit-2026-10.md](./dependency-audit-2026-10.md) 对照 |
 | `docs/assets/playwright/*.png` | 后台复核截图 | 8 张（含移动端），被归档的后台增强报告引用 |
 | `docs/assets/publish-*.png` | 发布页界面截图 | `/questions/ask` 与 `/solutions/new` 各 1 张（1440×1000），见 [frontend.md](./frontend.md) 第二节 |
+| `docs/assets/editor-math.png` · `docs/assets/math-rendered.png` | 公式功能截图 | 编辑器内的 LaTeX 节点与详情页的服务端渲染效果，见 [frontend.md](./frontend.md)「公式」小节 |
 
 > ⚠️ 两个已知的资源缺口：`public/og-image.png` **不存在**，但根 layout 与 `[locale]/layout.tsx` 共引用 4 次
 > （社交分享图会 404）；`/favicon.ico` 同样没有（标签页图标靠 `icon.svg`，浏览器请求 `/favicon.ico` 会 404）。

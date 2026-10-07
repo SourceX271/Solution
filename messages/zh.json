@@ -497,7 +497,21 @@
     "switchToRichText": "切换到富文本",
     "linkPrompt": "输入链接地址：",
     "imagePrompt": "输入图片地址：",
-    "markdownError": "Markdown 解析错误"
+    "markdownError": "Markdown 解析错误",
+    "inlineMath": "行内公式",
+    "blockMath": "块级公式",
+    "mathInsertTitle": "插入 LaTeX 公式",
+    "mathEditTitle": "编辑 LaTeX 公式",
+    "mathHint": "行内写 $...$，独占一行写 $$...$$；也支持 \\( \\) 与 \\[ \\]。双击已插入的公式可再次编辑。",
+    "mathLabel": "LaTeX 代码",
+    "mathPlaceholder": "例如 E=mc^2、\\sqrt 2、\\alpha+\\beta",
+    "mathPreview": "预览",
+    "mathPreviewEmpty": "输入 LaTeX 后在此预览",
+    "mathInsert": "插入公式",
+    "mathUpdate": "更新公式",
+    "sourceFormat": "源码格式",
+    "htmlSource": "HTML 源码",
+    "htmlSourcePlaceholder": "直接编辑 HTML…（保存后会做安全过滤）"
   },
   "notifications": {
     "title": "通知",

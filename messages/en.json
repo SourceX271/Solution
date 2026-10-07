@@ -497,7 +497,21 @@
     "switchToRichText": "Switch to rich text",
     "linkPrompt": "Enter the link URL:",
     "imagePrompt": "Enter the image URL:",
-    "markdownError": "Failed to parse the Markdown"
+    "markdownError": "Failed to parse the Markdown",
+    "inlineMath": "Inline formula",
+    "blockMath": "Block formula",
+    "mathInsertTitle": "Insert LaTeX formula",
+    "mathEditTitle": "Edit LaTeX formula",
+    "mathHint": "Use $...$ inline and $$...$$ on its own line; \\( \\) and \\[ \\] also work. Double-click a formula to edit it again.",
+    "mathLabel": "LaTeX source",
+    "mathPlaceholder": "For example E=mc^2, \\sqrt 2, \\alpha+\\beta",
+    "mathPreview": "Preview",
+    "mathPreviewEmpty": "Type LaTeX to see a preview",
+    "mathInsert": "Insert",
+    "mathUpdate": "Update",
+    "sourceFormat": "Source format",
+    "htmlSource": "HTML source",
+    "htmlSourcePlaceholder": "Edit raw HTML… (filtered on save)"
   },
   "notifications": {
     "title": "Notifications",

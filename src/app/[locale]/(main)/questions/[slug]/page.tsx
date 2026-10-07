@@ -6,6 +6,7 @@ import { formatRelativeTime } from "@/lib/utils"
 import { highlightHtmlContent } from "@/lib/highlight"
 import { toRenderableHtml } from "@/lib/render"
 import { sanitizeHtml } from "@/lib/sanitize"
+import { renderMathInHtml } from "@/lib/math"
 import { auth } from "@/lib/auth"
 import { resolveSlugRedirect } from "@/lib/slug-redirect"
 import { VoteButtons } from "@/components/client/VoteButtons"
@@ -132,7 +133,7 @@ export default async function QuestionPage({ params }: QuestionPageProps) {
   })
 
   const questionContentHtml = await highlightHtmlContent(toRenderableHtml(question.content))
-  const safeContent = await sanitizeHtml(questionContentHtml)
+  const safeContent = renderMathInHtml(await sanitizeHtml(questionContentHtml))
 
   return (
     <>

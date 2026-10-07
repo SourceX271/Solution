@@ -56,6 +56,7 @@
 | 富文本入库 | `sanitizeHtml()`：DOMPurify 白名单后落库（回答、评论等） | `src/lib/sanitize.ts` |
 | 富文本渲染 | 详情页 `render` → `highlight` → `sanitizeHtml` 全链路再做一次净化 | `lib/render.ts`、`lib/highlight.ts`、各详情页 |
 | Markdown | `marked`（`breaks` + `gfm`）；**结果必须由调用方净化** | `src/lib/render.ts` |
+| LaTeX 公式 | 渲染在 `sanitizeHtml` **之后**：`renderMathInHtml()` 用 `katex.renderToString(..., { trust: false })`，`\href`/`\htmlClass` 等不会产出链接或标签；因为 KaTeX 输出带内联 `style`，若先渲染再净化反而会破坏公式（也正是白名单不允许用户输入带 `style` 的原因） | `src/lib/math.ts`、各详情页 |
 | 上传 | MIME 白名单（jpeg/png/gif/webp，**不含 SVG**）+ **magic byte 嗅探**（不信 Content-Type）+ ≤2MB + 文件名只用 `randomUUID()` | `src/app/api/upload/route.ts` |
 | JSON-LD | 序列化时把 `<` `>` `&` 转义为 `\u003c` 等，防 `</script>` 逃逸 | `src/components/JsonLd.tsx` |
 | 开放重定向 | 登录页 `callbackUrl` 只接受以 `/` 开头且非 `//`、`/\` 的站内相对路径 | `(auth)/login/page.tsx` |
