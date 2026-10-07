@@ -20,6 +20,9 @@ const PURIFY_CONFIG = {
     "ul", "ol", "li",
     "strong", "b", "em", "i", "s", "u", "mark",
     "a", "img",
+    // Inline media uploaded through /api/upload. SVG stays out of the image
+    // list on purpose: it is a script container, not a picture.
+    "video", "audio",
     "code", "pre",
     "blockquote",
     "table", "thead", "tbody", "tr", "th", "td",
@@ -28,7 +31,11 @@ const PURIFY_CONFIG = {
   ],
   ALLOWED_ATTR: [
     "href", "target", "rel",
+    // `download` makes the browser save attachments instead of navigating to
+    // them (PDF/archive previews would otherwise render on our own origin).
+    "download",
     "src", "alt", "width", "height", "loading",
+    "controls", "poster", "preload", "playsinline", "muted", "loop",
     "class", "id", "style",
     "type", "checked", "disabled",
     "data-language",

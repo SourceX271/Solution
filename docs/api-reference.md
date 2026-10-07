@@ -65,7 +65,7 @@ NextAuth catch-all 的 GET/POST 再导出）。本文按资源列出「路径 / 
 | 发评论 | 10 次 / 30 秒 | `ip:comment` |
 | 创建标签 | 10 次 / 60 秒 | `ip:tag` |
 | 投票/评分 | 30 次 / 60 秒 | `ip:vote` |
-| 上传 | 10 次 / 60 秒 | `ip:upload` |
+| 上传 | 20 次 / 60 秒 | `ip:upload`（图片/视频/PDF/压缩包/文档共用） |
 
 超限统一返回 **429**，消息为 `api.rateLimited*` 系列词条。
 
@@ -162,7 +162,9 @@ NextAuth catch-all 的 GET/POST 再导出）。本文按资源列出「路径 / 
 | `/api/notifications/[id]` | PATCH | 登录（仅本人） | — | `{success,data:{message}}`；403 | 置 `read:true` |
 | `/api/notifications/[id]` | DELETE | 登录（仅本人） | — | `{success,data:{message}}`；403 | — |
 | `/api/notifications/mark-all` | POST | 登录 | — | `{success,data:{message}}` | 全部置已读 |
-| `/api/upload` | POST | 登录 | `multipart/form-data`，字段 `file` | `{success,url:"/uploads/avatars/<uuid>.<ext>"}`；400 系列；429 | 限流 10/60s；MIME 白名单（jpeg/png/gif/webp）+ **magic byte 嗅探**；≤2MB；文件名只用 `randomUUID()` |
+| `/api/upload` | POST | 登录 | `multipart/form-data`：`file`、可选 `purpose`（`content` 默认 / `avatar`） | 201 `{success,url,kind,size,attachment}`（avatar 返回 `{success,url,kind,size}`）；400 `uploadBadType`/`uploadBadContent`/`uploadNoFile`；413 `uploadTooLarge`；429；500 | 限流 20/60s；**声明类型选规则 + magic byte 校验内容**（两者必须同类）；文件名只取 `randomUUID()`，原名仅存展示字段；内容上传落 `public/uploads/attachments/<年>/<月>/` 并写 `Attachment` 行；avatar 只允许图片且 ≤2MB |
+| `/api/attachments` | GET | 登录 | `page`(1) `limit`(10,≤100) | `{success,data:[{id,url,originalName,mimeType,kind,size,createdAt}],total,page,limit,totalPages}` | 只列本人的上传（编辑器是即时上传，用于事后清理） |
+| `/api/attachments/[id]` | DELETE | 上传者本人或**回库判定**的管理员 | — | `{success,data:{id}}`；401/403/404 | 同一事务删行 + 删磁盘文件；路径必须落在 `public/uploads/` 内 |
 | `/api/rss` | GET | 公开 | — | XML（`application/xml`，`Cache-Control: max-age=3600`） | `force-dynamic`；最新 20 篇 published 文章；`<language>` 跟随 `NEXT_LOCALE` |
 
 ## 八、管理后台

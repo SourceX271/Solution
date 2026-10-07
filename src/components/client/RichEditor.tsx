@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { useTranslations } from "next-intl";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
@@ -10,10 +10,15 @@ import LinkExtension from "@tiptap/extension-link";
 import TurndownService from "turndown";
 import { marked } from "marked";
 import DOMPurify from "dompurify";
+import { toast } from "sonner";
 import { Eye } from "lucide-react";
 import { EditorToolbar, type EditorView } from "./EditorToolbar";
 import { MathBlock, MathInline } from "./math-nodes";
+import { AttachmentNode, VideoNode } from "./media-nodes";
 import { renderLatex, renderMathInHtml, mathElementsToDelimiters } from "@/lib/math";
+import { renderAttachmentCards, type AttachmentCardLabels } from "@/lib/attachments";
+import { UPLOAD_ACCEPT } from "@/lib/upload-shared";
+import { readErrorMessage } from "@/lib/http-error";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -28,9 +33,14 @@ const SANITIZE_CONFIG = {
   ALLOWED_TAGS: [
     "h1", "h2", "h3", "h4", "h5", "h6", "p", "br", "hr", "strong", "b", "em", "i",
     "s", "u", "a", "code", "pre", "ul", "ol", "li", "blockquote", "img",
+    "video", "audio",
     "table", "thead", "tbody", "tr", "th", "td", "div", "span",
   ],
-  ALLOWED_ATTR: ["href", "target", "rel", "src", "alt", "title", "class"],
+  ALLOWED_ATTR: [
+    "href", "target", "rel", "download",
+    "src", "alt", "title", "class", "controls", "poster", "preload", "playsinline",
+  ],
+  ALLOW_DATA_ATTR: true,
   ALLOWED_URI_REGEXP: /^(?:(?:https?|ftp):\/\/|mailto:|tel:|\/|#)/i,
 };
 
@@ -43,12 +53,13 @@ function sanitizePreviewHtml(html: string): string {
 }
 
 /**
- * Preview pipeline: sanitise first, then expand formulas. KaTeX markup needs its
- * inline styles, which the allow-list deliberately rejects on user input — so it
- * has to be produced after the sanitiser has run, never before.
+ * Preview pipeline: sanitise first, then expand formulas and attachment cards.
+ * KaTeX markup needs its inline styles, which the allow-list deliberately
+ * rejects on user input — so it has to be produced after the sanitiser has run,
+ * never before. Attachment cards are generated markup for the same reason.
  */
-function buildPreviewHtml(html: string): string {
-  return renderMathInHtml(sanitizePreviewHtml(html));
+function buildPreviewHtml(html: string, labels: AttachmentCardLabels): string {
+  return renderAttachmentCards(renderMathInHtml(sanitizePreviewHtml(html)), labels);
 }
 
 const turndownService = new TurndownService({
@@ -57,8 +68,10 @@ const turndownService = new TurndownService({
   bulletListMarker: "-",
 });
 
-interface RichEditorProps {
-  value?: string;
+/** What a toolbar upload button is collecting. */
+export type MediaKind = "image" | "video" | "attachment";
+
+interface RichEditorProps {  value?: string;
   onChange?: (html: string) => void;
   placeholder?: string;
   minHeight?: string;
@@ -94,6 +107,10 @@ export function RichEditor({
   const [previewHtml, setPreviewHtml] = useState("");
   const [mathDialog, setMathDialog] = useState<{ display: boolean; pos: number | null } | null>(null);
   const [mathDraft, setMathDraft] = useState("");
+  /** Which media kind a file picker is currently collecting, and whether one is in flight. */
+  const pendingKindRef = useRef<MediaKind | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState<MediaKind | null>(null);
   const sourceRef = useRef<HTMLTextAreaElement>(null);
   const splitSourceRef = useRef<HTMLTextAreaElement>(null);
   const initializedRef = useRef(false);
@@ -105,6 +122,22 @@ export function RichEditor({
     setMathDraft(latex);
     setMathDialog({ display, pos });
   };
+
+  /** Labels for attachment cards (preview pane and the read-only RichContent). */
+  const attachmentLabels: AttachmentCardLabels = useMemo(
+    () => ({
+      download: tc("download"),
+      kinds: {
+        image: tc("fileKindImage"),
+        video: tc("fileKindVideo"),
+        audio: tc("fileKindAudio"),
+        pdf: tc("fileKindPdf"),
+        archive: tc("fileKindArchive"),
+        document: tc("fileKindDocument"),
+      },
+    }),
+    [tc]
+  );
 
   const editor = useEditor({
     // Tiptap 3 renders on the server by default, which breaks Next.js hydration
@@ -127,6 +160,10 @@ export function RichEditor({
       // LaTeX: `$…$` inline, `$$…$$` block; double-click opens the edit dialog.
       MathInline.configure({ onEdit: (latex, pos) => mathEditRef.current(latex, pos, false) }),
       MathBlock.configure({ onEdit: (latex, pos) => mathEditRef.current(latex, pos, true) }),
+      // Uploaded media: `<video>` needs a schema entry to survive parsing, and an
+      // attachment keeps its metadata in a dedicated atom node.
+      VideoNode,
+      AttachmentNode,
     ],
     content: value || "",
     editable: !readOnly,
@@ -220,7 +257,7 @@ export function RichEditor({
           // The preview is injected with dangerouslySetInnerHTML, so sanitise it
           // the same way every other HTML sink in the app does, then expand the
           // formulas (KaTeX needs styles the sanitiser strips from user input).
-          setPreviewHtml(buildPreviewHtml(html));
+          setPreviewHtml(buildPreviewHtml(html, attachmentLabels));
         } else {
           setPreviewHtml("");
         }
@@ -259,9 +296,9 @@ export function RichEditor({
     const next = e.target.value;
     setSourceContent(next);
     const html = fromSource(next, sourceFormat);
-    setPreviewHtml(buildPreviewHtml(html));
+    setPreviewHtml(buildPreviewHtml(html, attachmentLabels));
     onChange?.(html);
-  }, [fromSource, sourceFormat, onChange]);
+  }, [fromSource, sourceFormat, onChange, attachmentLabels]);
 
   const switchToWysiwyg = useCallback(() => {
     if (!editor) return;
@@ -345,12 +382,76 @@ export function RichEditor({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editor]);
 
-  const insertImage = useCallback(() => {
-    if (!editor) return;
-    const url = window.prompt(te("imagePrompt"));
-    if (url) editor.chain().focus().setImage({ src: url }).run();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [editor]);
+  /** Open the file picker for one media kind (images / video / other files). */
+  const pickMedia = useCallback(
+    (kind: MediaKind) => {
+      pendingKindRef.current = kind;
+      const input = fileInputRef.current;
+      if (!input) return;
+      input.accept = kind === "image" ? "image/*" : kind === "video" ? "video/*" : UPLOAD_ACCEPT;
+      input.value = "";
+      input.click();
+    },
+    []
+  );
+
+  /**
+   * Upload the chosen file and insert it.
+   *
+   * Uploading happens immediately (before the post is saved) so the author sees
+   * what the reader will see; the resulting `Attachment` row is what the
+   * attachments page lists for later cleanup.
+   */
+  const handleFileChosen = useCallback(
+    async (event: React.ChangeEvent<HTMLInputElement>) => {
+      const file = event.target.files?.[0];
+      const kind = pendingKindRef.current;
+      pendingKindRef.current = null;
+      if (!file || !kind || !editor) return;
+
+      setUploading(kind);
+      try {
+        const form = new FormData();
+        form.append("file", file);
+        form.append("purpose", "content");
+        const res = await fetch("/api/upload", { method: "POST", body: form });
+        const data = (await res.json().catch(() => null)) as
+          | { success?: boolean; url?: string; kind?: string; attachment?: { id: string; originalName: string; size: number; kind: string } }
+          | null;
+
+        if (!res.ok || !data?.url) {
+          toast.error(await readErrorMessage(res, te("uploadFailed")));
+          return;
+        }
+
+        if (kind === "image") {
+          editor.chain().focus().setImage({ src: data.url, alt: file.name }).run();
+        } else if (kind === "video") {
+          editor.chain().focus().insertContent({ type: "video", attrs: { src: data.url } }).run();
+        } else {
+          editor.chain().focus().insertContent({
+            type: "attachment",
+            attrs: {
+              attachmentId: data.attachment?.id ?? null,
+              url: data.url,
+              filename: data.attachment?.originalName ?? file.name,
+              size: data.attachment?.size ?? file.size,
+              kind: data.attachment?.kind ?? data.kind ?? "document",
+            },
+          }).run();
+        }
+
+        // Inserting an atom leaves it *selected*; the next insert would replace
+        // it. Move the caret to the end so consecutive uploads stack up.
+        editor.commands.focus("end");
+      } catch {
+        toast.error(tc("networkError"));
+      } finally {
+        setUploading(null);
+      }
+    },
+    [editor, tc, te]
+  );
 
   if (!editor) {
     return (
@@ -373,13 +474,24 @@ export function RichEditor({
           view={currentView}
           onSelectView={selectView}
           onInsertLink={insertLink}
-          onInsertImage={insertImage}
+          onInsertMedia={pickMedia}
+          uploading={uploading}
           onInsertMath={(displayMode) => {
             setMathDraft("")
             setMathDialog({ display: displayMode, pos: null })
           }}
         />
       )}
+
+      {/* One hidden picker serves all three upload buttons. */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        className="hidden"
+        onChange={handleFileChosen}
+        aria-hidden="true"
+        tabIndex={-1}
+      />
 
       {/* WYSIWYG mode */}
       {mode === "wysiwyg" && (
@@ -495,13 +607,25 @@ export function RichEditor({
 }
 
 export function RichContent({ html }: { html: string }) {
+  const t = useTranslations("common");
   // Sanitise by default: this is a raw-HTML sink and previously trusted its input.
-  // Formulas are expanded afterwards (KaTeX markup needs styles the allow-list
-  // strips from user-supplied HTML).
-  return (
-    <div
-      className="prose-custom max-w-none"
-      dangerouslySetInnerHTML={{ __html: buildPreviewHtml(html) }}
-    />
+  // Formulas and attachment cards are expanded afterwards (their markup needs
+  // styles/attributes the allow-list strips from user-supplied HTML).
+  const rendered = useMemo(
+    () =>
+      buildPreviewHtml(html, {
+        download: t("download"),
+        kinds: {
+          image: t("fileKindImage"),
+          video: t("fileKindVideo"),
+          audio: t("fileKindAudio"),
+          pdf: t("fileKindPdf"),
+          archive: t("fileKindArchive"),
+          document: t("fileKindDocument"),
+        },
+      }),
+    [html, t]
   );
+
+  return <div className="prose-custom max-w-none" dangerouslySetInnerHTML={{ __html: rendered }} />;
 }

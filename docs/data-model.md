@@ -1,9 +1,9 @@
 # 数据模型
 
 数据库：**SQLite + Prisma 5**，schema 位于 `prisma/schema.prisma`，开发库 `prisma/dev.db`（已被 `.gitignore` 忽略）。
-当前 **15 个模型**，**没有 migrations**，schema 变更依赖 `npx prisma db push`（详见文末「操作约定」）。
+当前 **16 个模型**，**没有 migrations**，schema 变更依赖 `npx prisma db push`（详见文末「操作约定」）。
 
-> 本文描述的是 `prisma/schema.prisma` 的当前状态（2026-10-06，15 个模型）。改动 schema 后请同步更新本文。
+> 本文描述的是 `prisma/schema.prisma` 的当前状态（2026-10-07，16 个模型）。改动 schema 后请同步更新本文。
 
 ---
 
@@ -26,6 +26,7 @@
 | `SiteConfig` | 站点配置（单行） | `id` 固定 `"main"`，通过 `upsert` 访问 |
 | `SlugRedirect` | 旧 slug → 新 slug 的永久重定向映射 | `oldSlug @unique`；`targetType` = article/question/software |
 | `AuditLog` | 后台操作审计（只追加） | `actorId`/`actorEmail` **故意不做外键**，删号后日志仍在 |
+| `Attachment` | 上传的文件（图片/视频/音频/PDF/压缩包/文档） | `uploaderId → User`（`onDelete: Cascade`）；`url` 存 `/uploads/...`；`kind` 决定详情页内联还是下载卡片；索引 `[uploaderId, createdAt]` |
 
 关系速写（`→` 为外键方向）：
 

@@ -3,8 +3,8 @@
 import type { Editor } from "@tiptap/react"
 import { useTranslations } from "next-intl"
 import {
-  Bold, Braces, Brackets, ChevronDown, Code, Columns, Eraser, Heading, Image as ImageIcon,
-  Italic, Link as LinkIcon, List, ListOrdered, Minus, Pencil, Quote, Radical, Redo2, Sigma,
+  Bold, Braces, Brackets, ChevronDown, Code, Columns, Eraser, Film, Heading, Image as ImageIcon,
+  Italic, Link as LinkIcon, List, ListOrdered, Minus, Paperclip, Pencil, Quote, Radical, Redo2, Sigma,
   Strikethrough, Underline, Undo2,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -20,9 +20,15 @@ interface EditorToolbarProps {
   view: EditorView
   onSelectView: (view: EditorView) => void
   onInsertLink: () => void
-  onInsertImage: () => void
+  /** Opens the file picker for one media kind; the upload happens in RichEditor. */
+  onInsertMedia: (kind: MediaKind) => void
+  /** Which upload is in flight, if any (disables the upload buttons). */
+  uploading?: MediaKind | null
   onInsertMath: (displayMode: boolean) => void
 }
+
+/** Kept in sync with `RichEditor`'s picker. */
+type MediaKind = "image" | "video" | "attachment"
 
 /**
  * Editor toolbar.
@@ -39,7 +45,8 @@ export function EditorToolbar({
   view,
   onSelectView,
   onInsertLink,
-  onInsertImage,
+  onInsertMedia,
+  uploading = null,
   onInsertMath,
 }: EditorToolbarProps) {
   const t = useTranslations("editor")
@@ -189,8 +196,18 @@ export function EditorToolbar({
             >
               <LinkIcon className="h-3.5 w-3.5" />
             </ToolButton>
-            <ToolButton label={t("insertImage")} onClick={onInsertImage}>
+            <ToolButton label={t("insertImage")} disabled={uploading === "image"} onClick={() => onInsertMedia("image")}>
               <ImageIcon className="h-3.5 w-3.5" />
+            </ToolButton>
+            <ToolButton label={t("insertVideo")} disabled={uploading === "video"} onClick={() => onInsertMedia("video")}>
+              <Film className="h-3.5 w-3.5" />
+            </ToolButton>
+            <ToolButton
+              label={t("insertAttachment")}
+              disabled={uploading === "attachment"}
+              onClick={() => onInsertMedia("attachment")}
+            >
+              <Paperclip className="h-3.5 w-3.5" />
             </ToolButton>
             <ToolButton
               label={`${t("inlineMath")} ($…$)`}

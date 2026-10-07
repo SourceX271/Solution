@@ -485,6 +485,53 @@
   @apply border px-4 py-2;
 }
 
+/* ─── Uploaded media & attachments ───
+   `renderAttachmentCards()` (src/lib/attachments.ts) expands the stored anchor
+   into `.attachment-card` after sanitisation; the editor shows the compact
+   `.attachment-inline` chip instead. */
+.prose-custom video,
+.prose-custom .media-video,
+.tiptap-editor video {
+  @apply my-4 w-full max-w-full rounded-lg shadow-md bg-black;
+}
+.prose-custom audio,
+.tiptap-editor audio {
+  @apply my-4 w-full;
+}
+.attachment-card {
+  @apply my-3 flex items-center gap-3 rounded-lg border border-border bg-muted/40 px-3 py-2.5 no-underline transition-colors hover:border-primary/50 hover:bg-primary/5;
+}
+.attachment-card__icon {
+  @apply text-xl leading-none;
+}
+.attachment-card__body {
+  @apply flex min-w-0 flex-1 flex-col;
+}
+.attachment-card__name {
+  @apply truncate text-sm font-medium text-foreground;
+}
+.attachment-card__meta {
+  @apply text-xs text-muted-foreground;
+}
+.attachment-card__action {
+  @apply shrink-0 rounded-md border border-border px-2 py-1 text-xs font-medium text-muted-foreground;
+}
+.prose-custom a.attachment-card {
+  @apply no-underline;
+}
+.attachment-inline {
+  @apply mx-0.5 inline-flex items-center gap-1 rounded-md border border-border bg-muted/60 px-1.5 py-0.5 align-middle text-xs no-underline;
+}
+.attachment-inline__name {
+  @apply max-w-[16rem] truncate font-medium;
+}
+.attachment-inline__size {
+  @apply text-muted-foreground;
+}
+.prose-custom .attachment-inline {
+  @apply text-primary;
+}
+
 /* Highlight.js overrides */
 .prose-custom pre code.hljs {
   @apply bg-transparent p-0 text-sm leading-relaxed;

@@ -29,13 +29,16 @@ export const PUBLISH_MIN = {
 /**
  * Length of the readable text in an HTML string.
  *
- * Tags are stripped, but the LaTeX source of formulas counts: a post whose body
- * is mostly math is still content, and without this the requirement of "at least
- * N characters" would reject `体积 $V=\frac{4}{3}\pi r^3$ 结束`.
+ * Tags are stripped, but the text a reader actually sees in generated markup
+ * counts: the LaTeX source of formulas and the filenames of attachments. A post
+ * whose body is "here is the log" plus a file is real content, and without this
+ * the "at least N characters" rule rejected it.
  */
 export function plainTextLength(html: string): number {
   return html
     .replace(/<[^>]*\bdata-latex="([^"]*)"[^>]*>[\s\S]*?<\/[a-z0-9]+>/gi, " $1 ")
+    .replace(/<[^>]*\bdata-filename="([^"]*)"[^>]*>[\s\S]*?<\/a>/gi, " $1 ")
+    .replace(/<img[^>]*\balt="([^"]*)"[^>]*>/gi, " $1 ")
     .replace(/<(script|style)\b[^>]*>[\s\S]*?<\/\1>/gi, " ")
     .replace(/<[^>]*>/g, " ")
     .replace(/&nbsp;/gi, " ")

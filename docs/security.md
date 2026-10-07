@@ -57,7 +57,7 @@
 | 富文本渲染 | 详情页 `render` → `highlight` → `sanitizeHtml` 全链路再做一次净化 | `lib/render.ts`、`lib/highlight.ts`、各详情页 |
 | Markdown | `marked`（`breaks` + `gfm`）；**结果必须由调用方净化** | `src/lib/render.ts` |
 | LaTeX 公式 | 渲染在 `sanitizeHtml` **之后**：`renderMathInHtml()` 用 `katex.renderToString(..., { trust: false })`，`\href`/`\htmlClass` 等不会产出链接或标签；因为 KaTeX 输出带内联 `style`，若先渲染再净化反而会破坏公式（也正是白名单不允许用户输入带 `style` 的原因） | `src/lib/math.ts`、各详情页 |
-| 上传 | MIME 白名单（jpeg/png/gif/webp，**不含 SVG**）+ **magic byte 嗅探**（不信 Content-Type）+ ≤2MB + 文件名只用 `randomUUID()` | `src/app/api/upload/route.ts` |
+| 上传 | MIME 白名单 + **magic byte 嗅探**（不信 Content-Type 与文件名）+ 分类型体积上限 + 文件名只用 `randomUUID()`；**不接收 SVG**（脚本容器） | `src/lib/upload-shared.ts`、`src/app/api/upload/route.ts` |
 | JSON-LD | 序列化时把 `<` `>` `&` 转义为 `\u003c` 等，防 `</script>` 逃逸 | `src/components/JsonLd.tsx` |
 | 开放重定向 | 登录页 `callbackUrl` 只接受以 `/` 开头且非 `//`、`/\` 的站内相对路径 | `(auth)/login/page.tsx` |
 | URL 注入 | slug 一律 ASCII 随机串；标签 slug 也强制 ASCII | `lib/utils.ts`、`lib/tags.ts` |
@@ -69,11 +69,33 @@
 
 **当前 DOMPurify 白名单**（`src/lib/sanitize.ts`）：
 
-- 允许标签：h1–h6、p、br、hr、ul/ol/li、strong/b/em/i/s/u/mark、a、img、code、pre、blockquote、
+- 允许标签：h1–h6、p、br、hr、ul/ol/li、strong/b/em/i/s/u/mark、a、img、**video、audio**、code、pre、blockquote、
   table 系列、div、span、input、label；
-- 允许属性：`href,target,rel,src,alt,width,height,loading,class,id,style,type,checked,disabled,data-language`，
+- 允许属性：`href,target,rel,download,src,alt,width,height,loading,controls,poster,preload,playsinline,muted,loop,class,id,style,type,checked,disabled,data-language`，
   且 `ALLOW_DATA_ATTR: true`；
 - URI 白名单：`http(s)/ftp`、`mailto:`、`tel:`、站内 `/` 与 `#`。
+
+### 上传类型矩阵（2026-10-07 扩展）
+
+| kind | 允许的声明 MIME | 落盘扩展名（由魔数决定） | 上限 |
+|---|---|---|---|
+| `image` | jpeg / png / gif / webp / avif | jpg / png / gif / webp / avif | 8 MB（头像 2 MB 且只允许图片） |
+| `video` | mp4 / webm / quicktime / x-matroska | mp4 / webm / mov | 64 MB |
+| `audio` | mpeg·mp3 / wav / ogg / mp4 / aac / flac | mp3 / wav / ogg / m4a / aac / flac | 16 MB |
+| `pdf` | application/pdf | pdf | 24 MB |
+| `archive` | zip / 7z / rar / gzip / tar | zip / 7z / rar / gz / tar | 24 MB |
+| `document` | Office（docx/xlsx/pptx）、txt / md / csv / json | docx / xlsx / pptx / txt / md / csv / json | 24 MB |
+
+要点：
+
+- **声明的 MIME 只用来选规则，内容必须与规则同类**：把 ZIP 声明成 `image/png`、把 HTML 声明成 `application/pdf`
+  都会在魔数校验处被拒（`uploadBadContent`）。Office 文件本身是 ZIP，靠前 8 KB 里的 `word/`、`xl/`、`ppt/` 目录名区分。
+- **SVG 永远不在白名单**：它是脚本容器；即便声明 `image/svg+xml` 也直接 400。
+- 附件卡片一律带 `download` 属性，压缩包/PDF 不会在站内以同源文档形式打开。
+- 声明 `content-length` 超上限时**在读取 body 前**返回 413（`formData()` 会把整个请求体读进内存）。
+- 删除接口只接受 `/uploads/...` 且路径必须落在 `public/uploads/` 内（`uploadUrlToPath()` 拒绝 `..`、反斜杠与绝对路径）。
+- 附件与内容之间**没有**外键关联（附件地址写在正文 HTML 里），删除内容不会连带删除文件：用户在 `/api/attachments`
+  里能看到自己的上传并手动清理。
 
 > 仍放行 `style` 属性与 `class`/`id`，在「用户可提交 HTML」的场景下属于偏宽的配置（CSS 注入/样式破坏而非脚本执行）。
 > 归档审计已把它列为低优先级待收紧项。

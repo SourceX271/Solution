@@ -7,6 +7,7 @@ import { highlightHtmlContent } from "@/lib/highlight"
 import { toRenderableHtml } from "@/lib/render"
 import { sanitizeHtml } from "@/lib/sanitize"
 import { renderMathInHtml } from "@/lib/math"
+import { renderAttachmentCards } from "@/lib/attachments"
 import { auth } from "@/lib/auth"
 import { resolveSlugRedirect } from "@/lib/slug-redirect"
 import { VoteButtons } from "@/components/client/VoteButtons"
@@ -113,7 +114,17 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
   // Formulas render after sanitisation: KaTeX escapes its own output, and doing
   // it first would either be stripped by the allow-list or force us to allow its
   // inline styles on user markup.
-  const safeContent = renderMathInHtml(await sanitizeHtml(processedContent))
+  const safeContent = renderAttachmentCards(renderMathInHtml(await sanitizeHtml(processedContent)), {
+    download: tc("download"),
+    kinds: {
+      image: tc("fileKindImage"),
+      video: tc("fileKindVideo"),
+      audio: tc("fileKindAudio"),
+      pdf: tc("fileKindPdf"),
+      archive: tc("fileKindArchive"),
+      document: tc("fileKindDocument"),
+    },
+  })
   const headings = extractHeadings(safeContent)
   const tags = article.tags
 

@@ -6,6 +6,7 @@ import { formatDate, formatRelativeTime } from "@/lib/utils"
 import { sanitizeHtml } from "@/lib/sanitize"
 import { toRenderableHtml } from "@/lib/render"
 import { renderMathInHtml } from "@/lib/math"
+import { renderAttachmentCards } from "@/lib/attachments"
 import { auth } from "@/lib/auth"
 import { resolveSlugRedirect } from "@/lib/slug-redirect"
 import { RatingWidget } from "@/components/client/RatingWidget"
@@ -87,7 +88,20 @@ export default async function SoftwarePage({ params }: SoftwarePageProps) {
       }))
     : false
 
-  const descriptionHtml = renderMathInHtml(await sanitizeHtml(toRenderableHtml(software.description)))
+  const descriptionHtml = renderAttachmentCards(
+    renderMathInHtml(await sanitizeHtml(toRenderableHtml(software.description))),
+    {
+      download: tc("download"),
+      kinds: {
+        image: tc("fileKindImage"),
+        video: tc("fileKindVideo"),
+        audio: tc("fileKindAudio"),
+        pdf: tc("fileKindPdf"),
+        archive: tc("fileKindArchive"),
+        document: tc("fileKindDocument"),
+      },
+    }
+  )
 
   const isAuthor = userId === software.author.id
   const canEdit = isAuthor || userRole === "ADMIN"

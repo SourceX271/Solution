@@ -154,6 +154,30 @@ src/app/
 > 会静默丢弃自定义节点；Markdown 切回富文本时用 `insertContentAt(..., { applyInputRules: true })`，
 > 让 `$…$` 文本重新变成节点。
 
+### 图片、视频与附件上传（2026-10-07）
+
+工具栏「插入」组有三个上传入口，共用一个隐藏的 `<input type="file">`（按按钮临时设置 `accept`）：
+
+| 入口 | 接受 | 落库形态 | 详情页表现 |
+|---|---|---|---|
+| 插入图片 | `image/*` | `<img src="/uploads/attachments/…" alt="原文件名">` | 直接内联，圆角阴影 |
+| 插入视频 | `video/*` | `<video src controls preload="metadata">`（自定义 atom 节点） | 直接内联播放 |
+| 上传附件 | PDF / 压缩包 / Office / 音频等（`UPLOAD_ACCEPT`） | `<a data-attachment data-filename data-size data-kind download>` | `renderAttachmentCards()` 展开成下载卡片 |
+
+要点：
+
+- **节点而非纯 HTML**：Tiptap 的 schema 里没有 `<video>` 与带元数据的附件链接，直接插 HTML 会在解析时被丢掉，
+  所以新增了 `components/client/media-nodes.ts`（`VideoNode` / `AttachmentNode` 两个 atom 节点），
+  序列化出来的仍是可以被净化器接受的普通 HTML。
+- **插入 atom 后必须把光标移到文末**（`editor.commands.focus("end")`）：否则节点保持"被选中"状态，
+  下一次插入会**替换**它（实测连续插入「附件 → 图片 → 视频」时图片会消失）。
+- **上传是即时的**（发布前就上传），所以会产生"传了但没插进正文"的孤儿文件；`GET /api/attachments`
+  列出本人上传、`DELETE /api/attachments/[id]` 删行加删文件。
+- 客户端只 import `@/lib/upload-shared`（纯策略与嗅探）；`@/lib/upload` 含 `fs/promises`，**只能服务端引**，
+  否则构建报 `Module not found: Can't parse 'fs/promises'`（实测踩过）。
+- 校验矩阵、体积上限与魔数规则见 [security.md](./security.md)「上传类型矩阵」。
+- 端到端验证（浏览器真实上传三种文件 → 发布 → 断言详情页）见 [code-audit.md](./code-audit.md) 第一节第 15 条。
+
 ### `components/layout/`（3）
 
 `Navbar`（导航、搜索、主题切换、语言切换、通知、用户菜单、移动端抽屉）、`Footer`（服务端，读 `siteConfig`）、

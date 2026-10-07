@@ -134,6 +134,10 @@ npm run i18n:check:runtime   # 可选：对 next start -p 3103 做运行期语�
   `lxml` 等扩展会失配 → 容器内爬虫 `ModuleNotFoundError`。升级基础镜像时要同步改这里。
 - **无 healthcheck**：`nginx` 的 `depends_on` 不等待 app 就绪。
 - **数据库迁移**：容器内无法执行 Prisma CLI，schema 变更必须重建镜像 + 处理数据卷。
+- **上传体积与代理**：附件上限是**单文件 64 MB（视频）**，其余 8–24 MB（矩阵见 [security.md](./security.md)）。
+  `app` 容器的 3000 端口是直接发布的，所以默认没有代理限制；一旦前面挂了 Nginx/网关，必须把
+  `client_max_body_size`（或等价配置）调到 **≥ 64 MB**，否则视频上传会在代理处先被 413 掉。
+  上传落盘在 `uploads-data` 卷（`/app/public/uploads`），与 `app-data`（数据库）分开备份。
 - 定时采集只在 `NODE_ENV=production` 注册；`docker` 运行即生产，故容器内会启动（启动日志有 `[crawler] scheduled …`）。
 
 ---

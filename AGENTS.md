@@ -121,7 +121,8 @@
 ### 2.8 安全
 
 - 任何来自用户的 HTML：入库与渲染前都过 `sanitizeHtml()`；Markdown 先 `render` 再净化再高亮。
-- 上传：MIME 白名单（jpeg/png/gif/webp）+ magic byte 嗅探 + 体积上限 + `randomUUID()` 文件名；**不接收 SVG**。
+- 上传：按类型白名单 + **magic byte 嗅探**（声明类型只用来选规则，内容必须同类）+ 分类型体积上限 + `randomUUID()` 文件名；**不接收 SVG**；矩阵见 [docs/security.md](docs/security.md)「上传类型矩阵」。
+- 客户端**禁止** import `@/lib/upload`（含 `fs/promises`，会把 Node 模块打进浏览器包）；浏览器侧只用 `@/lib/upload-shared`。
 - 密钥只放 `.env`（已被 git 与 Docker 忽略）；**禁止**把任何密钥写进源码、提交信息或文档。
 - 需要拼进 `dangerouslySetInnerHTML` 的结构化数据（如 JSON-LD）必须转义 `<`/`>`/`&`。
 - 重定向参数只接受站内相对路径（防开放重定向）；执行外部命令一律 `execFile` + 参数数组 + 白名单。
@@ -141,12 +142,12 @@
 src/app/[locale]/    前台与后台页面（(main) 公开 / (auth) 登录注册 / admin 后台）
 src/app/api/         REST 路由（41 个 route.ts）        → docs/api-reference.md
 src/lib/             业务与基础设施（认证、守卫、审计、校验、限流、清洗、标签、缓存失效、采集入库）
-src/components/      ui（Radix 封装）/ client（交互）/ layout / admin  共 46 个
+src/components/      ui（Radix 封装）/ client（交互）/ layout / admin  共 48 个
 src/i18n/            routing.ts（locales）与 request.ts（词条装载）
 crawler/             Python 采集器（唯一入口 python -m crawler.main）  → docs/crawler.md
 prisma/              schema.prisma、seed.ts、seed-redirects.ts         → docs/data-model.md
 scripts/             check-i18n.mjs、check-i18n-runtime.mjs
-messages/            zh.json / en.json（各 1009 键）
+messages/            zh.json / en.json（各 1091 键）
 docs/                开发者文档；配图与复核截图在 docs/assets/，历史快照在 docs/archive/
 public/              logo.svg 与运行时上传目录 uploads/（不入库）
 ```

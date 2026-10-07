@@ -34,6 +34,7 @@ model User {
   bookmarks     Bookmark[]
   notifications Notification[]
   tags          Tag[]
+  attachments   Attachment[]
 
   @@index([email])
   @@index([role])
@@ -310,4 +311,26 @@ model AuditLog {
   @@index([createdAt])
   @@index([actorId])
   @@index([action])
+}
+
+/// An uploaded file that content can reference (image, video, audio, PDF, archive, document).
+///
+/// The bytes live under `public/uploads/`; this row is the record of who
+/// uploaded what, so the file can be listed and deleted again. `url` is stored
+/// (not derived) because the folder is date-sharded.
+model Attachment {
+  id           String   @id @default(cuid())
+  uploaderId   String
+  uploader     User     @relation(fields: [uploaderId], references: [id], onDelete: Cascade)
+  url          String
+  originalName String
+  mimeType     String
+  /// image | video | audio | pdf | archive | document — drives the icon and
+  /// whether the detail page renders it inline or offers a download card.
+  kind         String
+  size         Int
+  createdAt    DateTime @default(now())
+
+  @@index([uploaderId, createdAt])
+  @@index([createdAt])
 }

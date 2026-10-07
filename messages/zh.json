@@ -132,7 +132,14 @@
     "passwordMismatch": "两次密码不一致",
     "clear": "清除",
     "rateStars": "评分 {star} 星",
-    "madeWith": "由 Solution Team 制作"
+    "madeWith": "由 Solution Team 制作",
+    "download": "下载",
+    "fileKindImage": "图片",
+    "fileKindVideo": "视频",
+    "fileKindAudio": "音频",
+    "fileKindPdf": "PDF 文档",
+    "fileKindArchive": "压缩包",
+    "fileKindDocument": "文档"
   },
   "nav": {
     "home": "首页",
@@ -537,7 +544,10 @@
     "shortcutStrike": "Ctrl+Shift+X",
     "shortcutInlineCode": "Ctrl+E",
     "shortcutUndo": "Ctrl+Z",
-    "shortcutRedo": "Ctrl+Shift+Z"
+    "shortcutRedo": "Ctrl+Shift+Z",
+    "insertVideo": "插入视频",
+    "insertAttachment": "上传附件（PDF / 压缩包 / 文档）",
+    "uploadFailed": "上传失败，请重试"
   },
   "notifications": {
     "title": "通知",
@@ -1057,8 +1067,8 @@
     "uploadTooFrequent": "上传过于频繁，请稍后再试",
     "uploadNoFile": "未选择文件",
     "uploadBadType": "不支持的文件格式",
-    "uploadTooLarge": "文件不能超过 2MB",
-    "uploadBadContent": "文件内容不是有效的图片",
+    "uploadTooLarge": "文件不能超过 {max}",
+    "uploadBadContent": "文件内容与声明的类型不符，或文件已损坏",
     "uploadBadExtension": "不允许的文件扩展名",
     "uploadFailed": "上传失败",
     "passwordTooFrequent": "尝试过于频繁，请稍后再试",
@@ -1104,7 +1114,8 @@
     "invalidType": "无效的内容类型",
     "invalidStatus": "无效的状态",
     "selfBan": "不能封禁自己的账号",
-    "cannotDeleteSelf": "不能删除自己的账号"
+    "cannotDeleteSelf": "不能删除自己的账号",
+    "uploadTooLargeGeneric": "文件过大"
   },
   "validation": {
     "emailInvalid": "请输入有效的邮箱地址",

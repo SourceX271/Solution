@@ -165,10 +165,34 @@
 | **取消系统分享被当成"已复制"** | `navigator.share` 的 `AbortError` 被空 catch 吞掉后继续走剪贴板分支 | 区分 `AbortError` 直接 return |
 | **三处用户可见文案绕过 i18n** | `RatingWidget` 的英文 `aria-label`、页脚的 `Made with … by Solution Team`、`solutions` 页的硬编码全角 `：` | 三个词条（`common.rateStars`/`common.madeWith`/`docs.problemLabel`），`i18n:check` 从 1075 → 1080 键 |
 
+### 15. 图片/视频/附件上传（2026-10-07，功能 + 验证中发现并修掉的三个问题）
+
+功能本身：`/api/upload` 从"只收 4 种图片、2MB、全部塞进 `avatars/`"扩展成六类矩阵（图片/视频/音频/PDF/压缩包/文档），
+新增 `Attachment` 模型与 `/api/attachments` 列表/删除接口，编辑器新增视频节点、附件节点与三个上传按钮。
+细节见 [security.md](./security.md)「上传类型矩阵」与 [frontend.md](./frontend.md)「图片、视频与附件上传」。
+
+验证过程中暴露的三个真实缺陷（都已修，且都有可复现证据）：
+
+| 问题 | 现象与证据 | 修复 |
+|---|---|---|
+| **客户端包被拖进 Node 模块** | 编辑器 import `@/lib/upload` 后，`next dev` 直接报 `Build Error: Module not found: Can't resolve 'fs/promises'` —— 该模块含 `fs/promises`/`crypto`/`path` | 拆成 `src/lib/upload-shared.ts`（纯策略、嗅探、校验，浏览器可用）与 `src/lib/upload.ts`（落盘/删除，服务端专用），客户端只 import 前者；约束写进 AGENTS.md §2.8 |
+| **连续插入会互相覆盖** | 浏览器实测「附件 → 图片 → 视频」后，正文里只剩附件与视频，图片消失（`has img: false`）。根因：插入 atom 节点后它保持 NodeSelection，下一次 `insertContent` 把它**替换**掉 | 每次插入后 `editor.commands.focus("end")`，把光标移到文末；e2e 现在断言三种节点同时存在 |
+| **只有附件没有正文时无法发布** | 正文为「附件 + 视频 + 一句话」时提交被前端拦下（正文不足 20 字），因为 `plainTextLength()` 把生成标记的内容全当标签剥掉了 | 与公式同一处理：把 `data-filename` 与 `img[alt]` 计入可读文本长度 |
+
+验证手段（可重跑）：
+
+- `npx tsx scripts/_tmp-upload-verify.mjs unit` —— 27 条断言：14 种格式的魔数嗅探、HTML/SVG/空文件被拒、
+  「ZIP 声明成 PNG」「HTML 声明成 PDF」被拒、`image/svg+xml` 直接 400、超限判定、头像只允许图片且 2MB、
+  文件名穿越与 `uploadUrlToPath` 越界防护。
+- `… http` —— 未登录 401；图片/PDF/压缩包/视频/文档 201；伪装内容 400；SVG 400；9MB 图片 413；
+  PDF 当头像 400；上传后可访问、列表可见、删除后磁盘文件消失，跑完自清理。
+- `scripts/_tmp-media-e2e.mjs`（Playwright 真浏览器，登录改用 API 注入 cookie）—— 10 条断言：
+  三个入口分别上传并插入，编辑器 DOM 三种节点同时存在，发布后详情页渲染附件卡片（文件名 + `PDF 文档 · 2 KB`）、
+  图片、视频，卡片 `href` 指向上传且带 `download`。
+
 ---
 
 ## 二、待处理
-
 按影响面排序，均未修改。
 
 | 优先级 | 问题 | 位置 / 说明 |

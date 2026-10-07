@@ -132,7 +132,14 @@
     "passwordMismatch": "Passwords do not match",
     "clear": "Clear",
     "rateStars": "Rate {star} stars",
-    "madeWith": "Made with care by Solution Team"
+    "madeWith": "Made with care by Solution Team",
+    "download": "Download",
+    "fileKindImage": "Image",
+    "fileKindVideo": "Video",
+    "fileKindAudio": "Audio",
+    "fileKindPdf": "PDF document",
+    "fileKindArchive": "Archive",
+    "fileKindDocument": "Document"
   },
   "nav": {
     "home": "Home",
@@ -537,7 +544,10 @@
     "shortcutStrike": "Ctrl+Shift+X",
     "shortcutInlineCode": "Ctrl+E",
     "shortcutUndo": "Ctrl+Z",
-    "shortcutRedo": "Ctrl+Shift+Z"
+    "shortcutRedo": "Ctrl+Shift+Z",
+    "insertVideo": "Insert video",
+    "insertAttachment": "Upload attachment (PDF / archive / document)",
+    "uploadFailed": "Upload failed, please retry"
   },
   "notifications": {
     "title": "Notifications",
@@ -1057,8 +1067,8 @@
     "uploadTooFrequent": "Too many uploads, please try again later",
     "uploadNoFile": "No file selected",
     "uploadBadType": "Unsupported file format",
-    "uploadTooLarge": "File must be under 2MB",
-    "uploadBadContent": "The file is not a valid image",
+    "uploadTooLarge": "File must be under {max}",
+    "uploadBadContent": "The file content does not match its type, or the file is corrupted",
     "uploadBadExtension": "File extension not allowed",
     "uploadFailed": "Upload failed",
     "passwordTooFrequent": "Too many attempts, please try again later",
@@ -1104,7 +1114,8 @@
     "invalidType": "Invalid content type",
     "invalidStatus": "Invalid status",
     "selfBan": "You cannot ban your own account",
-    "cannotDeleteSelf": "You cannot delete your own account"
+    "cannotDeleteSelf": "You cannot delete your own account",
+    "uploadTooLargeGeneric": "File is too large"
   },
   "validation": {
     "emailInvalid": "Please enter a valid email address",
