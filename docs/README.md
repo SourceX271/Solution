@@ -66,7 +66,7 @@
 | 语言 | TypeScript 5.4（strict） |
 | 数据库 | SQLite + Prisma 5（`prisma/schema.prisma`，**15 个模型**，只有 `db push`） |
 | 认证 | NextAuth v5 beta：GitHub OAuth + 邮箱密码（bcrypt 12 轮），纯 JWT 会话 |
-| 国际化 | next-intl 4（zh / en，`localePrefix: as-needed`，各 1054 键） |
+| 国际化 | next-intl 4（zh / en，`localePrefix: as-needed`，各 1075 键） |
 | UI | Tailwind CSS 3 + Radix（shadcn 风格）+ lucide-react + Tiptap 3 富文本 + KaTeX 公式 + sonner |
 | 爬虫 | Python 3 + httpx + BeautifulSoup/lxml（`crawler/`，7 个数据源） |
 | 部署 | Docker 多阶段构建 + Nginx + SQLite 数据卷 |
@@ -80,7 +80,7 @@
 src/app/[locale]/     前台页面（(main) 公开 / (auth) 登录注册 / admin 后台），共 33 个 page.tsx
 src/app/api/          REST 路由，41 个 route.ts / 66 个导出方法 → api-reference.md
 src/lib/              认证、守卫、审计、校验、限流、清洗、标签、缓存失效、采集入库
-src/components/       ui（Radix 封装）/ client（交互）/ layout / admin，共 47 个
+src/components/       ui（Radix 封装）/ client（交互）/ layout / admin，共 48 个
 crawler/              Python 爬虫（入口 crawler/main.py，必须 python -m crawler.main）
 prisma/               schema、seed、旧 slug 重定向脚本
 scripts/              check-i18n.mjs、check-i18n-runtime.mjs
@@ -146,6 +146,7 @@ python -m crawler.main --format jsonl             # 每行一条 JSON
 | `docs/assets/playwright/*.png` | 后台复核截图 | 8 张（含移动端），被归档的后台增强报告引用 |
 | `docs/assets/publish-*.png` | 发布页界面截图 | `/questions/ask` 与 `/solutions/new` 各 1 张（1440×1000），见 [frontend.md](./frontend.md) 第二节 |
 | `docs/assets/editor-math.png` · `docs/assets/math-rendered.png` | 公式功能截图 | 编辑器内的 LaTeX 节点与详情页的服务端渲染效果，见 [frontend.md](./frontend.md)「公式」小节 |
+| `docs/assets/editor-toolbar.png` | 编辑器工具栏截图 | 分组后的工具栏与右侧视图开关，见 [frontend.md](./frontend.md) 第四节 |
 
 > ⚠️ 两个已知的资源缺口：`public/og-image.png` **不存在**，但根 layout 与 `[locale]/layout.tsx` 共引用 4 次
 > （社交分享图会 404）；`/favicon.ico` 同样没有（标签页图标靠 `icon.svg`，浏览器请求 `/favicon.ico` 会 404）。

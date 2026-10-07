@@ -101,7 +101,7 @@ src/app/
 
 ---
 
-## 四、组件清单（47 个）
+## 四、组件清单（48 个）
 
 ### `components/ui/`（16，Radix 封装原语）
 
@@ -110,12 +110,13 @@ src/app/
 
 > `tabs.tsx` 与 `toast.tsx` **全站无引用**（实际用的是 sonner 的 `<Toaster>`），属死代码。
 
-### `components/client/`（21，全部 `"use client"`）
+### `components/client/`（22，全部 `"use client"`）
 
 | 组件 | 作用 | 主要接口 |
 |---|---|---|
+| `EditorToolbar` | 编辑器工具栏：按 `role="group"` 分组的文字样式 / 段落与列表 / 插入 / 历史，段落格式下拉（正文·H1–H3），右侧固定「视图」开关（富文本 / Markdown / HTML / 分屏）；每个按钮带 `title`（含快捷键）与 `aria-label`，开关类带 `aria-pressed` | 由 `RichEditor` 传入 `editor` 与回调 |
 | `PublishShell` | 三个发布页共用的外壳：返回链接、标题与说明、页面级错误汇总、`Field`（label + 提示 + 计数器 + 字段错误，并用 `cloneElement` 把 `id`/`aria-*` 接到控件上）、草稿恢复横幅、`TipsCard`、粘性提交栏、Ctrl/⌘+Enter 提交 | — |
-| `RichEditor` | Tiptap 3 富文本编辑器（所见即所得 / Markdown·HTML 源码 / 分屏预览）；**支持 LaTeX 公式**（`$…$`、`$$…$$`、`\(…\)`、`\[…\]`，输入与粘贴都会转成公式节点，双击可编辑）；同文件另导出只读 `RichContent`；可选的 `id`/`labelledBy`/`describedBy`/`invalid` 会写到可编辑区，供 `<Field>` 接上标签与错误 | `POST /api/upload` |
+| `RichEditor` | Tiptap 3 富文本编辑器（所见即所得 / Markdown·HTML 源码 / 分屏预览，工具栏见 `EditorToolbar`）；**支持 LaTeX 公式**（`$…$`、`$$…$$`、`\(…\)`、`\[…\]`，输入与粘贴都会转成公式节点，双击可编辑）；同文件另导出只读 `RichContent`；可选的 `id`/`labelledBy`/`describedBy`/`invalid` 会写到可编辑区，供 `<Field>` 接上标签与错误 | `POST /api/upload` |
 | `CommentSection` | 评论区：列表、发表、回复、编辑、删除 | `/api/comments*` |
 | `AnswerForm` / `AnswerItem` / `AcceptButton` | 答题、展示（投票/采纳/编辑/删除）、采纳按钮 | `/api/questions/[id]/answers`、`/api/answers/[id]` |
 | `VoteButtons` / `RatingWidget` / `BookmarkButton` | 顶踩投票、1–5 星评分、收藏开关 | `POST /api/votes`、`POST /api/bookmarks` |

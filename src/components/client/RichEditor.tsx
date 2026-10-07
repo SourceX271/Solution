@@ -10,11 +10,8 @@ import LinkExtension from "@tiptap/extension-link";
 import TurndownService from "turndown";
 import { marked } from "marked";
 import DOMPurify from "dompurify";
-import {
-  Bold, Italic, Heading2, List, ListOrdered, Code, Quote,
-  Link as LinkIcon, Image as ImageIcon, Eye, Pencil, Columns, Strikethrough, Undo, Redo,
-  Brackets, Radical, Sigma,
-} from "lucide-react";
+import { Eye } from "lucide-react";
+import { EditorToolbar, type EditorView } from "./EditorToolbar";
 import { MathBlock, MathInline } from "./math-nodes";
 import { renderLatex, renderMathInHtml, mathElementsToDelimiters } from "@/lib/math";
 import { Button } from "@/components/ui/button";
@@ -212,19 +209,7 @@ export function RichEditor({
     [editor, sourceFormat, toSource]
   );
 
-  const switchToSource = useCallback(() => enterMode("source"), [enterMode]);
   const switchToSplit = useCallback(() => enterMode("split"), [enterMode]);
-
-  /** Flip the source view between Markdown and raw HTML, converting in place. */
-  const switchFormat = useCallback(
-    (next: "markdown" | "html") => {
-      if (next === sourceFormat) return;
-      const html = fromSource(sourceContent, sourceFormat);
-      setSourceFormat(next);
-      setSourceContent(toSource(html, next));
-    },
-    [sourceFormat, sourceContent, fromSource, toSource]
-  );
 
   // Update preview when source content changes
   useEffect(() => {
@@ -296,6 +281,32 @@ export function RichEditor({
     setMode("wysiwyg");
   }, [editor, sourceContent, sourceFormat, fromSource, onChange]);
 
+  /**
+   * Toolbar view switcher.
+   *
+   * Rich text and split reuse their existing handlers; the two source views set
+   * the format and rebuild the buffer directly from the editor HTML, so
+   * switching rich text → HTML never goes through Markdown (which would flatten
+   * formulas into `$…$` text).
+   */
+  const selectView = useCallback(
+    (next: EditorView) => {
+      if (next === "wysiwyg") {
+        switchToWysiwyg();
+        return
+      }
+      if (next === "split") {
+        switchToSplit();
+        return
+      }
+      if (!editor) return
+      setSourceFormat(next)
+      setSourceContent(toSource(editor.getHTML(), next))
+      setMode("source")
+    },
+    [editor, switchToSplit, switchToWysiwyg, toSource]
+  );
+
   /** Insert a new formula, or update the one that was double-clicked. */
   const applyMath = useCallback(() => {
     if (!editor || !mathDialog) return;
@@ -351,121 +362,23 @@ export function RichEditor({
     )
   }
 
-  const btnClass = (active: boolean, disabled = false) =>
-    "rounded px-1.5 py-1 text-xs transition-colors " +
-    (disabled ? "opacity-30 cursor-not-allowed" :
-     active ? "bg-primary/15 text-primary" : "text-muted-foreground hover:bg-accent hover:text-foreground");
-
-  const Divider = () => <span className="mx-0.5 w-px h-5 bg-border" />;
+  const currentView: EditorView =
+    mode === "wysiwyg" ? "wysiwyg" : mode === "split" ? "split" : sourceFormat === "html" ? "html" : "markdown"
 
   return (
     <div className="rich-editor">
-      {/* Toolbar */}
       {showToolbar && (
-        <div className="flex items-center justify-between rounded-t-md border border-input border-b-0 bg-muted/40 p-1.5 gap-1">
-          <div className="flex flex-wrap items-center gap-0.5">
-            {mode === "wysiwyg" && (
-              <>
-                <button type="button" onClick={() => editor.chain().focus().toggleBold().run()} className={btnClass(editor.isActive("bold"))} title={te("bold")}>
-                  <Bold className="h-3.5 w-3.5" />
-                </button>
-                <button type="button" onClick={() => editor.chain().focus().toggleItalic().run()} className={btnClass(editor.isActive("italic"))} title={te("italic")}>
-                  <Italic className="h-3.5 w-3.5" />
-                </button>
-                <button type="button" onClick={() => editor.chain().focus().toggleStrike().run()} className={btnClass(editor.isActive("strike"))} title={te("strike")}>
-                  <Strikethrough className="h-3.5 w-3.5" />
-                </button>
-                <Divider />
-                <button type="button" onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()} className={btnClass(editor.isActive("heading", { level: 2 }))} title={te("heading")}>
-                  <Heading2 className="h-3.5 w-3.5" />
-                </button>
-                <button type="button" onClick={() => editor.chain().focus().toggleBulletList().run()} className={btnClass(editor.isActive("bulletList"))} title={te("bulletList")}>
-                  <List className="h-3.5 w-3.5" />
-                </button>
-                <button type="button" onClick={() => editor.chain().focus().toggleOrderedList().run()} className={btnClass(editor.isActive("orderedList"))} title={te("orderedList")}>
-                  <ListOrdered className="h-3.5 w-3.5" />
-                </button>
-                <Divider />
-                <button type="button" onClick={() => editor.chain().focus().toggleCodeBlock().run()} className={btnClass(editor.isActive("codeBlock"))} title={te("codeBlock")}>
-                  <Code className="h-3.5 w-3.5" />
-                </button>
-                <button type="button" onClick={() => editor.chain().focus().toggleBlockquote().run()} className={btnClass(editor.isActive("blockquote"))} title={te("blockquote")}>
-                  <Quote className="h-3.5 w-3.5" />
-                </button>
-                <Divider />
-                <button type="button" onClick={insertLink} className={btnClass(editor.isActive("link"))} title={te("insertLink")}>
-                  <LinkIcon className="h-3.5 w-3.5" />
-                </button>
-                <button type="button" onClick={insertImage} className="rounded px-1.5 py-1 text-xs text-muted-foreground hover:bg-accent hover:text-foreground transition-colors" title={te("insertImage")}>
-                  <ImageIcon className="h-3.5 w-3.5" />
-                </button>
-                <Divider />
-                <button
-                  type="button"
-                  onClick={() => { setMathDraft(""); setMathDialog({ display: false, pos: null }); }}
-                  className={btnClass(editor.isActive("mathInline"))}
-                  title={te("inlineMath")}
-                  aria-label={te("inlineMath")}
-                >
-                  <Sigma className="h-3.5 w-3.5" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => { setMathDraft(""); setMathDialog({ display: true, pos: null }); }}
-                  className={btnClass(editor.isActive("mathBlock"))}
-                  title={te("blockMath")}
-                  aria-label={te("blockMath")}
-                >
-                  <Radical className="h-3.5 w-3.5" />
-                </button>
-                <Divider />
-                <button type="button" onClick={() => editor.chain().focus().undo().run()} className={btnClass(false, !editor.can().undo())} title={te("undo")}>
-                  <Undo className="h-3.5 w-3.5" />
-                </button>
-                <button type="button" onClick={() => editor.chain().focus().redo().run()} className={btnClass(false, !editor.can().redo())} title={te("redo")}>
-                  <Redo className="h-3.5 w-3.5" />
-                </button>
-              </>
-            )}
-          </div>
-
-          {/* Source format switcher: Markdown or raw HTML */}
-          {(mode === "source" || mode === "split") && (
-            <div className="flex items-center gap-0.5 shrink-0" role="group" aria-label={te("sourceFormat")}>
-              <button
-                type="button"
-                onClick={() => switchFormat("markdown")}
-                title={te("markdownSource")}
-                aria-pressed={sourceFormat === "markdown"}
-                className={btnClass(sourceFormat === "markdown")}
-              >
-                <Columns className="h-3.5 w-3.5" />
-              </button>
-              <button
-                type="button"
-                onClick={() => switchFormat("html")}
-                title={te("htmlSource")}
-                aria-pressed={sourceFormat === "html"}
-                className={btnClass(sourceFormat === "html")}
-              >
-                <Brackets className="h-3.5 w-3.5" />
-              </button>
-            </div>
-          )}
-
-          {/* Mode switchers */}
-          <div className="flex items-center gap-0.5 shrink-0">
-            <button type="button" onClick={() => setMode("wysiwyg")} title={te("richTextMode")} className={btnClass(mode === "wysiwyg")}>
-              <Pencil className="h-3.5 w-3.5" />
-            </button>
-            <button type="button" onClick={switchToSource} title={te("markdownSource")} className={btnClass(mode === "source")}>
-              {"</>"}
-            </button>
-            <button type="button" onClick={switchToSplit} title={te("splitPreview")} className={btnClass(mode === "split")}>
-              <Columns className="h-3.5 w-3.5" />
-            </button>
-          </div>
-        </div>
+        <EditorToolbar
+          editor={editor}
+          view={currentView}
+          onSelectView={selectView}
+          onInsertLink={insertLink}
+          onInsertImage={insertImage}
+          onInsertMath={(displayMode) => {
+            setMathDraft("")
+            setMathDialog({ display: displayMode, pos: null })
+          }}
+        />
       )}
 
       {/* WYSIWYG mode */}
