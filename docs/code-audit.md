@@ -192,6 +192,36 @@
 
 ---
 
+### 16. `sanitizeHtml` 把 `style` / `class` 原样放行（2026-10-07，安全）
+
+**发现**：`style` 与 `class` 本来就在 DOMPurify 的允许属性里，而 **DOMPurify 完全不解析 CSS**。实测
+`sanitizeHtml('<p style="position: fixed; top: 0; left: 0; z-index: 9999; background-image: url(http://evil.test/x.png)">')`
+**原样返回**，于是任何能提交富文本的用户都可以：
+
+- 用 `position: fixed; inset: 0` 铺一层透明覆盖层盖住真实界面，拦截整页点击（假登录框、钓鱼）；
+- 用 `background-image: url(…)` 让每位读者的浏览器向攻击者服务器发请求（IP + UA 外带，也是经典的 CSS 泄露手法）；
+- 用 `width: expression(alert(1))` 这类历史向量；
+- 用 `class="fixed inset-0 z-50 bg-white"` —— Tailwind 的几百个工具类就在同一张样式表里，效果等价于第一条。
+
+同一处还有个可用性问题：编辑器预览用的是一份**更窄**的独立白名单（连 `style` 都没有），所以作者在 HTML 源码模式里
+看到的和发布后的不一样，看起来就像"样式没保存"。
+
+**修复**：
+
+- 新增 `src/lib/rich-text-styles.ts`：CSS 属性白名单（`STYLE_RULES`，只放排版类）、逐属性的值模式、危险值拒绝
+  （`url(`、`expression(`、`@import`、`javascript:`、`/*`、反斜杠与尖括号）以及 `!important` 剥离；class 只保留
+  应用自己产出的名字（`hljs`/`hljs-*`/`language-*`/`code-block`/`media-video`/`attachment-inline`/`math-inline`/`math-block`）。
+- 新增 `src/lib/sanitize-config.ts`：把两份白名单与 `installContentSanitizer()` 钩子集中起来，**服务端 `sanitizeHtml()`
+  与编辑器预览共用**，从根上消除"预览与发布不一致"。
+- 顺带补齐旧式表现标签/属性（`font`、`center`、`sub`、`sup`、`small`、`align`、`color`、`size`、`face`、`bgcolor`）
+  与表格的 `tfoot`/`caption`。注意 `align` 等必须同时写进 `ADD_URI_SAFE_ATTR`：DOMPurify 会对所有不在其"值不是 URI"
+  内部清单里的属性套用 URI 白名单，`center` 不是 URI 就被整条丢掉（实测 `<div align="center">` → `<div>`）。
+- 新增回归脚本 `scripts/check-sanitize.ts` → `npm run sanitize:check`（31 条，含上述每条 payload）。
+
+**验证**：`npm run sanitize:check` → `ALL PASS (31 cases)`；`npx tsc --noEmit` 0 错误。
+
+---
+
 ## 二、待处理
 按影响面排序，均未修改。
 

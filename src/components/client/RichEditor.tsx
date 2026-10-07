@@ -17,6 +17,7 @@ import { MathBlock, MathInline } from "./math-nodes";
 import { AttachmentNode, VideoNode } from "./media-nodes";
 import { renderLatex, renderMathInHtml, mathElementsToDelimiters } from "@/lib/math";
 import { renderAttachmentCards, type AttachmentCardLabels } from "@/lib/attachments";
+import { contentPurifyConfig, installContentSanitizer } from "@/lib/sanitize-config";
 import { UPLOAD_ACCEPT } from "@/lib/upload-shared";
 import { readErrorMessage } from "@/lib/http-error";
 import { Button } from "@/components/ui/button";
@@ -28,25 +29,24 @@ import {
 
 marked.setOptions({ breaks: true, gfm: true });
 
-/** Allow-list shared by the Markdown preview and RichContent. */
-const SANITIZE_CONFIG = {
-  ALLOWED_TAGS: [
-    "h1", "h2", "h3", "h4", "h5", "h6", "p", "br", "hr", "strong", "b", "em", "i",
-    "s", "u", "a", "code", "pre", "ul", "ol", "li", "blockquote", "img",
-    "video", "audio",
-    "table", "thead", "tbody", "tr", "th", "td", "div", "span",
-  ],
-  ALLOWED_ATTR: [
-    "href", "target", "rel", "download",
-    "src", "alt", "title", "class", "controls", "poster", "preload", "playsinline",
-  ],
-  ALLOW_DATA_ATTR: true,
-  ALLOWED_URI_REGEXP: /^(?:(?:https?|ftp):\/\/|mailto:|tel:|\/|#)/i,
-};
+/** Set once, on the first client-side preview build. */
+let previewHooksInstalled = false;
 
+/**
+ * Sanitise preview HTML with the renderer's own allow-list.
+ *
+ * `RichEditor` is a client component, but Next.js still server-renders it, and
+ * `dompurify` returns an inert stub when there is no `window` (its hooks are not
+ * even defined there). So the hook is attached lazily and only in the browser;
+ * on the server the call behaves exactly as it did before.
+ */
 function sanitizePreviewHtml(html: string): string {
   try {
-    return DOMPurify.sanitize(html, SANITIZE_CONFIG);
+    if (!previewHooksInstalled && typeof window !== "undefined") {
+      installContentSanitizer(DOMPurify);
+      previewHooksInstalled = true;
+    }
+    return DOMPurify.sanitize(html, contentPurifyConfig());
   } catch {
     return html.replace(/</g, "&lt;").replace(/>/g, "&gt;");
   }

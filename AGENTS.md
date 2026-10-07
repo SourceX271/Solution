@@ -35,6 +35,7 @@
   npx next lint           # ESLint（见下方环境限制）
   npm run i18n:check      # 中英词条对齐 + 无硬编码中文
   npm run build           # 涉及运行时/路由/依赖时必跑（先停掉 dev server）
+  npm run sanitize:check  # 动过富文本白名单 / 编辑器排版能力时必跑
   ```
 
 - 自检口径：
@@ -121,6 +122,11 @@
 ### 2.8 安全
 
 - 任何来自用户的 HTML：入库与渲染前都过 `sanitizeHtml()`；Markdown 先 `render` 再净化再高亮。
+- 用户 HTML 里的 `style` / `class` **只能由白名单决定**（`src/lib/rich-text-styles.ts` 的 `STYLE_RULES` 与 `CLASS_RULES`，
+  由 `src/lib/sanitize-config.ts` 的 `installContentSanitizer()` 挂到 DOMPurify 上）：DOMPurify 不解析 CSS，直接放行
+  `style`/`class` 等于允许 `position: fixed; inset: 0` 覆盖层与 `url()` 外带信标（Tailwind 的 `class` 同理）。
+  编辑器要支持新的排版能力时，**先加进白名单再加控件**，并同步 `scripts/check-sanitize.ts`。
+  服务端净化与编辑器预览必须共用 `sanitize-config.ts` 这一份配置，不允许各写一份。
 - 上传：按类型白名单 + **magic byte 嗅探**（声明类型只用来选规则，内容必须同类）+ 分类型体积上限 + `randomUUID()` 文件名；**不接收 SVG**；矩阵见 [docs/security.md](docs/security.md)「上传类型矩阵」。
 - 客户端**禁止** import `@/lib/upload`（含 `fs/promises`，会把 Node 模块打进浏览器包）；浏览器侧只用 `@/lib/upload-shared`。
 - 密钥只放 `.env`（已被 git 与 Docker 忽略）；**禁止**把任何密钥写进源码、提交信息或文档。
@@ -146,7 +152,7 @@ src/components/      ui（Radix 封装）/ client（交互）/ layout / admin  �
 src/i18n/            routing.ts（locales）与 request.ts（词条装载）
 crawler/             Python 采集器（唯一入口 python -m crawler.main）  → docs/crawler.md
 prisma/              schema.prisma、seed.ts、seed-redirects.ts         → docs/data-model.md
-scripts/             check-i18n.mjs、check-i18n-runtime.mjs
+scripts/             check-i18n.mjs、check-i18n-runtime.mjs、check-math.ts、check-sanitize.ts
 messages/            zh.json / en.json（各 1091 键）
 docs/                开发者文档；配图与复核截图在 docs/assets/，历史快照在 docs/archive/
 public/              logo.svg 与运行时上传目录 uploads/（不入库）

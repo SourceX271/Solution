@@ -56,7 +56,7 @@
 | 富文本入库 | `sanitizeHtml()`：DOMPurify 白名单后落库（回答、评论等） | `src/lib/sanitize.ts` |
 | 富文本渲染 | 详情页 `render` → `highlight` → `sanitizeHtml` 全链路再做一次净化 | `lib/render.ts`、`lib/highlight.ts`、各详情页 |
 | Markdown | `marked`（`breaks` + `gfm`）；**结果必须由调用方净化** | `src/lib/render.ts` |
-| LaTeX 公式 | 渲染在 `sanitizeHtml` **之后**：`renderMathInHtml()` 用 `katex.renderToString(..., { trust: false })`，`\href`/`\htmlClass` 等不会产出链接或标签；因为 KaTeX 输出带内联 `style`，若先渲染再净化反而会破坏公式（也正是白名单不允许用户输入带 `style` 的原因） | `src/lib/math.ts`、各详情页 |
+| LaTeX 公式 | 渲染在 `sanitizeHtml` **之后**：`renderMathInHtml()` 用 `katex.renderToString(..., { trust: false })`，`\href`/`\htmlClass` 等不会产出链接或标签；KaTeX 输出带大量内联 `style`（含 `position`、`top` 这类排版定位），先渲染再净化会被样式白名单削掉、公式排版错乱，所以顺序不能颠倒 | `src/lib/math.ts`、各详情页 |
 | 上传 | MIME 白名单 + **magic byte 嗅探**（不信 Content-Type 与文件名）+ 分类型体积上限 + 文件名只用 `randomUUID()`；**不接收 SVG**（脚本容器） | `src/lib/upload-shared.ts`、`src/app/api/upload/route.ts` |
 | JSON-LD | 序列化时把 `<` `>` `&` 转义为 `\u003c` 等，防 `</script>` 逃逸 | `src/components/JsonLd.tsx` |
 | 开放重定向 | 登录页 `callbackUrl` 只接受以 `/` 开头且非 `//`、`/\` 的站内相对路径 | `(auth)/login/page.tsx` |
@@ -67,13 +67,37 @@
 | XML 输出 | `/api/rss` 的所有插值过 `escapeXml()`，CDATA 内的 `]]>` 转为 `]]]]><![CDATA[>`（否则改个昵称就能让整个 feed 变成非良构 XML，或在标题里注入任意 item） | `src/app/api/rss/route.ts` |
 | 删除清理 | 删除内容时显式清理多态 `Vote`/`Bookmark`（含 `targetType="answer"`，以及问题级联删除下的答案投票）：`purgeContentRelations()` 在删除前的同一事务内执行 | `src/lib/content-purge.ts` |
 
-**当前 DOMPurify 白名单**（`src/lib/sanitize.ts`）：
+**当前 DOMPurify 白名单**（配置在 `src/lib/sanitize-config.ts`，由服务端 `sanitizeHtml()` 与编辑器预览共用，
+避免「预览看着有样式、发布后没了」）：
 
-- 允许标签：h1–h6、p、br、hr、ul/ol/li、strong/b/em/i/s/u/mark、a、img、**video、audio**、code、pre、blockquote、
-  table 系列、div、span、input、label；
+- 允许标签：h1–h6、p、br、hr、ul/ol/li、strong/b/em/i/s/u/**mark/small/sub/sup**、a、img、**video、audio**、code、pre、blockquote、
+  table 系列（含 tfoot/caption）、div、span、**font、center、figure/figcaption、dl/dt/dd**、input、label；
 - 允许属性：`href,target,rel,download,src,alt,width,height,loading,controls,poster,preload,playsinline,muted,loop,class,id,style,type,checked,disabled,data-language`，
-  且 `ALLOW_DATA_ATTR: true`；
+  外加旧式表现属性 `align,color,size,face,bgcolor`（必须同时写进 `ADD_URI_SAFE_ATTR`，否则会被 DOMPurify 的 URI
+  白名单当成 URL 误杀——`align="center"` 的值不是 URI，默认会被整条丢掉）；`ALLOW_DATA_ATTR: true`；
 - URI 白名单：`http(s)/ftp`、`mailto:`、`tel:`、站内 `/` 与 `#`。
+
+### `style` 与 `class` 的白名单（2026-10-07 收紧）
+
+DOMPurify **完全不解析 CSS**：只要 `style` 出现在允许属性里，`<p style="position: fixed; inset: 0">` 这种整页点击拦截层、
+`background-image: url(http://…/pixel)` 这种外带信标、以及 IE 的 `expression()` 都会原样通过。所以净化时会挂一个
+`uponSanitizeAttribute` 钩子（`installContentSanitizer()`）把这两个属性重写成白名单：
+
+- **CSS 属性白名单**（`src/lib/rich-text-styles.ts` 的 `STYLE_RULES`）只放排版类属性：颜色/背景色、字体族/字号/字重/字形、
+  行高/字距、对齐、装饰、缩进、`vertical-align`、`white-space`、列表符号、表格边框。没有 `position`/`top`/`z-index`/
+  `display`/`float`/`background`（简写可带 `url()`）。
+- **值按属性逐个匹配模式**（`font-size` 只接受长度或关键字），并额外拒绝含 `url(`、`expression(`、`@import`、
+  `javascript:`、`\`、`<`、`>`、`/*` 的值；`!important` 一律剥掉，用户内容不能覆盖站点样式。
+- **class 只保留应用自己产出的类名**：`hljs`/`hljs-*`/`language-*`（语法高亮）、`code-block`、`media-video`、
+  `attachment-inline`、`math-inline`、`math-block`。Tailwind 的工具类是全局的，放行任意 `class` 等于让内容用
+  `class="fixed inset-0 z-50 bg-white"` 复刻出一层假界面盖住真实 UI。
+- `id` 仍然放行（标题锚点/TOC 需要），它不产生视觉或网络行为。
+- 编辑器把排版能力做成**结构化控件**（字体、字号、颜色、对齐、行距、上下标），落库就是上面这些内联样式，因此
+  「富文本 ↔ HTML 源码」往返与「发布后渲染」都不再丢样式；Markdown 模式对 Markdown 表达不了的样式改写成
+  内联 HTML 原样保留。
+
+> 回归用例：`npm run sanitize:check`（31 条，覆盖两份白名单与端到端净化）。改白名单必须同步该脚本，否则
+> 下一个改动会把这条防线悄悄拆掉。
 
 ### 上传类型矩阵（2026-10-07 扩展）
 
@@ -96,9 +120,6 @@
 - 删除接口只接受 `/uploads/...` 且路径必须落在 `public/uploads/` 内（`uploadUrlToPath()` 拒绝 `..`、反斜杠与绝对路径）。
 - 附件与内容之间**没有**外键关联（附件地址写在正文 HTML 里），删除内容不会连带删除文件：用户在 `/api/attachments`
   里能看到自己的上传并手动清理。
-
-> 仍放行 `style` 属性与 `class`/`id`，在「用户可提交 HTML」的场景下属于偏宽的配置（CSS 注入/样式破坏而非脚本执行）。
-> 归档审计已把它列为低优先级待收紧项。
 
 ---
 
@@ -180,7 +201,8 @@ CSP 要点：`default-src 'self'`；`script-src 'self' 'unsafe-inline' https:`�
 | 中 | 引入 `@auth/prisma-adapter`（或邮箱校验后的账号关联），让 GitHub OAuth 用户真正进入 `User` 表 |
 | 中 | 限流换成 Redis/共享存储；否则多实例部署下额度形同虚设。**直连部署（不设 `TRUST_PROXY`）下，同一 suffix 的额度是全站共享的**：一个客户端可以打满注册/评论额度，取舍见第四节 |
 | 中 | 反向代理部署记得设 `TRUST_PROXY=1`，否则所有请求都退化成共享桶（额度仍生效，但失去按 IP 的区分度） |
-| 中 | 收紧 `sanitizeHtml` 的 `style` 属性；评估给业务接口加 CSRF token |
+| ~~中~~ | ~~收紧 `sanitizeHtml` 的 `style` 属性~~ → 已于 2026-10-07 修复：改成 CSS 属性/值白名单 + class 名白名单，并补上 `npm run sanitize:check` 回归（见第三节） |
+| 中 | 评估给业务接口加 CSRF token |
 | 中 | 建立 `prisma/migrations`，并把部署流程从 `db push` 切到 `migrate deploy` |
 | 低 | 生产环境不要直接发布 app 容器的 3000 端口（当前 compose 直接映射，可绕过 Nginx/HTTPS） |
 | 低 | 给 Docker 加 healthcheck；`AUTH_SECRET` 缺失时让容器**启动即失败**而不是用默认值 |

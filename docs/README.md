@@ -100,6 +100,7 @@ npx tsc --noEmit     # 类型检查（增量缓存写 .next/cache/tsconfig.tsbui
 npm run i18n:check          # 中英词条对齐 + 无硬编码中文（秒级，提交前必跑）
 npm run i18n:check:runtime  # 对运行中的服务做语言泄漏检查（默认 http://127.0.0.1:3103）
 npm run math:check          # LaTeX 渲染管线回归（18 个用例，见 frontend.md「公式」）
+npm run sanitize:check      # 富文本白名单回归：CSS/class 过滤 + 端到端净化（31 个用例，见 security.md 第三节）
 
 npm run db:push      # 同步 Prisma schema 到数据库
 npm run db:seed      # 导入种子数据

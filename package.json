@@ -16,6 +16,7 @@
     "i18n:check": "node scripts/check-i18n.mjs",
     "i18n:check:runtime": "node scripts/check-i18n-runtime.mjs",
     "math:check": "tsx scripts/check-math.ts",
+    "sanitize:check": "tsx scripts/check-sanitize.ts",
     "postinstall": "prisma generate"
   },
   "dependencies": {
