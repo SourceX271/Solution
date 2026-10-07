@@ -170,6 +170,22 @@ src/app/
 **关键约束**：工具栏给的每个值都要先过 `filterStyleDeclarations()`（与净化器同一份白名单），通过才写入文档。
 编辑器里选得出来的样式，就是发布后能存下来的样式；否则会出现"改的时候有颜色、发出去就没了"。
 
+**样式可以落在两处**：工具栏写入的是 `TextStyle` **mark**（`<span style>`）；而粘贴/手写 HTML 常把样式写在块上
+（`<p style="color: #2563eb">`、`<h2 style="text-align: center">`）。后者由 `BlockTextStyle` 用 `addGlobalAttributes`
+在 `paragraph`/`heading` 上接住并原样渲染，否则"净化器接受了、过一遍富文本就没了"。工具栏显示当前值时**两处都读**
+（mark 优先），否则从 HTML 源码粘进来的样式虽然生效，下拉框却还显示"字体/字号"。
+
+**颜色比较要归一化**：ProseMirror 通过 CSSOM（`cssText`）渲染 `style`，`#dc2626` 会被写成 `rgb(220, 38, 38)`；
+`normalizeCssColor()` 把两边都转成 `#rrggbb` 再比较，色板才能正确显示"当前色"。
+
+**全屏编辑**：状态行右侧的箭头按钮把整个编辑器变成 `fixed inset-0 z-40 flex flex-col` 覆盖层（工具栏是固定头部、
+当前视图自己滚动），进入时锁 `document.body` 滚动并把焦点交回可编辑区；**Esc 退出**（若公式对话框开着，
+Radix 先关对话框、编辑器保持全屏）。可编辑区的内联 `min-height` 在全屏时改成 `100%`，源码/分屏文本框则改由布局控制高度。
+
+![编辑器工具栏与状态行](./assets/editor-toolbar.png)
+
+![全屏编辑](./assets/editor-fullscreen.png)
+
 **Markdown 源码模式的保真**（`lib/editor-markdown.ts`）：turndown 的内置规则**优先于** `keep()`，因此
 `## 标题` 上的 `style="text-align: center"` 会被标题规则吃掉，附件锚点会被转成普通链接；空元素更是连规则都进不去
 （`forNode()` 先判 `isBlank` → 走 `blankRule`，公式节点正是空元素）。所以：
@@ -181,6 +197,17 @@ src/app/
 
 内联/块级原始 HTML 是 CommonMark 合法语法，`marked` 会原样透传，于是 Markdown → 富文本往返不再丢样式。
 回归：`npm run markdown:check`（19 条，见 [code-audit.md](./code-audit.md) 第一节第 17 条）。
+
+**模式切换：正在编辑的那份文本才是唯一事实来源**（`RichEditor.selectView`）。切换时先算"眼前这份内容的规范 HTML"
+——富文本模式取 `editor.getHTML()`，源码/分屏模式取 `fromSource(sourceContent)`——再据此生成目标视图；
+**不再从编辑器文档重新生成源码缓冲**。旧实现是从编辑器重新生成的，于是在 HTML 源码里手敲的改动会在点下
+"Markdown"的一瞬间被丢掉（数据丢失，不是显示问题）。切回富文本时用
+`insertContentAt(..., { applyInputRules: true })` 让 `$…$` 文本重新变成公式节点；缓冲区为空则 `clearContent()`。
+
+**外部 `value` 同步**用"最后发出的 HTML"（`lastEmittedRef`）比对，而不是比 `editor.getHTML()`，并且源码模式下
+不参与同步；这样父组件把 `onChange` 的值原样回传时不会再触发一次 `setContent`（那会清掉撤销历史）。
+Tiptap 3 的 `shouldRerenderOnTransaction` 默认关闭，工具栏（含 `isActive` 状态与字体/字号标签）因此不会随光标
+移动刷新，这里显式打开。
 
 **语法高亮**（`lib/highlight.ts`）：正则原先只匹配裸 `<pre>`，而编辑器产出的是
 `<pre class="code-block">`，导致编辑器写的代码块从未被高亮过；现在 `<pre>` 与 `<code>` 上的属性都会被读取，

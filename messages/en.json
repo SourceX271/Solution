@@ -581,7 +581,9 @@
     "characters": "Characters",
     "words": "Words",
     "htmlModeHint": "Note: tags the editor does not understand (such as <section> or custom classes) are normalised when you switch back to rich text. Apply styling with the toolbar, or write allow-listed properties in style — the same allow-list is applied on save.",
-    "markdownModeHint": "Note: styling, formulas and attachments that Markdown cannot express are kept as inline HTML, so switching back to rich text loses nothing."
+    "markdownModeHint": "Note: styling, formulas and attachments that Markdown cannot express are kept as inline HTML, so switching back to rich text loses nothing.",
+    "fullscreen": "Fullscreen editing",
+    "exitFullscreen": "Exit fullscreen (Esc)"
   },
   "notifications": {
     "title": "Notifications",

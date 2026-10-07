@@ -25,7 +25,7 @@
 |---|---|
 | [data-model.md](./data-model.md) | 16 个 Prisma 模型、关系、状态机、多态关联、冗余计数、索引与操作约定 |
 | [api-reference.md](./api-reference.md) | 41 个路由文件的 66 个导出处理方法：鉴权、入参、响应、副作用、限流、已知坑 |
-| [i18n.md](./i18n.md) | 多语言接线、24 个命名空间 / 1125 键、两个校验脚本的规则、新增词条与语言的流程 |
+| [i18n.md](./i18n.md) | 多语言接线、24 个命名空间 / 1127 键、两个校验脚本的规则、新增词条与语言的流程 |
 | [admin-panel.md](./admin-panel.md) | 后台 8 个模块、三级鉴权、用户处置规则、19 类审计动作、缓存失效矩阵、开发约定 |
 | [crawler.md](./crawler.md) | Python 采集器：CLI、7 个数据源、请求行为、入库与去重、定时调度、合规风险 |
 
@@ -101,7 +101,7 @@ npm run i18n:check          # 中英词条对齐 + 无硬编码中文（秒级�
 npm run i18n:check:runtime  # 对运行中的服务做语言泄漏检查（默认 http://127.0.0.1:3103）
 npm run math:check          # LaTeX 渲染管线回归（18 个用例，见 frontend.md「公式」）
 npm run markdown:check      # Markdown 模式保真 + 代码高亮 + 计数（19 个用例，见 frontend.md「编辑器排版与三模式切换」）
-npm run sanitize:check      # 富文本白名单回归：CSS/class 过滤 + 端到端净化（31 个用例，见 security.md 第三节）
+npm run sanitize:check      # 富文本白名单回归：CSS/class 过滤、颜色归一化 + 端到端净化（39 个用例，见 security.md 第三节）
 
 npm run db:push      # 同步 Prisma schema 到数据库
 npm run db:seed      # 导入种子数据
@@ -148,7 +148,8 @@ python -m crawler.main --format jsonl             # 每行一条 JSON
 | `docs/assets/playwright/*.png` | 后台复核截图 | 8 张（含移动端），被归档的后台增强报告引用 |
 | `docs/assets/publish-*.png` | 发布页界面截图 | `/questions/ask` 与 `/solutions/new` 各 1 张（1440×1000），见 [frontend.md](./frontend.md) 第二节 |
 | `docs/assets/editor-math.png` · `docs/assets/math-rendered.png` | 公式功能截图 | 编辑器内的 LaTeX 节点与详情页的服务端渲染效果，见 [frontend.md](./frontend.md)「公式」小节 |
-| `docs/assets/editor-toolbar.png` | 编辑器工具栏截图 | 分组后的工具栏与右侧视图开关，见 [frontend.md](./frontend.md) 第四节 |
+| `docs/assets/editor-toolbar.png` | 编辑器工具栏截图 | 两行工具栏（排版 / 字体与间距 / 段落 / 插入 / 历史 + 状态与视图开关）与 HTML 源码样式切回富文本后的效果，见 [frontend.md](./frontend.md)「编辑器排版与三模式切换」 |
+| `docs/assets/editor-fullscreen.png` | 全屏编辑截图 | 覆盖层里的工具栏与可编辑区，见 [frontend.md](./frontend.md) 同小节 |
 | `docs/assets/upload-attachments.png` | 上传功能截图 | 工具栏的图片/视频/附件入口、附件 chip 与内联视频，见 [frontend.md](./frontend.md)「图片、视频与附件上传」 |
 
 > ⚠️ 两个已知的资源缺口：`public/og-image.png` **不存在**，但根 layout 与 `[locale]/layout.tsx` 共引用 4 次

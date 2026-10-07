@@ -5,13 +5,14 @@ import { useTranslations } from "next-intl"
 import {
   AlignCenter, AlignJustify, AlignLeft, AlignRight, Baseline, Bold, Braces, Brackets, ChevronDown,
   Code, Columns, Eraser, Film, Heading, Highlighter, Image as ImageIcon, Italic, Link as LinkIcon,
-  List, ListOrdered, Minus, Paperclip, Pencil, Quote, Radical, Redo2, Sigma, Strikethrough,
-  Subscript as SubscriptIcon, Superscript as SuperscriptIcon, Underline, Undo2,
+  List, ListOrdered, Maximize2, Minimize2, Minus, Paperclip, Pencil, Quote, Radical, Redo2, Sigma,
+  Strikethrough, Subscript as SubscriptIcon, Superscript as SuperscriptIcon, Underline, Undo2,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import {
   CODE_LANGUAGES, FONT_FAMILY_PRESETS, FONT_SIZE_PRESETS, HIGHLIGHT_COLOR_PRESETS,
-  LINE_HEIGHT_PRESETS, TEXT_ALIGN_VALUES, TEXT_COLOR_PRESETS, type TextAlignValue,
+  LINE_HEIGHT_PRESETS, TEXT_ALIGN_VALUES, TEXT_COLOR_PRESETS, normalizeCssColor,
+  type TextAlignValue,
 } from "@/lib/rich-text-styles"
 import type { TextStats } from "@/lib/text-stats"
 import {
@@ -37,6 +38,9 @@ interface EditorToolbarProps {
   onInsertMath: (displayMode: boolean) => void
   /** Character/word counts for the status row. */
   stats?: TextStats
+  /** Fullscreen editing state, mirrored on the toggle button. */
+  fullscreen?: boolean
+  onToggleFullscreen?: () => void
 }
 
 /** Font-family presets paired with their message keys (static, so i18n can see them). */
@@ -68,6 +72,8 @@ export function EditorToolbar({
   uploading = null,
   onInsertMath,
   stats,
+  fullscreen = false,
+  onToggleFullscreen,
 }: EditorToolbarProps) {
   const t = useTranslations("editor")
   const isRichText = view === "wysiwyg"
@@ -84,13 +90,22 @@ export function EditorToolbar({
   const activeHeading = headings.find(({ level }) => editor.isActive("heading", { level }))
   const blockLabel = activeHeading ? `H${activeHeading.level}` : t("paragraph")
 
-  const activeFontFamily = (editor.getAttributes("textStyle").fontFamily as string | undefined) ?? ""
-  const activeFontSize = (editor.getAttributes("textStyle").fontSize as string | undefined) ?? ""
-  const activeLineHeight = (editor.getAttributes("textStyle").lineHeight as string | undefined) ?? ""
-  const activeColor = (editor.getAttributes("textStyle").color as string | undefined) ?? ""
-  const activeHighlight =
-    (editor.getAttributes("textStyle").backgroundColor as string | undefined) ?? ""
-  const activeCodeLanguage = (editor.getAttributes("codeBlock").language as string | undefined) ?? ""
+  // Styling can sit on the text (TextStyle mark) or on the block itself when the
+  // content came from HTML source mode. Both are read, mark last because it is
+  // the more specific one for the current selection.
+  const inlineStyle = editor.getAttributes("textStyle") as Record<string, string | null | undefined>
+  const blockStyle = {
+    ...currentBlockAttributes(editor, ["paragraph", "heading"]),
+    ...inlineStyle,
+  }
+  const activeFontFamily = blockStyle.fontFamily ?? ""
+  const activeFontSize = blockStyle.fontSize ?? ""
+  const activeLineHeight = blockStyle.lineHeight ?? ""
+  // ProseMirror renders `style` through CSSOM, so `#dc2626` comes back as
+  // `rgb(220, 38, 38)`; comparing canonical forms keeps the swatches in sync.
+  const activeColor = normalizeCssColor(blockStyle.color ?? "")
+  const activeHighlight = normalizeCssColor(blockStyle.backgroundColor ?? "")
+  const activeCodeLanguage = currentBlockAttributes(editor, ["codeBlock"]).language ?? ""
 
   const views: { value: EditorView; label: string; Icon: typeof Pencil }[] = [
     { value: "wysiwyg", label: t("richTextMode"), Icon: Pencil },
@@ -102,7 +117,13 @@ export function EditorToolbar({
   const fontFamilyLabel = FONT_FAMILY_PRESETS.find((p) => p.value === activeFontFamily)
 
   return (
-    <div className="rounded-t-md border border-input border-b-0 bg-muted/40">
+    <div
+      className={cn(
+        "rounded-t-md border border-input border-b-0 bg-muted/40",
+        // Inside the fullscreen overlay the toolbar is a fixed header row.
+        fullscreen && "shrink-0 rounded-none border-x-0 border-t-0"
+      )}
+    >
       {isRichText && (
         <div className="flex flex-wrap items-center gap-1 p-1.5">
           <ToolGroup label={t("groupText")}>
@@ -432,26 +453,60 @@ export function EditorToolbar({
           {stats ? `${t("characters")} ${stats.characters} · ${t("words")} ${stats.words}` : ""}
         </p>
 
-        <div
-          role="group"
-          aria-label={t("groupView")}
-          className="flex shrink-0 items-center gap-0.5 rounded-lg bg-background/70 p-0.5 ring-1 ring-border"
-        >
-          {views.map(({ value, label, Icon }) => (
+        <div className="flex shrink-0 items-center gap-2">
+          {onToggleFullscreen && (
             <ToolButton
-              key={value}
-              label={label}
-              active={view === value}
-              onClick={() => onSelectView(value)}
-              className="h-7 w-7 rounded-md"
+              label={fullscreen ? t("exitFullscreen") : t("fullscreen")}
+              active={fullscreen}
+              onClick={onToggleFullscreen}
             >
-              <Icon className="h-3.5 w-3.5" />
+              {fullscreen ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
             </ToolButton>
-          ))}
+          )}
+
+          <div
+            role="group"
+            aria-label={t("groupView")}
+            className="flex shrink-0 items-center gap-0.5 rounded-lg bg-background/70 p-0.5 ring-1 ring-border"
+          >
+            {views.map(({ value, label, Icon }) => (
+              <ToolButton
+                key={value}
+                label={label}
+                active={view === value}
+                onClick={() => onSelectView(value)}
+                className="h-7 w-7 rounded-md"
+              >
+                <Icon className="h-3.5 w-3.5" />
+              </ToolButton>
+            ))}
+          </div>
         </div>
       </div>
     </div>
   )
+}
+
+/**
+ * Attributes of the nearest enclosing node of one of `types`.
+ *
+ * `editor.getAttributes(name)` cannot be used here: it walks the document with
+ * `nodesBetween(selection.from, selection.to)`, which visits nothing at all for a
+ * collapsed caret — i.e. for exactly the case the toolbar cares about — and
+ * returns `{}` even when the caret sits in a styled paragraph.
+ */
+function currentBlockAttributes(
+  editor: Editor,
+  types: readonly string[]
+): Record<string, string | null | undefined> {
+  const { $from } = editor.state.selection
+  for (let depth = $from.depth; depth > 0; depth -= 1) {
+    const node = $from.node(depth)
+    if (types.includes(node.type.name)) {
+      return node.attrs as Record<string, string | null | undefined>
+    }
+  }
+  return {}
 }
 
 /** Static label keys for the alignment buttons. */
@@ -553,7 +608,7 @@ function ColorMenu({
               aria-label={`${label} ${color}`}
               className={cn(
                 "h-6 w-6 rounded-md border border-border p-0",
-                value === color && "ring-2 ring-primary ring-offset-1"
+                value === normalizeCssColor(color) && "ring-2 ring-primary ring-offset-1"
               )}
               style={{ backgroundColor: color }}
             />

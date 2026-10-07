@@ -153,7 +153,7 @@ src/i18n/            routing.ts（locales）与 request.ts（词条装载）
 crawler/             Python 采集器（唯一入口 python -m crawler.main）  → docs/crawler.md
 prisma/              schema.prisma、seed.ts、seed-redirects.ts         → docs/data-model.md
 scripts/             check-i18n.mjs、check-i18n-runtime.mjs、check-math.ts、check-markdown.ts、check-sanitize.ts
-messages/            zh.json / en.json（各 1125 键）
+messages/            zh.json / en.json（各 1127 键）
 docs/                开发者文档；配图与复核截图在 docs/assets/，历史快照在 docs/archive/
 public/              logo.svg 与运行时上传目录 uploads/（不入库）
 ```

@@ -10,7 +10,11 @@
  * Run with `npm run sanitize:check`.
  */
 import { sanitizeHtml } from "../src/lib/sanitize";
-import { filterClassAttribute, filterStyleDeclarations } from "../src/lib/rich-text-styles";
+import {
+  filterClassAttribute,
+  filterStyleDeclarations,
+  normalizeCssColor,
+} from "../src/lib/rich-text-styles";
 
 type Case = { name: string; pass: boolean; detail?: string };
 
@@ -77,6 +81,27 @@ const classCases: Array<{ name: string; input: string; expect: string }> = [
 for (const test of classCases) {
   const out = filterClassAttribute(test.input);
   check(`class: ${test.name}`, out === test.expect, `in=${test.input} out=${out}`);
+}
+
+// ─── colour normalisation ───────────────────────────────────────────────────
+// The toolbar compares a preset against the value ProseMirror stored, and
+// ProseMirror renders `style` through CSSOM — `#dc2626` comes back as
+// `rgb(220, 38, 38)`. Without normalising, the swatches never light up.
+
+const colorCases: Array<{ name: string; input: string; expect: string }> = [
+  { name: "hex passes through", input: "#dc2626", expect: "#dc2626" },
+  { name: "rgb to hex", input: "rgb(220, 38, 38)", expect: "#dc2626" },
+  { name: "spaced rgb to hex", input: "rgb(37 99 235)", expect: "#2563eb" },
+  { name: "short hex expands", input: "#fff", expect: "#ffffff" },
+  { name: "fully opaque rgba to hex", input: "rgba(37, 99, 235, 1)", expect: "#2563eb" },
+  { name: "translucent rgba stays as written", input: "rgba(0, 0, 0, 0.5)", expect: "rgba(0, 0, 0, 0.5)" },
+  { name: "keywords untouched", input: "transparent", expect: "transparent" },
+  { name: "empty stays empty", input: "", expect: "" },
+];
+
+for (const test of colorCases) {
+  const out = normalizeCssColor(test.input);
+  check(`color: ${test.name}`, out === test.expect, `in=${test.input} out=${out}`);
 }
 
 // ─── full pipeline ──────────────────────────────────────────────────────────

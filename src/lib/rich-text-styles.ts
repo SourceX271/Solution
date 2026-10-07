@@ -157,6 +157,35 @@ export function filterClassAttribute(value: string): string {
     .join(" ");
 }
 
+/**
+ * Canonical `#rrggbb` for a colour we can read, otherwise the value unchanged.
+ *
+ * Needed because ProseMirror renders `style` through CSSOM (`cssText`), which
+ * rewrites `#dc2626` as `rgb(220, 38, 38)`. Without normalising, the toolbar's
+ * "is this preset active?" comparison would never match a value it just applied.
+ */
+export function normalizeCssColor(value: string): string {
+  const trimmed = value.trim().toLowerCase();
+  if (!trimmed) return "";
+
+  const hex = /^#([0-9a-f]{3}|[0-9a-f]{6})$/.exec(trimmed);
+  if (hex) {
+    const digits = hex[1];
+    return digits.length === 3
+      ? `#${digits.split("").map((digit) => digit + digit).join("")}`
+      : `#${digits}`;
+  }
+
+  const rgb = /^rgba?\(\s*(\d{1,3})[\s,]+(\d{1,3})[\s,]+(\d{1,3})\s*(?:[,/]\s*([\d.]+)\s*)?\)$/.exec(trimmed);
+  if (rgb && (rgb[4] === undefined || Number(rgb[4]) === 1)) {
+    const channel = (part: string) =>
+      Math.min(255, Number(part)).toString(16).padStart(2, "0");
+    return `#${channel(rgb[1])}${channel(rgb[2])}${channel(rgb[3])}`;
+  }
+
+  return trimmed;
+}
+
 export interface StylePreset {
   /** Stable id; the toolbar uses it to build an i18n key. */
   id: string;

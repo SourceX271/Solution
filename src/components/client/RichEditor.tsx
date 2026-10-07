@@ -21,6 +21,7 @@ import { renderAttachmentCards, type AttachmentCardLabels } from "@/lib/attachme
 import { contentPurifyConfig, installContentSanitizer } from "@/lib/sanitize-config";
 import { UPLOAD_ACCEPT } from "@/lib/upload-shared";
 import { readErrorMessage } from "@/lib/http-error";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -126,9 +127,24 @@ export function RichEditor({
   const pendingKindRef = useRef<MediaKind | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState<MediaKind | null>(null);
+  /** Fullscreen editing: the whole editor is laid over the page, Esc leaves it. */
+  const [fullscreen, setFullscreen] = useState(false);
   const sourceRef = useRef<HTMLTextAreaElement>(null);
   const splitSourceRef = useRef<HTMLTextAreaElement>(null);
-  const initializedRef = useRef(false);
+  /**
+   * The last HTML handed to `onChange`.
+   *
+   * The parent echoes it straight back as `value`; comparing against this (rather
+   * than against `editor.getHTML()`) is what stops the sync effect from resetting
+   * the document — and the undo history — on every keystroke.
+   */
+  const lastEmittedRef = useRef<string | null>(null);
+  /** `mode`, readable from effects that must not re-run when it changes. */
+  const modeRef = useRef(mode);
+  modeRef.current = mode;
+  /** `mathDialog`, readable from the Escape handler without re-binding it. */
+  const mathDialogRef = useRef(mathDialog);
+  mathDialogRef.current = mathDialog;
 
   // The node views are created once, when the editor mounts; the ref keeps the
   // double-click handler pointing at the current React state.
@@ -159,6 +175,10 @@ export function RichEditor({
     // because the editor markup depends on the DOM. Opt out and let the client
     // mount it, as Tiptap's Next.js guide requires.
     immediatelyRender: false,
+    // Tiptap 3 defaults this to false; without it the toolbar never re-renders on
+    // a selection-only transaction, so its active states and value labels stayed
+    // stuck on whatever the last content change left behind.
+    shouldRerenderOnTransaction: true,
     extensions: [
       StarterKit.configure({
         codeBlock: { HTMLAttributes: { class: "code-block" } },
@@ -232,26 +252,28 @@ export function RichEditor({
     return () => { editor.off("update", update) };
   }, [editor, mode]);
 
-  // Sync external value changes into the editor (e.g., edit mode initialization)
-  useEffect(() => {
-    if (editor && value !== undefined && !initializedRef.current) {
-      initializedRef.current = true;
-      if (value !== editor.getHTML()) {
-        editor.commands.setContent(value || "");
-      }
-    }
-  }, [editor, value]);
+  /** Push content to the parent, remembering it so the sync effect can skip it. */
+  const emit = useCallback(
+    (html: string) => {
+      lastEmittedRef.current = html;
+      onChange?.(html);
+    },
+    [onChange]
+  );
 
-  // Reset initialized flag when value changes externally
+  /**
+   * Sync an externally supplied `value` into the editor.
+   *
+   * Ignored while a source view is open — there the buffer owns the text — and
+   * ignored for values this component just emitted (see `lastEmittedRef`).
+   */
   useEffect(() => {
-    if (editor && value !== undefined && initializedRef.current) {
-      const currentHtml = editor.getHTML();
-      // Only sync if the value truly differs (avoid loops)
-      if (value && value !== currentHtml && !editor.isFocused) {
-        editor.commands.setContent(value);
-      }
-    }
-  }, [value]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (!editor || value === undefined) return;
+    if (value === lastEmittedRef.current) return;
+    if (modeRef.current !== "wysiwyg") return;
+    if (value === editor.getHTML()) return;
+    editor.commands.setContent(value || "");
+  }, [editor, value]);
 
   /** Editor HTML → source buffer (Markdown, or the HTML itself). */
   const toSource = useCallback((html: string, format: "markdown" | "html") => {
@@ -268,16 +290,109 @@ export function RichEditor({
     return markdownToHtml(source);
   }, []);
 
-  const enterMode = useCallback(
-    (next: "source" | "split") => {
+  /**
+   * Replace the editor document with source-produced HTML.
+   *
+   * One insertion path handles both formats: `$…$` text is turned into math nodes
+   * by the input rules, while already-tagged `<span data-math>` nodes pass
+   * through untouched. An empty buffer clears the document instead of leaving the
+   * previous text behind.
+   */
+  const setEditorContent = useCallback(
+    (html: string) => {
       if (!editor) return;
-      setSourceContent(toSource(editor.getHTML(), sourceFormat));
-      setMode(next);
+      if (!html.trim()) {
+        editor.commands.clearContent();
+        return;
+      }
+      editor
+        .chain()
+        .insertContentAt({ from: 0, to: editor.state.doc.content.size }, html, {
+          applyInputRules: true,
+        })
+        .run();
     },
-    [editor, sourceFormat, toSource]
+    [editor]
   );
 
-  const switchToSplit = useCallback(() => enterMode("split"), [enterMode]);
+  /** Which view the author is looking at right now. */
+  const activeView: EditorView =
+    mode === "wysiwyg" ? "wysiwyg" : mode === "split" ? "split" : sourceFormat;
+
+  /**
+   * Toolbar view switcher.
+   *
+   * The buffer the author has been typing in is the source of truth: the switch
+   * first converts *that* into canonical HTML and only then re-derives the target
+   * view. Previously each source format was regenerated from the editor document
+   * instead, so edits typed in HTML source mode were silently discarded the
+   * moment another format was selected.
+   */
+  const selectView = useCallback(
+    (next: EditorView) => {
+      if (!editor) return;
+      if (activeView === next) return;
+
+      const html =
+        mode === "wysiwyg" ? editor.getHTML() : fromSource(sourceContent, sourceFormat);
+
+      if (next === "wysiwyg") {
+        if (mode !== "wysiwyg") setEditorContent(html);
+        setMode("wysiwyg");
+        emit(editor.getHTML());
+        return;
+      }
+
+      if (next === "split") {
+        setSourceContent(toSource(html, sourceFormat));
+        setMode("split");
+        return;
+      }
+
+      // "markdown" | "html": switch the buffer's format, regenerated from the
+      // canonical HTML so nothing goes through the other format on the way.
+      setSourceFormat(next);
+      setSourceContent(toSource(html, next));
+      setMode("source");
+    },
+    [editor, activeView, mode, sourceContent, sourceFormat, fromSource, toSource, setEditorContent, emit]
+  );
+
+  /** Enter/leave fullscreen editing, keeping the caret in the editable area. */
+  const toggleFullscreen = useCallback(() => {
+    const next = !fullscreen;
+    setFullscreen(next);
+    if (next) editor?.commands.focus();
+  }, [editor, fullscreen]);
+
+  /**
+   * Fullscreen: lock the page behind the overlay and exit on Escape.
+   *
+   * Radix dialogs close themselves on Escape, so an open formula dialog wins and
+   * the editor stays fullscreen.
+   */
+  useEffect(() => {
+    if (!fullscreen) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && mathDialogRef.current === null) setFullscreen(false);
+    };
+    window.addEventListener("keydown", onKeyDown);
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", onKeyDown);
+    };
+  }, [fullscreen]);
+
+  // The editable area fills the overlay instead of keeping its inline min-height.
+  useEffect(() => {
+    const dom = editor?.view?.dom as HTMLElement | undefined;
+    if (!dom) return;
+    dom.style.minHeight = fullscreen ? "100%" : minHeight;
+  }, [editor, fullscreen, minHeight]);
 
   // Update preview when source content changes
   useEffect(() => {
@@ -311,14 +426,16 @@ export function RichEditor({
   // Sync editor changes to parent
   useEffect(() => {
     if (editor && !readOnly) {
-      const handler = () => onChange?.(editor.getHTML());
+      const handler = () => emit(editor.getHTML());
       editor.on("update", handler);
       return () => { editor.off("update", handler) };
     }
-  }, [editor, onChange, readOnly]);
+  }, [editor, emit, readOnly]);
 
-  // Auto-resize source textareas
+  // Auto-resize source textareas. In fullscreen the layout owns the height, so
+  // an inline height would only fight the overlay's own scrolling.
   useEffect(() => {
+    if (fullscreen) return;
     const el = mode === "split" ? splitSourceRef.current : sourceRef.current;
     if (!el) return;
     const resize = () => {
@@ -328,59 +445,15 @@ export function RichEditor({
     el.addEventListener("input", resize);
     resize();
     return () => el.removeEventListener("input", resize);
-  }, [mode, minHeight, sourceContent]);
+  }, [mode, minHeight, sourceContent, fullscreen]);
 
   const handleSourceChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const next = e.target.value;
     setSourceContent(next);
     const html = fromSource(next, sourceFormat);
     setPreviewHtml(buildPreviewHtml(html, attachmentLabels));
-    onChange?.(html);
-  }, [fromSource, sourceFormat, onChange, attachmentLabels]);
-
-  const switchToWysiwyg = useCallback(() => {
-    if (!editor) return;
-    const html = fromSource(sourceContent, sourceFormat);
-    if (html.trim()) {
-      // One insertion path for both formats: whatever the source, `$…$` text is
-      // turned into math nodes by the input rules, while already-tagged
-      // `<span data-math>` nodes pass through untouched.
-      editor
-        .chain()
-        .insertContentAt({ from: 0, to: editor.state.doc.content.size }, html, {
-          applyInputRules: true,
-        })
-        .run();
-      onChange?.(editor.getHTML());
-    }
-    setMode("wysiwyg");
-  }, [editor, sourceContent, sourceFormat, fromSource, onChange]);
-
-  /**
-   * Toolbar view switcher.
-   *
-   * Rich text and split reuse their existing handlers; the two source views set
-   * the format and rebuild the buffer directly from the editor HTML, so
-   * switching rich text → HTML never goes through Markdown (which would flatten
-   * formulas into `$…$` text).
-   */
-  const selectView = useCallback(
-    (next: EditorView) => {
-      if (next === "wysiwyg") {
-        switchToWysiwyg();
-        return
-      }
-      if (next === "split") {
-        switchToSplit();
-        return
-      }
-      if (!editor) return
-      setSourceFormat(next)
-      setSourceContent(toSource(editor.getHTML(), next))
-      setMode("source")
-    },
-    [editor, switchToSplit, switchToWysiwyg, toSource]
-  );
+    emit(html);
+  }, [fromSource, sourceFormat, emit, attachmentLabels]);
 
   /** Insert a new formula, or update the one that was double-clicked. */
   const applyMath = useCallback(() => {
@@ -505,7 +578,15 @@ export function RichEditor({
     mode === "wysiwyg" ? "wysiwyg" : mode === "split" ? "split" : sourceFormat === "html" ? "html" : "markdown"
 
   return (
-    <div className="rich-editor">
+    <div
+      className={cn(
+        "rich-editor",
+        // In fullscreen the editor becomes its own column: toolbar pinned at the
+        // top, the active view scrolls underneath.
+        fullscreen && "fixed inset-0 z-40 flex flex-col bg-background"
+      )}
+      {...(fullscreen ? { role: "region", "aria-label": te("fullscreen") } : {})}
+    >
       {showToolbar && (
         <EditorToolbar
           editor={editor}
@@ -519,6 +600,8 @@ export function RichEditor({
             setMathDialog({ display: displayMode, pos: null })
           }}
           stats={stats}
+          fullscreen={fullscreen}
+          onToggleFullscreen={toggleFullscreen}
         />
       )}
 
@@ -534,20 +617,25 @@ export function RichEditor({
 
       {/* WYSIWYG mode */}
       {mode === "wysiwyg" && (
-        <div className={showToolbar ? "[&_.tiptap-editor]:rounded-t-none [&_.tiptap-editor]:border-t-0" : ""}>
+        <div
+          className={cn(
+            showToolbar && "[&_.tiptap-editor]:rounded-t-none [&_.tiptap-editor]:border-t-0",
+            fullscreen && "min-h-0 flex-1 overflow-y-auto"
+          )}
+        >
           <EditorContent editor={editor} />
         </div>
       )}
 
       {/* Source mode */}
       {mode === "source" && (
-        <div className="flex flex-col gap-2">
+        <div className={cn("flex flex-col gap-2", fullscreen && "min-h-0 flex-1 overflow-y-auto")}>
           <textarea
             ref={sourceRef}
             value={sourceContent}
             onChange={handleSourceChange}
             className="w-full rounded-md border border-input bg-background p-4 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-ring resize-none"
-            style={{ minHeight }}
+            style={{ minHeight: fullscreen ? "45vh" : minHeight }}
             placeholder={sourceFormat === "html" ? te("htmlSourcePlaceholder") : te("sourcePlaceholder")}
           />
           {/* Sets expectations about what a round trip through the source and the
@@ -569,7 +657,7 @@ export function RichEditor({
             </div>
           </details>
           <div className="flex justify-end">
-            <button type="button" onClick={switchToWysiwyg} className="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 transition-colors">
+            <button type="button" onClick={() => selectView("wysiwyg")} className="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 transition-colors">
               {te("switchToRichText")}
             </button>
           </div>
@@ -578,12 +666,21 @@ export function RichEditor({
 
       {/* Split mode */}
       {mode === "split" && (
-        <div className="grid grid-cols-2 border border-input rounded-md overflow-hidden" style={{ minHeight }}>
+        <div
+          className={cn(
+            "grid grid-cols-2 border border-input rounded-md overflow-hidden",
+            fullscreen && "min-h-0 flex-1"
+          )}
+          style={fullscreen ? undefined : { minHeight }}
+        >
           <textarea
             ref={splitSourceRef}
             value={sourceContent}
             onChange={handleSourceChange}
-            className="w-full border-r border-input bg-background p-4 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-inset focus:ring-ring resize-none"
+            className={cn(
+              "w-full border-r border-input bg-background p-4 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-inset focus:ring-ring resize-none",
+              fullscreen && "h-full overscroll-contain"
+            )}
             placeholder={sourceFormat === "html" ? te("htmlSourcePlaceholder") : te("sourcePlaceholder")}
           />
           <div className="bg-muted/20 p-4 overflow-auto">

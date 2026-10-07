@@ -126,20 +126,29 @@ export const TextStyle = Mark.create({
   },
 })
 
-/** Node types that accept a `text-align` attribute. */
-const TEXT_ALIGN_TYPES = ["paragraph", "heading"] as const
+/** Node types that accept block-level text styling. */
+const BLOCK_STYLE_TYPES = ["paragraph", "heading"] as const
 
 /**
- * Inline alignment, added to the existing paragraph/heading nodes as a global
- * attribute so StarterKit's versions stay the single source of their schema.
+ * Block-level styling plus inline alignment.
+ *
+ * Added to the existing paragraph/heading nodes as global attributes rather than
+ * replacing StarterKit's versions, so they stay the single source of their
+ * schema. Both halves matter for fidelity:
+ *
+ *   - `text-align` is what the toolbar's alignment buttons produce;
+ *   - the colour/font attributes are what pasted or typed HTML carries on the
+ *     block itself (`<p style="color: #2563eb">`). Without them, such markup was
+ *     accepted by the sanitiser but silently stripped the moment the content
+ *     went through rich-text mode — the "HTML 切换就丢样式" bug.
  */
-export const TextAlign = Extension.create({
-  name: "richTextAlign",
+export const BlockTextStyle = Extension.create({
+  name: "blockTextStyle",
 
   addGlobalAttributes() {
     return [
       {
-        types: [...TEXT_ALIGN_TYPES],
+        types: [...BLOCK_STYLE_TYPES],
         attributes: {
           textAlign: {
             default: null,
@@ -150,6 +159,7 @@ export const TextAlign = Extension.create({
             renderHTML: (attributes: Record<string, unknown>) =>
               attributes.textAlign ? { style: `text-align: ${String(attributes.textAlign)}` } : {},
           },
+          ...blockStyleAttributes(),
         },
       },
     ]
@@ -163,7 +173,7 @@ export const TextAlign = Extension.create({
           // Paragraph and heading are alternatives: `updateAttributes` reports
           // false when the selection holds no node of that type, so the results
           // are intentionally ignored instead of short-circuiting the chain.
-          for (const type of TEXT_ALIGN_TYPES) {
+          for (const type of BLOCK_STYLE_TYPES) {
             commands.updateAttributes(type, { textAlign: value })
           }
           return true
@@ -171,6 +181,26 @@ export const TextAlign = Extension.create({
     }
   },
 })
+
+/** One global attribute per allow-listed block style property. */
+function blockStyleAttributes(): Record<string, unknown> {
+  const attributes: Record<string, unknown> = {}
+  for (const { name, property } of STYLE_ATTRIBUTES) {
+    attributes[name] = {
+      default: null,
+      parseHTML: (element: HTMLElement) => {
+        const value = element.style?.getPropertyValue(property)
+        if (!value) return null
+        // Only keep what the sanitiser would keep, so the editor never shows
+        // styling that cannot survive publishing.
+        return sanitizeStyleValue(property, value)
+      },
+      renderHTML: (values: Record<string, unknown>) =>
+        values[name] ? { style: `${property}: ${String(values[name])}` } : {},
+    }
+  }
+  return attributes
+}
 
 interface SupSubOptions {
   /** The tag this mark serialises to, and the mark name. */
@@ -218,7 +248,7 @@ export const SupSubBehavior = Extension.create({
 })
 
 /** Everything in this module that `useEditor` needs to register. */
-export const richTextFormatExtensions = [TextStyle, TextAlign, Superscript, Subscript, SupSubBehavior]
+export const richTextFormatExtensions = [TextStyle, BlockTextStyle, Superscript, Subscript, SupSubBehavior]
 
 declare module "@tiptap/core" {
   interface Commands<ReturnType> {

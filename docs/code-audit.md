@@ -216,7 +216,7 @@
 - 顺带补齐旧式表现标签/属性（`font`、`center`、`sub`、`sup`、`small`、`align`、`color`、`size`、`face`、`bgcolor`）
   与表格的 `tfoot`/`caption`。注意 `align` 等必须同时写进 `ADD_URI_SAFE_ATTR`：DOMPurify 会对所有不在其"值不是 URI"
   内部清单里的属性套用 URI 白名单，`center` 不是 URI 就被整条丢掉（实测 `<div align="center">` → `<div>`）。
-- 新增回归脚本 `scripts/check-sanitize.ts` → `npm run sanitize:check`（31 条，含上述每条 payload）。
+- 新增回归脚本 `scripts/check-sanitize.ts` → `npm run sanitize:check`（39 条，含上述每条 payload 与颜色归一化）。
 
 **验证**：`npm run sanitize:check` → `ALL PASS (31 cases)`；`npx tsc --noEmit` 0 错误。
 
@@ -235,8 +235,31 @@ H1–H6、代码块语言（25 种）、字符与词计数（见 [frontend.md](.
 | **Markdown 源码模式静默丢样式、附件与公式** | turndown 的内置规则**优先于** `keep()`：`<h2 style="text-align:center">` 被标题规则吃掉样式，附件锚点被转成 `[name](url)` 丢掉元数据；空元素更进不了任何规则（`forNode()` 先判 `isBlank` → `blankRule`），公式节点正是空元素。另外 `\frac{1}{2}` 经 turndown 的文本转义变成 `\\frac{1}{2}`（**另一条会报错的 LaTeX**） | 新增 `lib/editor-markdown.ts`：用 `addRule()`（插到规则表最前）+ `blankReplacement` 保留带样式元素、video/audio/mark/sup/sub/u/small/font/figure、`a[data-attachment]` 与 `[data-math]` 的原始 HTML；公式不再还原成 `$…$`。回归 `npm run markdown:check`（19/19） |
 | **编辑器写的代码块从未被高亮** | `highlightHtmlContent()` 的正则只匹配裸 `<pre><code>`，而编辑器产出的是 `<pre class="code-block"><code class="language-js">` → 正文里代码块始终是纯色 | 正则改为允许 `<pre>`/`<code>` 带属性，语言类名从任一元素读取；工具栏补代码语言下拉（此前即便选了语言也无处可设） |
 
-**验证**：`npm run markdown:check` 19/19、`npm run sanitize:check` 31/31、`npm run math:check` 18/18；
+**验证**：`npm run markdown:check` 19/19、`npm run sanitize:check` 39/39、`npm run math:check` 18/18；
 `npx tsc --noEmit` 0 错误；浏览器端到端见第 18 条。
+
+---
+
+### 18. 全屏编辑 + 模式切换单一数据源（2026-10-07，浏览器实测发现的问题）
+
+功能：工具栏状态行加全屏开关（覆盖层 + Esc 退出 + 锁页面滚动）；重写三种模式的切换逻辑。
+
+| 问题 | 现象与证据 | 修复 |
+|---|---|---|
+| **切换模式会丢掉刚在源码里敲的内容（数据丢失）** | `selectView()` 每次都从 `editor.getHTML()` 重新生成源码缓冲。在 HTML 源码里敲完内容、点「Markdown」，改动立刻被编辑器里的旧文档覆盖 —— 编辑框内容"变回去" | 切换时先算"眼前这份内容的规范 HTML"（富文本取编辑器、源码/分屏取缓冲区），再据此生成目标视图；缓冲区为空时 `clearContent()` 而不是保留旧文档 |
+| **块级内联样式过一遍富文本就没了** | 浏览器实测：HTML 源码里写 `<p style="color: #2563eb; background-color: #fef08a">`，切回富文本后只剩 `<p>`。原因是样式挂**块**上，而 `TextStyle` 是 inline mark，块上的 `style` 不在 schema 里 | 新增 `BlockTextStyle`（`addGlobalAttributes` 给 paragraph/heading 补 colour/背景/字体/字号/行高，值同样过白名单校验）。切回富文本 → 发布 → 详情页三级都验证保留 |
+| **工具栏不跟随光标** | 光标点进带样式的段落，字体/字号下拉仍显示"字体/字号"，对齐按钮也不亮。两个原因：① Tiptap 3 的 `shouldRerenderOnTransaction` 默认 `false`，纯选区事务不触发重渲染；② `editor.getAttributes(name)` 内部用 `nodesBetween(from, to)`，**折叠光标下什么也遍历不到**，恒返回 `{}` | 打开 `shouldRerenderOnTransaction`；新增 `currentBlockAttributes()` 沿 `$from` 的 depth 链取最近的 paragraph/heading/codeBlock 节点属性 |
+| **色板不显示"当前色"** | 选了 `#dc2626`，编辑器里变成 `rgb(220, 38, 38)`（ProseMirror 通过 CSSOM `cssText` 渲染 `style`），预设值比较永远不相等 | 新增 `normalizeCssColor()`（`rgb()`/`#rgb`/`#rrggbb` → `#rrggbb`），比较前两边归一化 |
+| **外部 `value` 回传会重置文档（撤销历史被清）** | 父组件把 `onChange` 的值原样回传给 `value`，旧同步 effect 用 `editor.getHTML()` 比对，命中后 `setContent` 重建文档 | 用 `lastEmittedRef` 记住"最后发出的 HTML"，回传值直接跳过；源码模式下不参与外部同步 |
+
+**验证（浏览器实测，临时脚本已删，命令可重跑）**：`next start` + Playwright 真登录，14 条断言全绿 ——
+字号/颜色/对齐/上标真的落到 DOM；HTML 源码能看到内联样式；在 HTML 模式追加一段带样式的内容后切 Markdown 再切回富文本，
+**字体、颜色、高亮、对齐、上下标全部保留**；全屏覆盖层生效且 Esc 恢复；**发布后详情页渲染出的 HTML 仍带
+`font-size: 24px`、`color: rgb(220, 38, 38)`、`background-color`、`text-align: center` 与 `<sup>`**；无 console 报错。
+测试创建的 6 篇文章已从库里删除（保留用户自己的上传记录）。
+
+截图：[editor-toolbar.png](./assets/editor-toolbar.png)（工具栏 + HTML 样式切回富文本）、
+[editor-fullscreen.png](./assets/editor-fullscreen.png)（全屏）。
 
 ---
 
@@ -274,7 +297,7 @@ H1–H6、代码块语言（25 种）、字符与词计数（见 [frontend.md](.
 - 运行时验证：`/logo.svg`、`/icon.svg` 返回 200；首页/登录/注册页正常渲染
 - 爬虫入库链路：真实抓取 → 入库 draft → 去重，均已实测
 - **完整 `next build` 已通过**（2026-10，Next 15.5.27 + React 19）：`Compiled successfully`，
-  31/31 静态页 + 全部路由 + middleware。更完整的依赖审计与运行时冒烟测试见
+  32/32 静态页 + 全部路由 + middleware。更完整的依赖审计与运行时冒烟测试见
   [dependency-audit-2026-10.md](./dependency-audit-2026-10.md) 第六节。
 
 ---
