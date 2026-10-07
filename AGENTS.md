@@ -120,6 +120,10 @@
 - 图标按钮必须同时给 `title` 与 `aria-label`；表单控件要有 `htmlFor`/`id` 关联；开关类用 `aria-pressed`。
 - 页面只能有一个 `<main>` 地标；加载态给 `aria-busy`；破坏性操作要有确认弹窗（删用户要求输入目标邮箱）。
 - 交互组件放 `src/components/client/**` 并标 `"use client"`；服务端页面直接查 Prisma，不要为了少写一次查询而绕道自家 API。
+- **整屏覆盖层（`fixed inset-0`）要先想层叠上下文**：页面容器普遍带 `animate-fade-in`（`fill-mode: both`）→
+  它是个 `z-index: auto` 的层叠上下文，覆盖层的 z-index 只在其内部比较，会被 `sticky z-50` 的顶栏压住
+  （抬数值无效）。做法见全屏编辑器：`body.editor-fullscreen main { z-index: 60 }` 抬高站点级 `<main>`，
+  由 Portal 渲染的菜单/对话框再各抬一级（`z-[70]`，对话框遮罩用 `DialogContent` 的 `overlayClassName`）。
 - 文案、日期与相对时间都要按 locale 输出（`formatDate(date, locale)`、`formatRelativeTime(date, locale)`）。
 
 ### 2.8 安全

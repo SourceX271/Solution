@@ -43,6 +43,13 @@ interface EditorToolbarProps {
   onToggleFullscreen?: () => void
 }
 
+/**
+ * Menu/dialog stacking above the fullscreen editor overlay (`z-[60]`). Portals
+ * render at `document.body`, so without this the menus would open *behind* the
+ * editor they belong to.
+ */
+const FULLSCREEN_MENU_Z = "z-[70]"
+
 /** Font-family presets paired with their message keys (static, so i18n can see them). */
 const FONT_FAMILY_LABEL_KEYS: Record<string, string> = {
   system: "fontFamilySystem",
@@ -188,6 +195,7 @@ export function EditorToolbar({
               colors={TEXT_COLOR_PRESETS}
               value={activeColor}
               icon={<Baseline className="h-3.5 w-3.5" />}
+              fullscreen={fullscreen}
               onPick={(color) => editor.chain().focus().setTextStyle({ color }).run()}
               onClear={() => editor.chain().focus().unsetTextStyle(["color"]).run()}
             />
@@ -197,6 +205,7 @@ export function EditorToolbar({
               colors={HIGHLIGHT_COLOR_PRESETS}
               value={activeHighlight}
               icon={<Highlighter className="h-3.5 w-3.5" />}
+              fullscreen={fullscreen}
               onPick={(color) => editor.chain().focus().setTextStyle({ backgroundColor: color }).run()}
               onClear={() => editor.chain().focus().unsetTextStyle(["backgroundColor"]).run()}
             />
@@ -209,6 +218,7 @@ export function EditorToolbar({
               label={t("fontFamily")}
               display={fontFamilyLabel ? t(FONT_FAMILY_LABEL_KEYS[fontFamilyLabel.id] ?? "fontFamilySystem") : t("fontFamily")}
               active={Boolean(activeFontFamily)}
+              fullscreen={fullscreen}
             >
               <DropdownMenuItem
                 className={cn(!activeFontFamily && "font-medium text-primary")}
@@ -233,6 +243,7 @@ export function EditorToolbar({
               label={t("fontSize")}
               display={activeFontSize || t("fontSize")}
               active={Boolean(activeFontSize)}
+              fullscreen={fullscreen}
             >
               <DropdownMenuItem
                 className={cn(!activeFontSize && "font-medium text-primary")}
@@ -255,6 +266,7 @@ export function EditorToolbar({
               label={t("lineHeight")}
               display={activeLineHeight || t("lineHeight")}
               active={Boolean(activeLineHeight)}
+              fullscreen={fullscreen}
             >
               <DropdownMenuItem
                 className={cn(!activeLineHeight && "font-medium text-primary")}
@@ -285,7 +297,7 @@ export function EditorToolbar({
                   <ChevronDown className="h-3 w-3" />
                 </button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-40">
+              <DropdownMenuContent align="start" className={cn(fullscreen && FULLSCREEN_MENU_Z, "w-40")}>
                 <DropdownMenuItem
                   onSelect={() => editor.chain().focus().setParagraph().run()}
                   className={cn(!activeHeading && "font-medium text-primary")}
@@ -353,6 +365,7 @@ export function EditorToolbar({
               label={t("codeLanguage")}
               display={activeCodeLanguage || t("codeLanguageAuto")}
               active={Boolean(activeCodeLanguage)}
+              fullscreen={fullscreen}
             >
               <DropdownMenuItem
                 className={cn(!activeCodeLanguage && "font-medium text-primary")}
@@ -532,11 +545,13 @@ function ToolbarSelect({
   label,
   display,
   active,
+  fullscreen = false,
   children,
 }: {
   label: string
   display: string
   active?: boolean
+  fullscreen?: boolean
   children: React.ReactNode
 }) {
   return (
@@ -552,7 +567,10 @@ function ToolbarSelect({
           <ChevronDown className="h-3 w-3" />
         </button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" className="max-h-72 w-44 overflow-y-auto">
+      <DropdownMenuContent
+        align="start"
+        className={cn(fullscreen && FULLSCREEN_MENU_Z, "max-h-72 w-44 overflow-y-auto")}
+      >
         <DropdownMenuLabel className="text-xs text-muted-foreground">{label}</DropdownMenuLabel>
         {children}
       </DropdownMenuContent>
@@ -567,6 +585,7 @@ function ColorMenu({
   colors,
   value,
   icon,
+  fullscreen = false,
   onPick,
   onClear,
 }: {
@@ -575,6 +594,7 @@ function ColorMenu({
   colors: readonly string[]
   value: string
   icon: React.ReactNode
+  fullscreen?: boolean
   onPick: (color: string) => void
   onClear: () => void
 }) {
@@ -598,7 +618,7 @@ function ColorMenu({
           <ChevronDown className="h-3 w-3" />
         </button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" className="w-auto p-2">
+      <DropdownMenuContent align="start" className={cn(fullscreen && FULLSCREEN_MENU_Z, "w-auto p-2")}>
         <DropdownMenuLabel className="px-0 pb-1.5 text-xs text-muted-foreground">{label}</DropdownMenuLabel>
         <div className="grid grid-cols-5 gap-1">
           {colors.map((color) => (

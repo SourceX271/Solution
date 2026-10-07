@@ -149,7 +149,7 @@ python -m crawler.main --format jsonl             # 每行一条 JSON
 | `docs/assets/publish-*.png` | 发布页界面截图 | `/questions/ask` 与 `/solutions/new` 各 1 张（1440×1000），见 [frontend.md](./frontend.md) 第二节 |
 | `docs/assets/editor-math.png` · `docs/assets/math-rendered.png` | 公式功能截图 | 编辑器内的 LaTeX 节点与详情页的服务端渲染效果，见 [frontend.md](./frontend.md)「公式」小节 |
 | `docs/assets/editor-toolbar.png` | 编辑器工具栏截图 | 两行工具栏（排版 / 字体与间距 / 段落 / 插入 / 历史 + 状态与视图开关）与 HTML 源码样式切回富文本后的效果，见 [frontend.md](./frontend.md)「编辑器排版与三模式切换」 |
-| `docs/assets/editor-fullscreen.png` | 全屏编辑截图 | 覆盖层里的工具栏与可编辑区，见 [frontend.md](./frontend.md) 同小节 |
+| `docs/assets/editor-fullscreen.png` | 全屏编辑截图 | 覆盖层铺满视口（不被站点顶栏压住），工具栏菜单浮在其上，见 [frontend.md](./frontend.md)「编辑器排版与三模式切换」 |
 | `docs/assets/upload-attachments.png` | 上传功能截图 | 工具栏的图片/视频/附件入口、附件 chip 与内联视频，见 [frontend.md](./frontend.md)「图片、视频与附件上传」 |
 
 > ⚠️ 两个已知的资源缺口：`public/og-image.png` **不存在**，但根 layout 与 `[locale]/layout.tsx` 共引用 4 次

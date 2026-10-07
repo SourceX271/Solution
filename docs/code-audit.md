@@ -295,6 +295,44 @@ INVALID_MESSAGE: UNCLOSED_TAG (提示：编辑器不支持的标签（如 <secti
 
 ---
 
+### 20. 全屏编辑器被站点顶栏压住（2026-10-07，用户截图反馈）
+
+**现象**：进入全屏编辑后，站点顶栏（导航、搜索框、头像）盖在编辑器工具栏上——状态行、
+全屏按钮、视图开关都点不到（Playwright 也点不动：`header … subtree intercepts pointer events`）。
+
+**排查**（逐步实测，避免猜）：
+
+1. 覆盖层是 `fixed inset-0 z-[60]`，顶栏是 `sticky top-0 z-50` → 按 z-index 应该覆盖层在上，**但实测顶栏在上**；
+2. 把覆盖层的 z-index 改成 `99999` 仍然无效 → 说明不是数值问题，而是**层叠上下文**；
+3. 用 `document.elementsFromPoint()` 拿到真实绘制顺序，再逐个祖先打印
+   `transform / filter / backdrop-filter / contain / container-type / isolation / will-change / animation-*`；
+4. 命中的是页面容器：`div.container … animate-fade-in`，`animation: fadeIn 0.4s both`。
+   **`fill-mode: both` 让动画结束后元素仍处于"被动画影响"的状态，于是它一直是一个 `z-index: auto` 的层叠上下文**——
+   覆盖层的 z-index 只在这个上下文内比较，自然被根上下文里 `z-50` 的顶栏压住；
+5. 把覆盖层 `appendChild` 到 `document.body` 后立刻正常，确认根因。
+
+`animate-fade-in` / `animate-fade-in-up` 几乎是每个页面容器的标配（约 40 处），所以这不是偶发问题。
+
+**修复**：
+
+- `globals.css`：全屏时给唯一的站点级 `<main>`（`[locale]/layout.tsx`）抬高到 `z-index: 60`，绕开页面自己加的包裹层：
+  ```css
+  body.editor-fullscreen main { position: relative; z-index: 60; }
+  ```
+- `RichEditor` 进入/退出全屏时切换 `<body>` 的 `editor-fullscreen` 类（与滚动锁放在同一个 effect，卸载时清理）。
+- 工具栏菜单与公式对话框改用 `z-[70]`：它们经 Radix Portal 渲染到 `document.body`，不改就会**落到编辑器后面**；
+  为此给共享的 `DialogContent` 加了可选的 `overlayClassName`，一并抬高对话框遮罩（否则遮罩在 z-50，
+  点不到"遮罩挡住后面"的效果，模态形同虚设）。
+- 顺带修掉一个 Esc 冲突：在全屏里按 Esc 关工具栏下拉时，会连全屏一起退出。现在按
+  `defaultPrevented` + `[role="menu"][data-state="open"]` 判断，**先关菜单/对话框，再退全屏**。
+
+**验证**（Playwright 对 `next start`，9 条断言全绿，用 `elementFromPoint` 做命中测试而不是比对 z-index 数值）：
+工具栏首行与状态行都在顶栏之上可点击；全屏里打开字号菜单，菜单在覆盖层之上可点；
+公式对话框可见、遮罩真的挡住后面的编辑器、对话框在遮罩之上；Esc 第一次只关菜单、第二次才退全屏；
+对话框打开时第一次 Esc 只关对话框。截图见 [editor-fullscreen.png](./assets/editor-fullscreen.png)。
+
+---
+
 ## 二、待处理
 按影响面排序，均未修改。
 

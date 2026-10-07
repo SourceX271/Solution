@@ -178,13 +178,25 @@ src/app/
 **颜色比较要归一化**：ProseMirror 通过 CSSOM（`cssText`）渲染 `style`，`#dc2626` 会被写成 `rgb(220, 38, 38)`；
 `normalizeCssColor()` 把两边都转成 `#rrggbb` 再比较，色板才能正确显示"当前色"。
 
-**全屏编辑**：状态行右侧的箭头按钮把整个编辑器变成 `fixed inset-0 z-40 flex flex-col` 覆盖层（工具栏是固定头部、
-当前视图自己滚动），进入时锁 `document.body` 滚动并把焦点交回可编辑区；**Esc 退出**（若公式对话框开着，
-Radix 先关对话框、编辑器保持全屏）。可编辑区的内联 `min-height` 在全屏时改成 `100%`，源码/分屏文本框则改由布局控制高度。
+**全屏编辑**：状态行右侧的箭头按钮把整个编辑器变成 `fixed inset-0 z-[60] flex flex-col` 覆盖层（工具栏是固定头部、
+当前视图自己滚动），进入时锁 `document.body` 滚动并把焦点交回可编辑区；Esc 逐层退出。
+
+**为什么需要 `body.editor-fullscreen main { z-index: 60 }`**（globals.css）：覆盖层自己的 z-index 只在**最近的层叠上下文内**
+比较。而几乎每个页面都把内容包在带 `animate-fade-in` 的容器里，该动画是 `fill-mode: both`，会留下一个
+`z-index: auto` 的层叠上下文，于是 `fixed z-[60]` 的覆盖层被困在里面，被 `sticky z-50` 的站点顶栏压住（实测：
+即使把 z-index 抬到 99999 也无效，把覆盖层移出 `body` 才生效）。抬高唯一的站点级 `<main>`
+（`[locale]/layout.tsx`）就绕开了页面自己加的任何包裹层。同理，全屏时工具栏菜单与公式对话框用 `z-[70]`
+（对话框的遮罩靠 `DialogContent` 新增的 `overlayClassName` 一起抬高），否则它们会**跑到编辑器后面**。
+
+**Esc 的优先级**：先关打开着的菜单/对话框，再退出全屏——靠 `defaultPrevented` 与
+`[role="menu"][data-state="open"]` 判断，否则在工具栏里按 Esc 关下拉会连全屏一起退出。
+
+**其它细节**：可编辑区的内联 `min-height` 在全屏时改成 `100%`，源码/分屏文本框改由布局控制高度；
+进入全屏时给 `<body>` 加 `editor-fullscreen` 类（与滚动锁同一处 effect，退出/卸载时移除）。
 
 ![编辑器工具栏与状态行](./assets/editor-toolbar.png)
 
-![全屏编辑](./assets/editor-fullscreen.png)
+![全屏编辑（下拉菜单仍浮在覆盖层之上，不受站点顶栏影响）](./assets/editor-fullscreen.png)
 
 **Markdown 源码模式的保真**（`lib/editor-markdown.ts`）：turndown 的内置规则**优先于** `keep()`，因此
 `## 标题` 上的 `style="text-align: center"` 会被标题规则吃掉，附件锚点会被转成普通链接；空元素更是连规则都进不去

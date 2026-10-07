@@ -368,6 +368,12 @@ export function RichEditor({
   /**
    * Fullscreen: lock the page behind the overlay and exit on Escape.
    *
+   * Also flags `<body>`, because the overlay alone cannot win the stacking fight:
+   * page containers use `animate-fade-in` (fill-mode `both`), which creates a
+   * stacking context with `z-index: auto` around the editor, so the sticky header
+   * (`z-50`) painted over the fullscreen toolbar. The `editor-fullscreen` class
+   * lifts `<main>` above the header — see globals.css.
+   *
    * Radix dialogs close themselves on Escape, so an open formula dialog wins and
    * the editor stays fullscreen.
    */
@@ -375,14 +381,24 @@ export function RichEditor({
     if (!fullscreen) return;
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
+    document.body.classList.add("editor-fullscreen");
 
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape" && mathDialogRef.current === null) setFullscreen(false);
+      if (event.key !== "Escape" || event.defaultPrevented) return;
+      // Escape belongs to whatever is open on top: an open menu (Radix renders
+      // its content with `role="menu"` + `data-state="open"`) or the formula
+      // dialog. Only when nothing else is open does it leave fullscreen.
+      if (mathDialogRef.current !== null) return;
+      if (document.querySelector('[role="menu"][data-state="open"], [role="listbox"][data-state="open"]')) {
+        return;
+      }
+      setFullscreen(false);
     };
     window.addEventListener("keydown", onKeyDown);
 
     return () => {
       document.body.style.overflow = previousOverflow;
+      document.body.classList.remove("editor-fullscreen");
       window.removeEventListener("keydown", onKeyDown);
     };
   }, [fullscreen]);
@@ -583,7 +599,10 @@ export function RichEditor({
         "rich-editor",
         // In fullscreen the editor becomes its own column: toolbar pinned at the
         // top, the active view scrolls underneath.
-        fullscreen && "fixed inset-0 z-40 flex flex-col bg-background"
+        // `z-[60]` must stay above the site header (sticky `z-50`), otherwise the
+        // navbar covers the toolbar; anything this editor opens on top of itself
+        // (the formula dialog, the toolbar menus) therefore uses `z-[70]`.
+        fullscreen && "fixed inset-0 z-[60] flex flex-col bg-background"
       )}
       {...(fullscreen ? { role: "region", "aria-label": te("fullscreen") } : {})}
     >
@@ -695,7 +714,10 @@ export function RichEditor({
 
       {/* LaTeX dialog: insert a new formula or edit the double-clicked one */}
       <Dialog open={mathDialog !== null} onOpenChange={(open) => { if (!open) setMathDialog(null); }}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent
+          className={cn("max-w-2xl", fullscreen && "z-[70]")}
+          overlayClassName={fullscreen ? "z-[70]" : undefined}
+        >
           <DialogHeader>
             <DialogTitle>{mathDialog?.pos === null ? te("mathInsertTitle") : te("mathEditTitle")}</DialogTitle>
             <DialogDescription>{te("mathHint")}</DialogDescription>

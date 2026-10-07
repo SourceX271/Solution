@@ -428,6 +428,21 @@
   outline: none;
 }
 
+/* ─── Fullscreen editing ───
+   The overlay itself is `fixed inset-0 z-[60]` (see RichEditor). That z-index only
+   competes *inside* the nearest stacking context, and nearly every page wraps its
+   content in a container with `animate-fade-in` — an animation with fill-mode
+   `both`, which creates a stacking context with `z-index: auto`. So the sticky
+   site header (z-50) painted over the fullscreen toolbar.
+
+   Lifting the single site-wide `<main>` (`[locale]/layout.tsx`) above the header
+   makes the whole subtree win, whatever wrapper a page adds inside it. Same reason
+   the toolbar menus and the formula dialog use z-[70]. */
+body.editor-fullscreen main {
+  position: relative;
+  z-index: 60;
+}
+
 /* ─── Prose Content (Rendered Articles) ─── */
 .prose-custom {
   @apply text-foreground leading-relaxed;
