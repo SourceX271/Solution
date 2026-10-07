@@ -8,24 +8,25 @@
 
 ---
 
-## 〇、十条速记
+## 〇、速记（11 条）
 
 1. **一次改动一次提交**，提交信息写清「改了什么、为什么」（中文）。
-2. 提交前自检：`npx tsc --noEmit`、ESLint、`npm run i18n:check`；涉及运行时/路由/依赖再跑 `npm run build`。
-3. 用户可见文案**一律走 next-intl**，`messages/zh.json` 与 `messages/en.json` 同时增删同键。
-4. `/api/admin/**` **一律 `requireAdminApi()`**，不要只读 JWT 里的 `role`（它冻结在登录时刻）。
-5. 后台写操作**必须写审计 + 失效前台 ISR**。
-6. 改 schema 后 `prisma db push` + `generate`；**新增列必须可空或带默认值**。
-7. 站内链接用 `@/i18n/routing` 的 `Link`/`useRouter`，不要用 `next/link` 拼绝对路径。
-8. 任何 HTML 的入库与渲染都要过 `sanitizeHtml()`；上传走白名单 + magic byte 校验。
-9. 临时产物不入库（`*.log`、`.tmp-*`、`.playwright-cli/`、`output/`）；**文档配图放 `docs/assets/`**。
-10. 未经明确要求**不 `git push`**、不改写已推送历史（`--force` / `rebase` / `reset --hard`）。
+2. **改完代码必须同步完善 `docs/`**（改哪份文档见第五节映射表），与代码**同一个提交**完成，不留「下次再补」。
+3. 提交前自检：`npx tsc --noEmit`、ESLint、`npm run i18n:check`；涉及运行时/路由/依赖再跑 `npm run build`。
+4. 用户可见文案**一律走 next-intl**，`messages/zh.json` 与 `messages/en.json` 同时增删同键。
+5. `/api/admin/**` **一律 `requireAdminApi()`**，不要只读 JWT 里的 `role`（它冻结在登录时刻）。
+6. 后台写操作**必须写审计 + 失效前台 ISR**。
+7. 改 schema 后 `prisma db push` + `generate`；**新增列必须可空或带默认值**。
+8. 站内链接用 `@/i18n/routing` 的 `Link`/`useRouter`，不要用 `next/link` 拼绝对路径。
+9. 任何 HTML 的入库与渲染都要过 `sanitizeHtml()`；上传走白名单 + magic byte 校验。
+10. 临时产物不入库（`*.log`、`.tmp-*`、`.playwright-cli/`、`output/`）；**文档配图放 `docs/assets/`**。
+11. 未经明确要求**不 `git push`**、不改写已推送历史（`--force` / `rebase` / `reset --hard`）。
 
 ---
 
 ## 一、提交节奏与自检
 
-- **每完成一处改动就提交一次，不要攒批。** 改完一段 → 自检 → 立刻 `git commit`，再开始下一段。
+- **每完成一处改动就提交一次，不要攒批。** 改完代码 → **同步 `docs/`（见第五节）** → 自检 → 立刻 `git commit`，再开始下一段。
 - 一个提交只做一件事；提交信息写清「改了什么、为什么」，用中文即可。
 - **每次提交前必须自检，全绿才提交**：
 
@@ -40,6 +41,8 @@
   - **纯文档/资源改动**：至少跑 `npx tsc --noEmit` 与 `npm run i18n:check`，并在提交信息里说明未跑 `build`。
   - **改了源码/路由/依赖**：四项全跑；`build` 前必须先停 `npm run dev`（否则 `.next` 并发写入导致随机构建失败）。
   - 某项因**环境原因**跑不了，必须在提交信息或回复里说明，并尽量给出等价替代（见第四节）。
+  - **文档同步**：先 `git diff --name-only` 看清改了哪些区域，凡命中第五节的映射表，就必须在**同一个提交**里
+    更新对应文档（含其中的数字与示例），并在提交信息里写明同步了哪些文档。
 - 提交前先 `git status` 确认暂存范围；临时文件（`*.log`、`.tmp-*`、`scripts/_tmp-*`、`.playwright-cli/`、`output/`）不得入库。
 - 未经明确要求**不要 `git push`**，也不要改写已推送的历史。
 
@@ -169,14 +172,56 @@ Docker 与部署：`Dockerfile`、`docker-compose.yml`、`docker-entrypoint.sh` 
 
 ---
 
-## 五、文档规范
+## 五、文档同步（改代码后强制）
 
-1. **改了代码就顺手改文档**：涉及路由 / 接口 / 模型 / 词条数 / 目录结构的变化，必须同步更新对应文档与速览数字。
-2. **新增文档要登记**：在 [docs/README.md](docs/README.md) 第一节的对应分组加一行，必要时同步下方「文档索引」。
-3. **数字要可核对**：文档里的计数（模型数、路由数、页面数、词条数）都应能从仓库直接数出来。
-4. **历史结论进归档**：带日期的报告/快照放 `docs/archive/`，文首标注哪些内容已过时，不要直接删。
-5. **配图统一放 `docs/assets/`**；不要再在仓库根新增 `output/`、`screenshots/` 这类工具目录。
-6. **临时产物不入库**：`*.log`、`.tmp-*`、`scripts/_tmp-*`、`.playwright-cli/` 用完即删。
+> **硬性规则：本次提交只要动了代码，就必须同时完善 `docs/` 里受影响的文档，并在同一个提交内完成。**
+> 不允许「先合代码，文档下次再补」，也不允许把已经过时的结论留在文档里。
+> 判断标准：**别人只读文档、不读代码，能不能得到与当前代码一致的事实？** 不能，就是没做完。
+
+### 5.1 四步流程
+
+1. `git diff --name-only` 看清这次动了哪些区域（源码、schema、配置、脚本、依赖）。
+2. 按 5.2 的映射表找出**所有**需要更新的文档（通常不止一份）。
+3. 更新文档：改正事实、数字、示例与步骤；过期的结论删掉，有价值的旧结论移入 `docs/archive/`；
+   确实没有对应文档就新建，并在 [docs/README.md](docs/README.md) 登记。
+4. 跑第一节的自检 + 提交，提交信息里写明「同步更新了哪些文档」。
+
+### 5.2 改动 → 文档映射
+
+| 改了什么 | 必须同步更新的文档 |
+|---|---|
+| `src/app/api/**`：新增/修改接口、鉴权、响应形状、分页、限流、状态码 | [docs/api-reference.md](docs/api-reference.md)；鉴权语义变化同时改 [docs/security.md](docs/security.md) |
+| `src/app/[locale]/**`：页面、路由、组件、`revalidate`/`dynamic`、middleware 守卫、SEO/元数据 | [docs/frontend.md](docs/frontend.md)；结构性变化同时改 [docs/architecture.md](docs/architecture.md) |
+| `prisma/schema.prisma`：模型、字段、状态枚举、索引、冗余计数 | [docs/data-model.md](docs/data-model.md)；模型/字段总量变化同时改 [docs/README.md](docs/README.md) 与 [docs/architecture.md](docs/architecture.md) |
+| `messages/*.json`、`src/i18n/**`、`scripts/check-i18n*.mjs` | [docs/i18n.md](docs/i18n.md)（命名空间、键数、脚本规则） |
+| `src/app/[locale]/admin/**`、`src/lib/admin-*.ts`、`src/lib/audit.ts`、`src/lib/revalidate.ts` | [docs/admin-panel.md](docs/admin-panel.md)（页面能力、审计动作表、失效矩阵） |
+| `crawler/**`、`src/lib/crawler-ingest.ts`、`src/lib/crawler-scheduler.ts` | [docs/crawler.md](docs/crawler.md) |
+| 安全面：`src/lib/sanitize.ts`、上传、CSP/响应头、限流、密钥与会话 | [docs/security.md](docs/security.md) |
+| `package.json`、依赖升级、npm scripts | [docs/README.md](docs/README.md) 的技术栈表与常用命令；漏洞处置另写/更新 `docs/dependency-audit-*.md`（带日期的新报告放 [docs/archive/](docs/archive)） |
+| `Dockerfile`、compose、entrypoint、环境变量、部署步骤 | [docs/operations.md](docs/operations.md)；Docker 形态同步 [DEPLOY.md](DEPLOY.md)，裸机形态同步 [docs/permissions.md](docs/permissions.md) |
+| 顶层目录或文件结构变化（新增 `src/xxx/`、移动文件） | 本文件第三节 + [docs/README.md](docs/README.md) 的目录树；全站结构变化再改 [docs/architecture.md](docs/architecture.md) |
+| 修复 bug 或安全问题 | [docs/code-audit.md](docs/code-audit.md) 的「已修复 / 待处理」；安全类同时更新 [docs/security.md](docs/security.md) 的待办清单 |
+| 环境或工具链的坑（构建、沙箱、编码、CLI） | [docs/dev-environment.md](docs/dev-environment.md)，按「症状 → 原因 → 处置」写 |
+
+### 5.3 最容易漏的几点
+
+- **数字**：模型数、`route.ts` 与方法数、`page.tsx` 数、组件数、词条数、爬虫源数。
+  词条数看 `npm run i18n:check` 的输出；其余用文件计数（路径含方括号时用 `-LiteralPath`，或用 grep 工具）。
+- **「已知不一致 / 待处理」条目**：修好了就必须从文档里删掉或标为「已修复」，否则下一个人会照过期结论排查。
+- **示例命令与路径**：改了脚本名、环境变量、目录后，文档里的命令要能原样复制执行。
+- **交叉引用**：同一事实常出现在多份文档（如模型数同时出现在 `README` 与 `architecture`），要一起改。
+- **新增文档**：kebab-case 命名放 `docs/` 下，并在 [docs/README.md](docs/README.md) 第一节对应分组加一行；
+  带日期的报告/快照放 `docs/archive/`，文首标注哪些内容已过时。
+- **链接**：文档之间只用相对链接；改完抽查一遍，确认每个链接目标真实存在。
+- **仓库卫生**（沿用旧规则）：配图统一放 `docs/assets/`，不要在仓库根新增 `output/`、`screenshots/` 这类目录；
+  `*.log`、`.tmp-*`、`scripts/_tmp-*`、`.playwright-cli/` 用完即删。
+
+### 5.4 反例（不要这样做）
+
+- 只在提交信息或回复里写「文档待补」，代码先合。
+- 文档仍描述改动前的行为，或把旧结论留着不删、不标注。
+- 在文档里大段复制源码/配置（必然漂移）——改为引用文件路径与函数名。
+- 为「看起来同步了」而堆函数名，却不说明行为变化。
 
 ---
 
