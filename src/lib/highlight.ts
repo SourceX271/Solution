@@ -72,31 +72,57 @@ export async function highlightCode(code: string, language?: string): Promise<st
 
 /**
  * Process HTML content to apply syntax highlighting to pre/code blocks.
+ *
+ * The editor serialises code blocks as `<pre class="code-block"><code
+ * class="language-x">`; the previous pattern only matched a bare `<pre>`, so
+ * editor-authored code was never highlighted at all. Both shapes are handled now,
+ * and the language is read from the class on either element.
  */
 export async function highlightHtmlContent(html: string): Promise<string> {
   const hljs = await getHljs();
 
   return html.replace(
-    /<pre><code(?:\s+class="language-([^"]*)")?>([\s\S]*?)<\/code><\/pre>/g,
-    (_match: string, lang: string | undefined, code: string) => {
-      const decoded = code
-        .replace(/&lt;/g, "<")
-        .replace(/&gt;/g, ">")
-        .replace(/&amp;/g, "&")
-        .replace(/&#x27;/g, "'")
-        .replace(/&quot;/g, '"');
+    /<pre(\s[^>]*)?>\s*<code(\s[^>]*)?>([\s\S]*?)<\/code>\s*<\/pre>/g,
+    (
+      _match: string,
+      preAttrs: string | undefined,
+      codeAttrs: string | undefined,
+      code: string
+    ) => {
+      const pre = `<pre${preAttrs ?? ""}>`;
+      const language = readLanguageClass(`${preAttrs ?? ""} ${codeAttrs ?? ""}`);
+      const decoded = decodeEntities(code);
+
       try {
-        let highlighted: string;
-        if (lang && hljs.getLanguage(lang)) {
-          highlighted = hljs.highlight(decoded.trim(), { language: lang }).value;
-        } else {
-          highlighted = hljs.highlightAuto(decoded.trim()).value;
-        }
-        const langLabel = lang ? ' language-' + lang : '';
-        return '<pre><code class="hljs' + langLabel + '">' + highlighted + '</code></pre>';
+        const highlighted =
+          language && hljs.getLanguage(language)
+            ? hljs.highlight(decoded.trim(), { language }).value
+            : hljs.highlightAuto(decoded.trim()).value;
+        const langLabel = language ? ` language-${language}` : "";
+        return `${pre}<code class="hljs${langLabel}">${highlighted}</code></pre>`;
       } catch {
-        return '<pre><code>' + decoded + '</code></pre>';
+        return `${pre}<code${codeAttrs ?? ""}>${decoded}</code></pre>`;
       }
     }
   );
+}
+
+/** `class="code-block language-js"` → `js`; returns "" when absent. */
+function readLanguageClass(attributes: string): string {
+  // Both the `<pre>` and the `<code>` can carry a class, and the language may be
+  // on either, so every class attribute is inspected.
+  for (const match of attributes.matchAll(/class\s*=\s*"([^"]*)"/gi)) {
+    const language = /(?:^|\s)language-([\w+#.-]+)/.exec(match[1]);
+    if (language) return language[1].toLowerCase();
+  }
+  return "";
+}
+
+function decodeEntities(value: string): string {
+  return value
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&amp;/g, "&")
+    .replace(/&#x27;/g, "'")
+    .replace(/&quot;/g, '"');
 }

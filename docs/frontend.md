@@ -114,9 +114,9 @@ src/app/
 
 | 组件 | 作用 | 主要接口 |
 |---|---|---|
-| `EditorToolbar` | 编辑器工具栏：按 `role="group"` 分组的文字样式 / 段落与列表 / 插入 / 历史，段落格式下拉（正文·H1–H3），右侧固定「视图」开关（富文本 / Markdown / HTML / 分屏）；每个按钮带 `title`（含快捷键）与 `aria-label`，开关类带 `aria-pressed` | 由 `RichEditor` 传入 `editor` 与回调 |
+| `EditorToolbar` | 编辑器工具栏，分两行：上行是 `role="group"` 分组的**文字样式**（粗斜下划线删除线行内代码 + 上下标 + 文字颜色/高亮）/ **字体与间距**（字体族、字号、行距）/ **段落与列表**（段落格式下拉 H1–H6、四种对齐、列表、引用、代码块 + 代码语言、分割线）/ **插入** / **历史**；下行固定显示字符·词计数与「视图」开关（富文本 / Markdown / HTML / 分屏）。每个按钮带 `title`（含快捷键）与 `aria-label`，开关类带 `aria-pressed` | 由 `RichEditor` 传入 `editor`、`stats` 与回调 |
 | `PublishShell` | 三个发布页共用的外壳：返回链接、标题与说明、页面级错误汇总、`Field`（label + 提示 + 计数器 + 字段错误，并用 `cloneElement` 把 `id`/`aria-*` 接到控件上）、草稿恢复横幅、`TipsCard`、粘性提交栏、Ctrl/⌘+Enter 提交 | — |
-| `RichEditor` | Tiptap 3 富文本编辑器（所见即所得 / Markdown·HTML 源码 / 分屏预览，工具栏见 `EditorToolbar`）；**支持 LaTeX 公式**（`$…$`、`$$…$$`、`\(…\)`、`\[…\]`，输入与粘贴都会转成公式节点，双击可编辑）；同文件另导出只读 `RichContent`；可选的 `id`/`labelledBy`/`describedBy`/`invalid` 会写到可编辑区，供 `<Field>` 接上标签与错误 | `POST /api/upload` |
+| `RichEditor` | Tiptap 3 富文本编辑器（所见即所得 / Markdown·HTML 源码 / 分屏预览，工具栏见 `EditorToolbar`）；**支持 LaTeX 公式**（`$…$`、`$$…$$`、`\(…\)`、`\[…\]`，输入与粘贴都会转成公式节点，双击可编辑）；**排版能力见下文「编辑器排版与三模式切换」**；同文件另导出只读 `RichContent`；可选的 `id`/`labelledBy`/`describedBy`/`invalid` 会写到可编辑区，供 `<Field>` 接上标签与错误 | `POST /api/upload` |
 | `CommentSection` | 评论区：列表、发表、回复、编辑、删除 | `/api/comments*` |
 | `AnswerForm` / `AnswerItem` / `AcceptButton` | 答题、展示（投票/采纳/编辑/删除）、采纳按钮 | `/api/questions/[id]/answers`、`/api/answers/[id]` |
 | `VoteButtons` / `RatingWidget` / `BookmarkButton` | 顶踩投票、1–5 星评分、收藏开关 | `POST /api/votes`、`POST /api/bookmarks` |
@@ -146,13 +146,49 @@ src/app/
 | 编辑 | `$…$` / `$$…$$` 输入或粘贴时由 InputRule/PasteRule 转成 `mathInline` / `mathBlock` 原子节点，`data-latex` 保存源码；双击（或回车）打开对话框编辑，工具栏有 Σ（行内）与 √（块级）两个入口 |
 | 存储 | 序列化为 `<span data-math="inline" data-latex="…">` / `<div data-math="block" …>`，`data-*` 在 `sanitizeHtml` 的白名单内（`ALLOW_DATA_ATTR: true`） |
 | 渲染 | `renderMathInHtml()`：先识别节点，再处理 `$…$`、`$$…$$`、`\(…\)`、`\[…\]` 文本分隔符；`<code>`/`<pre>` 内跳过，`$5 and $10` 这类价格不会被误判 |
-| 顺序 | **必须先净化再渲染**：KaTeX 需要内联 `style`，而白名单刻意不允许用户输入携带 `style`；KaTeX 用 `trust: false`，`\href` 之类不会生成链接 |
+| 顺序 | **必须先净化再渲染**：KaTeX 输出带大量内联 `style`（含 `position`、`top` 这类排版定位），先渲染再净化会被样式白名单削掉、公式排版错乱；KaTeX 用 `trust: false`，`\href` 之类不会生成链接 |
 | 移动端/无服务端 | 服务端详情页（solutions/questions/software）与客户端 `RichContent`、编辑器预览共用同一函数；KaTeX CSS 在根 layout 引入（字体按需下载） |
 | 回归 | `npm run math:check`（`scripts/check-math.ts`，18 个用例：分隔符、代码块跳过、价格不误判、节点往返、`trust` 关闭） |
 
-> 文本 → Markdown 转换前会先把公式节点还原成 `$…$`（`mathElementsToDelimiters()`），否则 turndown
-> 会静默丢弃自定义节点；Markdown 切回富文本时用 `insertContentAt(..., { applyInputRules: true })`，
-> 让 `$…$` 文本重新变成节点。
+> Markdown 模式下公式**不做 `$…$` 还原**：turndown 会转义反斜杠，`\frac{1}{2}` 会变成 `\\frac{1}{2}`（另一条
+> 完全不同的、会报错的 LaTeX）。现在公式节点与样式、媒体、附件一样，以 `data-math` 原始 HTML 保留在 Markdown
+> 源码里（见下节）；作者仍可手写 `$…$`，切回富文本时由输入规则转成节点。
+
+### 编辑器排版与三模式切换（2026-10-07）
+
+**排版能力**（`components/client/text-style-marks.ts`）：
+
+| 能力 | 实现 | 落库形态 |
+|---|---|---|
+| 字体族 / 字号 / 行距 / 文字颜色 / 高亮 | `TextStyle` mark（`span` + 内联 `style`），预设见 `lib/rich-text-styles.ts` | `<span style="font-family: …; font-size: 20px; color: #2563eb">` |
+| 段落对齐 | `TextAlign` 扩展用 `addGlobalAttributes` 给 `paragraph`/`heading` 加 `textAlign`，**不替换 StarterKit 的节点** | `<p style="text-align: center">` |
+| 上标 / 下标 | `superscript` / `subscript` 两个 mark，互为 `excludes`，快捷键 `Ctrl+.` / `Ctrl+,` | `<sup>` / `<sub>` |
+| 段落格式 | 下拉含正文与 H1–H6 | `<h1>`–`<h6>` |
+| 代码块语言 | StarterKit 的 `language` 属性 + 工具栏下拉（25 种，ID 与 highlight.js 注册名一致） | `<pre class="code-block"><code class="language-js">` |
+| 字符 / 词计数 | `lib/text-stats.ts`：CJK 逐字计数 + 其余按空白分词，富文本取 `editor.getText()`、源码模式取缓冲区纯文本 | 仅界面显示 |
+
+**关键约束**：工具栏给的每个值都要先过 `filterStyleDeclarations()`（与净化器同一份白名单），通过才写入文档。
+编辑器里选得出来的样式，就是发布后能存下来的样式；否则会出现"改的时候有颜色、发出去就没了"。
+
+**Markdown 源码模式的保真**（`lib/editor-markdown.ts`）：turndown 的内置规则**优先于** `keep()`，因此
+`## 标题` 上的 `style="text-align: center"` 会被标题规则吃掉，附件锚点会被转成普通链接；空元素更是连规则都进不去
+（`forNode()` 先判 `isBlank` → 走 `blankRule`，公式节点正是空元素）。所以：
+
+- 用 `addRule()`（插到规则表最前）保留"带 style 的元素 / video / audio / mark / sup / sub / u / small / font /
+  figure / figcaption / `a[data-attachment]` / `[data-math]`"，
+- 并用 `blankReplacement` 兜住空元素，同样输出原始 HTML；
+- 其余内容照常走原生 Markdown（标题、列表、粗斜体、行内代码、链接、围栏代码块都还是 Markdown）。
+
+内联/块级原始 HTML 是 CommonMark 合法语法，`marked` 会原样透传，于是 Markdown → 富文本往返不再丢样式。
+回归：`npm run markdown:check`（19 条，见 [code-audit.md](./code-audit.md) 第一节第 17 条）。
+
+**语法高亮**（`lib/highlight.ts`）：正则原先只匹配裸 `<pre>`，而编辑器产出的是
+`<pre class="code-block">`，导致编辑器写的代码块从未被高亮过；现在 `<pre>` 与 `<code>` 上的属性都会被读取，
+语言类名从任一元素上取。
+
+**源码模式提示**：HTML 模式与 Markdown 模式的文本框下方各有一行说明（`editor.htmlModeHint` /
+`editor.markdownModeHint`），讲清"编辑器不支持的标签会被规范化""Markdown 表达不了的样式会以原始 HTML 保留"，
+不再让作者靠猜。
 
 ### 图片、视频与附件上传（2026-10-07）
 

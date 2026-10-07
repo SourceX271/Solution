@@ -7,14 +7,15 @@ import StarterKit from "@tiptap/starter-kit";
 import Placeholder from "@tiptap/extension-placeholder";
 import ImageExtension from "@tiptap/extension-image";
 import LinkExtension from "@tiptap/extension-link";
-import TurndownService from "turndown";
-import { marked } from "marked";
 import DOMPurify from "dompurify";
 import { toast } from "sonner";
 import { Eye } from "lucide-react";
 import { EditorToolbar, type EditorView } from "./EditorToolbar";
 import { MathBlock, MathInline } from "./math-nodes";
 import { AttachmentNode, VideoNode } from "./media-nodes";
+import { richTextFormatExtensions } from "./text-style-marks";
+import { htmlToMarkdown, markdownToHtml } from "@/lib/editor-markdown";
+import { countTextStats, type TextStats } from "@/lib/text-stats";
 import { renderLatex, renderMathInHtml, mathElementsToDelimiters } from "@/lib/math";
 import { renderAttachmentCards, type AttachmentCardLabels } from "@/lib/attachments";
 import { contentPurifyConfig, installContentSanitizer } from "@/lib/sanitize-config";
@@ -26,8 +27,6 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
-
-marked.setOptions({ breaks: true, gfm: true });
 
 /** Set once, on the first client-side preview build. */
 let previewHooksInstalled = false;
@@ -54,19 +53,33 @@ function sanitizePreviewHtml(html: string): string {
 
 /**
  * Preview pipeline: sanitise first, then expand formulas and attachment cards.
- * KaTeX markup needs its inline styles, which the allow-list deliberately
- * rejects on user input — so it has to be produced after the sanitiser has run,
- * never before. Attachment cards are generated markup for the same reason.
+ *
+ * Both expansions produce markup that must not be re-sanitised: KaTeX emits
+ * positioning styles the CSS allow-list rejects, and attachment cards are
+ * generated from attributes the author did not type. So they run after the
+ * sanitiser, never before.
  */
 function buildPreviewHtml(html: string, labels: AttachmentCardLabels): string {
   return renderAttachmentCards(renderMathInHtml(sanitizePreviewHtml(html)), labels);
 }
 
-const turndownService = new TurndownService({
-  headingStyle: "atx",
-  codeBlockStyle: "fenced",
-  bulletListMarker: "-",
-});
+/**
+ * Crude tag stripping, used only to count characters in source mode.
+ *
+ * The editor's own text is already available through `editor.getText()`; this is
+ * for the buffer the author is typing into, where a real DOM pass would run on
+ * every keystroke for no benefit.
+ */
+function htmlToPlainText(html: string): string {
+  return html
+    .replace(/<[^>]*>/g, " ")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#x27;/g, "'")
+    .replace(/&amp;/g, "&");
+}
 
 /** What a toolbar upload button is collecting. */
 export type MediaKind = "image" | "video" | "attachment";
@@ -107,6 +120,8 @@ export function RichEditor({
   const [previewHtml, setPreviewHtml] = useState("");
   const [mathDialog, setMathDialog] = useState<{ display: boolean; pos: number | null } | null>(null);
   const [mathDraft, setMathDraft] = useState("");
+  /** Character/word counts for the toolbar's status row. */
+  const [stats, setStats] = useState<TextStats>({ characters: 0, words: 0 });
   /** Which media kind a file picker is currently collecting, and whether one is in flight. */
   const pendingKindRef = useRef<MediaKind | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -164,6 +179,10 @@ export function RichEditor({
       // attachment keeps its metadata in a dedicated atom node.
       VideoNode,
       AttachmentNode,
+      // Colours, fonts, alignment, super/subscript. Their values are validated
+      // against the same CSS allow-list the sanitiser uses, so nothing the author
+      // can pick here disappears on publish.
+      ...richTextFormatExtensions,
     ],
     content: value || "",
     editable: !readOnly,
@@ -198,6 +217,21 @@ export function RichEditor({
     else dom.removeAttribute("aria-invalid");
   }, [editor, id, labelledBy, describedBy, invalid]);
 
+  /**
+   * Character/word counts for the status row.
+   *
+   * Rich-text mode counts the editor's own text; source/split mode counts the
+   * plain text of the buffer, so the number always describes what publishing
+   * from the current view would produce.
+   */
+  useEffect(() => {
+    if (!editor || mode !== "wysiwyg") return;
+    const update = () => setStats(countTextStats(editor.getText()));
+    update();
+    editor.on("update", update);
+    return () => { editor.off("update", update) };
+  }, [editor, mode]);
+
   // Sync external value changes into the editor (e.g., edit mode initialization)
   useEffect(() => {
     if (editor && value !== undefined && !initializedRef.current) {
@@ -222,19 +256,16 @@ export function RichEditor({
   /** Editor HTML → source buffer (Markdown, or the HTML itself). */
   const toSource = useCallback((html: string, format: "markdown" | "html") => {
     if (format === "html") return html || "";
-    try {
-      // Turn math nodes back into `$…$` first: turndown does not know about
-      // custom nodes and would drop them from the Markdown output entirely.
-      return turndownService.turndown(mathElementsToDelimiters(html)) || "";
-    } catch {
-      return html || "";
-    }
+    // Markdown cannot express styling, media, attachments or formulas, so
+    // `editor-markdown.ts` keeps those elements as raw HTML instead of letting
+    // Turndown flatten them.
+    return htmlToMarkdown(html || "");
   }, []);
 
   /** Source buffer → editor HTML. */
   const fromSource = useCallback((source: string, format: "markdown" | "html") => {
     if (format === "html") return source;
-    return (marked.parse(source) as string) || "";
+    return markdownToHtml(source);
   }, []);
 
   const enterMode = useCallback(
@@ -269,6 +300,13 @@ export function RichEditor({
     // intentionally not dependencies.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sourceContent, sourceFormat, mode]);
+
+  // Count what the source buffer would publish, so the status row keeps matching
+  // the view the author is typing in.
+  useEffect(() => {
+    if (mode === "wysiwyg") return;
+    setStats(countTextStats(htmlToPlainText(fromSource(sourceContent, sourceFormat))));
+  }, [mode, sourceContent, sourceFormat, fromSource]);
 
   // Sync editor changes to parent
   useEffect(() => {
@@ -480,6 +518,7 @@ export function RichEditor({
             setMathDraft("")
             setMathDialog({ display: displayMode, pos: null })
           }}
+          stats={stats}
         />
       )}
 
@@ -511,6 +550,11 @@ export function RichEditor({
             style={{ minHeight }}
             placeholder={sourceFormat === "html" ? te("htmlSourcePlaceholder") : te("sourcePlaceholder")}
           />
+          {/* Sets expectations about what a round trip through the source and the
+              sanitiser does, instead of rewriting the markup silently. */}
+          <p className="text-xs text-muted-foreground">
+            {sourceFormat === "html" ? te("htmlModeHint") : te("markdownModeHint")}
+          </p>
           <details className="rounded-md border border-input bg-background group" open>
             <summary className="cursor-pointer px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground select-none">
               <Eye className="mr-1.5 inline-block h-3.5 w-3.5" />

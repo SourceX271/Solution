@@ -222,6 +222,24 @@
 
 ---
 
+### 17. 编辑器排版能力与三模式保真（2026-10-07）
+
+功能：工具栏从"只有粗斜体 + H1–H3"扩展到字体族/字号/行距、文字颜色、背景高亮、四种对齐、上下标、
+H1–H6、代码块语言（25 种）、字符与词计数（见 [frontend.md](./frontend.md)「编辑器排版与三模式切换」）。
+
+开发过程中定位并修掉的三个真实缺陷：
+
+| 问题 | 现象与证据 | 修复 |
+|---|---|---|
+| **HTML 源码模式里写的样式在"切换"和"发布"两处都消失** | ① 编辑器预览用的是一份**更窄的**独立白名单，连 `style` 都不允许 → 预览里没有样式；② 切回富文本时样式被 Tiptap 的 schema 丢掉（只认识它自己的 mark）；③ `<font>`/`align` 这类旧式表现属性被净化器直接删除（实测 `<div align="center">` → `<div>`） | ① 预览与渲染**共用** `sanitize-config.ts`；② 新增 `TextStyle`（字体/字号/行距/颜色/高亮）与 `TextAlign` 扩展，把样式变成 schema 里的结构化属性；③ 白名单补 `font`/`center`/`sub`/`sup`/`small`/`align`/`color`/`size`/`face`/`bgcolor`（并写进 `ADD_URI_SAFE_ATTR`，见第 16 条） |
+| **Markdown 源码模式静默丢样式、附件与公式** | turndown 的内置规则**优先于** `keep()`：`<h2 style="text-align:center">` 被标题规则吃掉样式，附件锚点被转成 `[name](url)` 丢掉元数据；空元素更进不了任何规则（`forNode()` 先判 `isBlank` → `blankRule`），公式节点正是空元素。另外 `\frac{1}{2}` 经 turndown 的文本转义变成 `\\frac{1}{2}`（**另一条会报错的 LaTeX**） | 新增 `lib/editor-markdown.ts`：用 `addRule()`（插到规则表最前）+ `blankReplacement` 保留带样式元素、video/audio/mark/sup/sub/u/small/font/figure、`a[data-attachment]` 与 `[data-math]` 的原始 HTML；公式不再还原成 `$…$`。回归 `npm run markdown:check`（19/19） |
+| **编辑器写的代码块从未被高亮** | `highlightHtmlContent()` 的正则只匹配裸 `<pre><code>`，而编辑器产出的是 `<pre class="code-block"><code class="language-js">` → 正文里代码块始终是纯色 | 正则改为允许 `<pre>`/`<code>` 带属性，语言类名从任一元素读取；工具栏补代码语言下拉（此前即便选了语言也无处可设） |
+
+**验证**：`npm run markdown:check` 19/19、`npm run sanitize:check` 31/31、`npm run math:check` 18/18；
+`npx tsc --noEmit` 0 错误；浏览器端到端见第 18 条。
+
+---
+
 ## 二、待处理
 按影响面排序，均未修改。
 

@@ -66,7 +66,7 @@
 
 - 任何用户可见文案都必须走 `next-intl`：服务端 `getTranslations(ns)` / 客户端 `useTranslations(ns)`；
   **禁止**在 `src/` 里新增硬编码中文（唯一的白名单在 `scripts/check-i18n.mjs`，只允许既有 5 个文件）。
-- `messages/zh.json` 与 `messages/en.json` **同时增删同样的键**，命名空间沿用现有 23 个（新增子命名空间优先复用 `*Ui`）。
+- `messages/zh.json` 与 `messages/en.json` **同时增删同样的键**，命名空间沿用现有 24 个（新增子命名空间优先复用 `*Ui`）。
 - API 的错误/提示消息用 `getApiT("api")`（消息语言由 `NEXT_LOCALE` cookie 决定）。
 - zod 校验消息用工厂形式 `getXSchema(t)`（`src/lib/validations.ts`），不要在 schema 里写死中文。
 - 通知消息存结构体 `{key, params}`（`createNotification`），渲染时才按读者语言翻译。
@@ -152,8 +152,8 @@ src/components/      ui（Radix 封装）/ client（交互）/ layout / admin  �
 src/i18n/            routing.ts（locales）与 request.ts（词条装载）
 crawler/             Python 采集器（唯一入口 python -m crawler.main）  → docs/crawler.md
 prisma/              schema.prisma、seed.ts、seed-redirects.ts         → docs/data-model.md
-scripts/             check-i18n.mjs、check-i18n-runtime.mjs、check-math.ts、check-sanitize.ts
-messages/            zh.json / en.json（各 1091 键）
+scripts/             check-i18n.mjs、check-i18n-runtime.mjs、check-math.ts、check-markdown.ts、check-sanitize.ts
+messages/            zh.json / en.json（各 1125 键）
 docs/                开发者文档；配图与复核截图在 docs/assets/，历史快照在 docs/archive/
 public/              logo.svg 与运行时上传目录 uploads/（不入库）
 ```

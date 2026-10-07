@@ -25,7 +25,7 @@
 |---|---|
 | [data-model.md](./data-model.md) | 16 个 Prisma 模型、关系、状态机、多态关联、冗余计数、索引与操作约定 |
 | [api-reference.md](./api-reference.md) | 41 个路由文件的 66 个导出处理方法：鉴权、入参、响应、副作用、限流、已知坑 |
-| [i18n.md](./i18n.md) | 多语言接线、24 个命名空间 / 1091 键、两个校验脚本的规则、新增词条与语言的流程 |
+| [i18n.md](./i18n.md) | 多语言接线、24 个命名空间 / 1125 键、两个校验脚本的规则、新增词条与语言的流程 |
 | [admin-panel.md](./admin-panel.md) | 后台 8 个模块、三级鉴权、用户处置规则、19 类审计动作、缓存失效矩阵、开发约定 |
 | [crawler.md](./crawler.md) | Python 采集器：CLI、7 个数据源、请求行为、入库与去重、定时调度、合规风险 |
 
@@ -83,7 +83,7 @@ src/lib/              认证、守卫、审计、校验、限流、清洗、标�
 src/components/       ui（Radix 封装）/ client（交互）/ layout / admin，共 48 个
 crawler/              Python 爬虫（入口 crawler/main.py，必须 python -m crawler.main）
 prisma/               schema、seed、旧 slug 重定向脚本
-scripts/              check-i18n.mjs、check-i18n-runtime.mjs
+scripts/              check-i18n.mjs、check-i18n-runtime.mjs、check-math.ts、check-markdown.ts、check-sanitize.ts
 docs/                 本目录（配图与复核截图在 docs/assets/）
 ```
 
@@ -100,6 +100,7 @@ npx tsc --noEmit     # 类型检查（增量缓存写 .next/cache/tsconfig.tsbui
 npm run i18n:check          # 中英词条对齐 + 无硬编码中文（秒级，提交前必跑）
 npm run i18n:check:runtime  # 对运行中的服务做语言泄漏检查（默认 http://127.0.0.1:3103）
 npm run math:check          # LaTeX 渲染管线回归（18 个用例，见 frontend.md「公式」）
+npm run markdown:check      # Markdown 模式保真 + 代码高亮 + 计数（19 个用例，见 frontend.md「编辑器排版与三模式切换」）
 npm run sanitize:check      # 富文本白名单回归：CSS/class 过滤 + 端到端净化（31 个用例，见 security.md 第三节）
 
 npm run db:push      # 同步 Prisma schema 到数据库

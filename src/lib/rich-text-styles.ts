@@ -229,3 +229,42 @@ export const HIGHLIGHT_COLOR_PRESETS: readonly string[] = [
 export const TEXT_ALIGN_VALUES = ["left", "center", "right", "justify"] as const;
 
 export type TextAlignValue = (typeof TEXT_ALIGN_VALUES)[number];
+
+/**
+ * Languages offered for code blocks. Ids are highlight.js ids (the same ones
+ * `src/lib/highlight.ts` registers), so picking one here is what makes the
+ * published code block actually highlighted. `""` means "no language": the
+ * highlighter then guesses.
+ */
+export interface CodeLanguage {
+  id: string;
+  label: string;
+}
+
+export const CODE_LANGUAGES: readonly CodeLanguage[] = [
+  { id: "javascript", label: "JavaScript" },
+  { id: "typescript", label: "TypeScript" },
+  { id: "python", label: "Python" },
+  { id: "java", label: "Java" },
+  { id: "go", label: "Go" },
+  { id: "rust", label: "Rust" },
+  { id: "c", label: "C" },
+  { id: "cpp", label: "C++" },
+  { id: "csharp", label: "C#" },
+  { id: "php", label: "PHP" },
+  { id: "ruby", label: "Ruby" },
+  { id: "kotlin", label: "Kotlin" },
+  { id: "swift", label: "Swift" },
+  { id: "scala", label: "Scala" },
+  { id: "shell", label: "Shell" },
+  { id: "bash", label: "Bash" },
+  { id: "sql", label: "SQL" },
+  { id: "json", label: "JSON" },
+  { id: "yaml", label: "YAML" },
+  { id: "xml", label: "HTML / XML" },
+  { id: "css", label: "CSS" },
+  { id: "markdown", label: "Markdown" },
+  { id: "graphql", label: "GraphQL" },
+  { id: "nginx", label: "Nginx" },
+  { id: "dockerfile", label: "Dockerfile" },
+];

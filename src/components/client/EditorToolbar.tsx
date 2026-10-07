@@ -3,17 +3,27 @@
 import type { Editor } from "@tiptap/react"
 import { useTranslations } from "next-intl"
 import {
-  Bold, Braces, Brackets, ChevronDown, Code, Columns, Eraser, Film, Heading, Image as ImageIcon,
-  Italic, Link as LinkIcon, List, ListOrdered, Minus, Paperclip, Pencil, Quote, Radical, Redo2, Sigma,
-  Strikethrough, Underline, Undo2,
+  AlignCenter, AlignJustify, AlignLeft, AlignRight, Baseline, Bold, Braces, Brackets, ChevronDown,
+  Code, Columns, Eraser, Film, Heading, Highlighter, Image as ImageIcon, Italic, Link as LinkIcon,
+  List, ListOrdered, Minus, Paperclip, Pencil, Quote, Radical, Redo2, Sigma, Strikethrough,
+  Subscript as SubscriptIcon, Superscript as SuperscriptIcon, Underline, Undo2,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+  CODE_LANGUAGES, FONT_FAMILY_PRESETS, FONT_SIZE_PRESETS, HIGHLIGHT_COLOR_PRESETS,
+  LINE_HEIGHT_PRESETS, TEXT_ALIGN_VALUES, TEXT_COLOR_PRESETS, type TextAlignValue,
+} from "@/lib/rich-text-styles"
+import type { TextStats } from "@/lib/text-stats"
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
+  DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 
 /** What the editor is editing *in*: rich text, Markdown/HTML source, or split. */
 export type EditorView = "wysiwyg" | "markdown" | "html" | "split"
+
+/** Kept in sync with `RichEditor`'s picker. */
+type MediaKind = "image" | "video" | "attachment"
 
 interface EditorToolbarProps {
   editor: Editor
@@ -25,20 +35,29 @@ interface EditorToolbarProps {
   /** Which upload is in flight, if any (disables the upload buttons). */
   uploading?: MediaKind | null
   onInsertMath: (displayMode: boolean) => void
+  /** Character/word counts for the status row. */
+  stats?: TextStats
 }
 
-/** Kept in sync with `RichEditor`'s picker. */
-type MediaKind = "image" | "video" | "attachment"
+/** Font-family presets paired with their message keys (static, so i18n can see them). */
+const FONT_FAMILY_LABEL_KEYS: Record<string, string> = {
+  system: "fontFamilySystem",
+  serif: "fontFamilySerif",
+  kai: "fontFamilyKai",
+  hei: "fontFamilyHei",
+  mono: "fontFamilyMono",
+  cursive: "fontFamilyCursive",
+}
 
 /**
  * Editor toolbar.
  *
- * Previously a flat row of ~15 unlabelled icons where the mode switchers were
- * mixed in with the formatting buttons. Now: labelled groups (`role="group"`),
- * a block-type dropdown instead of a single hard-coded H2, the missing standard
- * commands (underline, inline code, horizontal rule, clear formatting), and a
- * segmented view switcher that folds the old "mode + format" pair into one
- * control.
+ * Two rows: formatting groups on top, and a status row with the character count
+ * and the view switcher underneath. The status row is the only part shown in
+ * source modes, so switching to HTML/Markdown never leaves an empty strip.
+ *
+ * Grouping follows the labels in the `editor` namespace: text styling, font &
+ * spacing, paragraphs & lists, insertion, history.
  */
 export function EditorToolbar({
   editor,
@@ -48,6 +67,7 @@ export function EditorToolbar({
   onInsertMedia,
   uploading = null,
   onInsertMath,
+  stats,
 }: EditorToolbarProps) {
   const t = useTranslations("editor")
   const isRichText = view === "wysiwyg"
@@ -56,10 +76,21 @@ export function EditorToolbar({
     { level: 1 as const, label: t("heading1") },
     { level: 2 as const, label: t("heading2") },
     { level: 3 as const, label: t("heading3") },
+    { level: 4 as const, label: t("heading4") },
+    { level: 5 as const, label: t("heading5") },
+    { level: 6 as const, label: t("heading6") },
   ]
 
   const activeHeading = headings.find(({ level }) => editor.isActive("heading", { level }))
   const blockLabel = activeHeading ? `H${activeHeading.level}` : t("paragraph")
+
+  const activeFontFamily = (editor.getAttributes("textStyle").fontFamily as string | undefined) ?? ""
+  const activeFontSize = (editor.getAttributes("textStyle").fontSize as string | undefined) ?? ""
+  const activeLineHeight = (editor.getAttributes("textStyle").lineHeight as string | undefined) ?? ""
+  const activeColor = (editor.getAttributes("textStyle").color as string | undefined) ?? ""
+  const activeHighlight =
+    (editor.getAttributes("textStyle").backgroundColor as string | undefined) ?? ""
+  const activeCodeLanguage = (editor.getAttributes("codeBlock").language as string | undefined) ?? ""
 
   const views: { value: EditorView; label: string; Icon: typeof Pencil }[] = [
     { value: "wysiwyg", label: t("richTextMode"), Icon: Pencil },
@@ -68,14 +99,13 @@ export function EditorToolbar({
     { value: "split", label: t("splitPreview"), Icon: Columns },
   ]
 
+  const fontFamilyLabel = FONT_FAMILY_PRESETS.find((p) => p.value === activeFontFamily)
+
   return (
-    <div className="flex items-center gap-2 rounded-t-md border border-input border-b-0 bg-muted/40 p-1.5">
-      {/* Formatting groups wrap inside their own column so the view switcher
-          stays anchored to the right edge instead of drifting onto a second row. */}
-      <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1">
-        {isRichText && (
-          <>
-            <ToolGroup label={t("groupText")}>
+    <div className="rounded-t-md border border-input border-b-0 bg-muted/40">
+      {isRichText && (
+        <div className="flex flex-wrap items-center gap-1 p-1.5">
+          <ToolGroup label={t("groupText")}>
             <ToolButton
               label={t("bold")}
               shortcut={t("shortcutBold")}
@@ -116,6 +146,111 @@ export function EditorToolbar({
             >
               <Code className="h-3.5 w-3.5" />
             </ToolButton>
+            <ToolButton
+              label={`${t("superscript")} (${t("shortcutSuperscript")})`}
+              active={editor.isActive("superscript")}
+              onClick={() => editor.chain().focus().toggleSuperscript().run()}
+            >
+              <SuperscriptIcon className="h-3.5 w-3.5" />
+            </ToolButton>
+            <ToolButton
+              label={`${t("subscript")} (${t("shortcutSubscript")})`}
+              active={editor.isActive("subscript")}
+              onClick={() => editor.chain().focus().toggleSubscript().run()}
+            >
+              <SubscriptIcon className="h-3.5 w-3.5" />
+            </ToolButton>
+
+            <ColorMenu
+              label={t("textColor")}
+              clearLabel={t("clearColor")}
+              colors={TEXT_COLOR_PRESETS}
+              value={activeColor}
+              icon={<Baseline className="h-3.5 w-3.5" />}
+              onPick={(color) => editor.chain().focus().setTextStyle({ color }).run()}
+              onClear={() => editor.chain().focus().unsetTextStyle(["color"]).run()}
+            />
+            <ColorMenu
+              label={t("highlightColor")}
+              clearLabel={t("clearHighlight")}
+              colors={HIGHLIGHT_COLOR_PRESETS}
+              value={activeHighlight}
+              icon={<Highlighter className="h-3.5 w-3.5" />}
+              onPick={(color) => editor.chain().focus().setTextStyle({ backgroundColor: color }).run()}
+              onClear={() => editor.chain().focus().unsetTextStyle(["backgroundColor"]).run()}
+            />
+          </ToolGroup>
+
+          <Divider />
+
+          <ToolGroup label={t("groupFont")}>
+            <ToolbarSelect
+              label={t("fontFamily")}
+              display={fontFamilyLabel ? t(FONT_FAMILY_LABEL_KEYS[fontFamilyLabel.id] ?? "fontFamilySystem") : t("fontFamily")}
+              active={Boolean(activeFontFamily)}
+            >
+              <DropdownMenuItem
+                className={cn(!activeFontFamily && "font-medium text-primary")}
+                onSelect={() => editor.chain().focus().unsetTextStyle(["fontFamily"]).run()}
+              >
+                {t("fontFamilyDefault")}
+              </DropdownMenuItem>
+              {FONT_FAMILY_PRESETS.map((preset) => (
+                <DropdownMenuItem
+                  key={preset.id}
+                  className={cn(activeFontFamily === preset.value && "font-medium text-primary")}
+                  onSelect={() => editor.chain().focus().setTextStyle({ fontFamily: preset.value }).run()}
+                >
+                  <span style={{ fontFamily: preset.value }}>
+                    {t(FONT_FAMILY_LABEL_KEYS[preset.id] ?? "fontFamilySystem")}
+                  </span>
+                </DropdownMenuItem>
+              ))}
+            </ToolbarSelect>
+
+            <ToolbarSelect
+              label={t("fontSize")}
+              display={activeFontSize || t("fontSize")}
+              active={Boolean(activeFontSize)}
+            >
+              <DropdownMenuItem
+                className={cn(!activeFontSize && "font-medium text-primary")}
+                onSelect={() => editor.chain().focus().unsetTextStyle(["fontSize"]).run()}
+              >
+                {t("fontSizeDefault")}
+              </DropdownMenuItem>
+              {FONT_SIZE_PRESETS.map((preset) => (
+                <DropdownMenuItem
+                  key={preset.id}
+                  className={cn(activeFontSize === preset.value && "font-medium text-primary")}
+                  onSelect={() => editor.chain().focus().setTextStyle({ fontSize: preset.value }).run()}
+                >
+                  {preset.value}
+                </DropdownMenuItem>
+              ))}
+            </ToolbarSelect>
+
+            <ToolbarSelect
+              label={t("lineHeight")}
+              display={activeLineHeight || t("lineHeight")}
+              active={Boolean(activeLineHeight)}
+            >
+              <DropdownMenuItem
+                className={cn(!activeLineHeight && "font-medium text-primary")}
+                onSelect={() => editor.chain().focus().unsetTextStyle(["lineHeight"]).run()}
+              >
+                {t("lineHeightDefault")}
+              </DropdownMenuItem>
+              {LINE_HEIGHT_PRESETS.map((preset) => (
+                <DropdownMenuItem
+                  key={preset.id}
+                  className={cn(activeLineHeight === preset.value && "font-medium text-primary")}
+                  onSelect={() => editor.chain().focus().setTextStyle({ lineHeight: preset.value }).run()}
+                >
+                  {preset.value}
+                </DropdownMenuItem>
+              ))}
+            </ToolbarSelect>
           </ToolGroup>
 
           <Divider />
@@ -123,12 +258,7 @@ export function EditorToolbar({
           <ToolGroup label={t("groupBlock")}>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <button
-                  type="button"
-                  aria-label={t("blockType")}
-                  title={t("blockType")}
-                  className="inline-flex h-8 items-center gap-1 rounded-md px-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1"
-                >
+                <button type="button" aria-label={t("blockType")} title={t("blockType")} className={TRIGGER_CLASS}>
                   <Heading className="h-3.5 w-3.5" />
                   <span className="w-8 text-left">{blockLabel}</span>
                   <ChevronDown className="h-3 w-3" />
@@ -152,6 +282,23 @@ export function EditorToolbar({
                 ))}
               </DropdownMenuContent>
             </DropdownMenu>
+
+            {TEXT_ALIGN_VALUES.map((align) => (
+              <ToolButton
+                key={align}
+                label={t(ALIGN_LABEL_KEYS[align])}
+                active={editor.isActive({ textAlign: align })}
+                onClick={() =>
+                  editor
+                    .chain()
+                    .focus()
+                    .setTextAlign(editor.isActive({ textAlign: align }) ? null : align)
+                    .run()
+                }
+              >
+                {ALIGN_ICONS[align]}
+              </ToolButton>
+            ))}
 
             <ToolButton
               label={t("bulletList")}
@@ -181,6 +328,30 @@ export function EditorToolbar({
             >
               <Braces className="h-3.5 w-3.5" />
             </ToolButton>
+            <ToolbarSelect
+              label={t("codeLanguage")}
+              display={activeCodeLanguage || t("codeLanguageAuto")}
+              active={Boolean(activeCodeLanguage)}
+            >
+              <DropdownMenuItem
+                className={cn(!activeCodeLanguage && "font-medium text-primary")}
+                onSelect={() => editor.chain().focus().updateAttributes("codeBlock", { language: null }).run()}
+              >
+                {t("codeLanguageAuto")}
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              {CODE_LANGUAGES.map((language) => (
+                <DropdownMenuItem
+                  key={language.id}
+                  className={cn(activeCodeLanguage === language.id && "font-medium text-primary")}
+                  onSelect={() =>
+                    editor.chain().focus().updateAttributes("codeBlock", { language: language.id }).run()
+                  }
+                >
+                  {language.label}
+                </DropdownMenuItem>
+              ))}
+            </ToolbarSelect>
             <ToolButton label={t("horizontalRule")} onClick={() => editor.chain().focus().setHorizontalRule().run()}>
               <Minus className="h-3.5 w-3.5" />
             </ToolButton>
@@ -189,11 +360,7 @@ export function EditorToolbar({
           <Divider />
 
           <ToolGroup label={t("groupInsert")}>
-            <ToolButton
-              label={t("insertLink")}
-              active={editor.isActive("link")}
-              onClick={onInsertLink}
-            >
+            <ToolButton label={t("insertLink")} active={editor.isActive("link")} onClick={onInsertLink}>
               <LinkIcon className="h-3.5 w-3.5" />
             </ToolButton>
             <ToolButton label={t("insertImage")} disabled={uploading === "image"} onClick={() => onInsertMedia("image")}>
@@ -251,29 +418,153 @@ export function EditorToolbar({
               <Eraser className="h-3.5 w-3.5" />
             </ToolButton>
           </ToolGroup>
-          </>
-        )}
-      </div>
+        </div>
+      )}
 
-      {/* View switcher: rich text / Markdown source / HTML source / split */}
+      {/* Status + view switcher: always visible, including in source modes. */}
       <div
-        role="group"
-        aria-label={t("groupView")}
-        className="flex shrink-0 items-center gap-0.5 rounded-lg bg-background/70 p-0.5 ring-1 ring-border"
+        className={cn(
+          "flex flex-wrap items-center justify-between gap-2 px-1.5 py-1",
+          isRichText && "border-t border-input/60"
+        )}
       >
-        {views.map(({ value, label, Icon }) => (
-          <ToolButton
-            key={value}
-            label={label}
-            active={view === value}
-            onClick={() => onSelectView(value)}
-            className="h-7 w-7 rounded-md"
-          >
-            <Icon className="h-3.5 w-3.5" />
-          </ToolButton>
-        ))}
+        <p className="shrink-0 text-xs tabular-nums text-muted-foreground">
+          {stats ? `${t("characters")} ${stats.characters} · ${t("words")} ${stats.words}` : ""}
+        </p>
+
+        <div
+          role="group"
+          aria-label={t("groupView")}
+          className="flex shrink-0 items-center gap-0.5 rounded-lg bg-background/70 p-0.5 ring-1 ring-border"
+        >
+          {views.map(({ value, label, Icon }) => (
+            <ToolButton
+              key={value}
+              label={label}
+              active={view === value}
+              onClick={() => onSelectView(value)}
+              className="h-7 w-7 rounded-md"
+            >
+              <Icon className="h-3.5 w-3.5" />
+            </ToolButton>
+          ))}
+        </div>
       </div>
     </div>
+  )
+}
+
+/** Static label keys for the alignment buttons. */
+const ALIGN_LABEL_KEYS: Record<TextAlignValue, string> = {
+  left: "alignLeft",
+  center: "alignCenter",
+  right: "alignRight",
+  justify: "alignJustify",
+}
+
+const ALIGN_ICONS: Record<TextAlignValue, React.ReactNode> = {
+  left: <AlignLeft className="h-3.5 w-3.5" />,
+  center: <AlignCenter className="h-3.5 w-3.5" />,
+  right: <AlignRight className="h-3.5 w-3.5" />,
+  justify: <AlignJustify className="h-3.5 w-3.5" />,
+}
+
+const TRIGGER_CLASS =
+  "inline-flex h-7 items-center gap-1 rounded-md px-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1"
+
+/** Compact dropdown used for the font/size/spacing/language pickers. */
+function ToolbarSelect({
+  label,
+  display,
+  active,
+  children,
+}: {
+  label: string
+  display: string
+  active?: boolean
+  children: React.ReactNode
+}) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button
+          type="button"
+          aria-label={label}
+          title={label}
+          className={cn(TRIGGER_CLASS, active && "bg-primary/15 text-primary")}
+        >
+          <span className="max-w-[6rem] truncate">{display}</span>
+          <ChevronDown className="h-3 w-3" />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" className="max-h-72 w-44 overflow-y-auto">
+        <DropdownMenuLabel className="text-xs text-muted-foreground">{label}</DropdownMenuLabel>
+        {children}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
+}
+
+/** Colour palette dropdown; the trigger shows the colour currently applied. */
+function ColorMenu({
+  label,
+  clearLabel,
+  colors,
+  value,
+  icon,
+  onPick,
+  onClear,
+}: {
+  label: string
+  clearLabel: string
+  colors: readonly string[]
+  value: string
+  icon: React.ReactNode
+  onPick: (color: string) => void
+  onClear: () => void
+}) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button
+          type="button"
+          aria-label={label}
+          title={label}
+          className={cn(TRIGGER_CLASS, "gap-0.5 px-1.5", value && "text-primary")}
+        >
+          <span className="relative inline-flex">
+            {icon}
+            <span
+              aria-hidden="true"
+              className="absolute -bottom-1 left-0 h-[3px] w-full rounded-full"
+              style={{ backgroundColor: value || "transparent" }}
+            />
+          </span>
+          <ChevronDown className="h-3 w-3" />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" className="w-auto p-2">
+        <DropdownMenuLabel className="px-0 pb-1.5 text-xs text-muted-foreground">{label}</DropdownMenuLabel>
+        <div className="grid grid-cols-5 gap-1">
+          {colors.map((color) => (
+            <DropdownMenuItem
+              key={color}
+              onSelect={() => onPick(color)}
+              aria-label={`${label} ${color}`}
+              className={cn(
+                "h-6 w-6 rounded-md border border-border p-0",
+                value === color && "ring-2 ring-primary ring-offset-1"
+              )}
+              style={{ backgroundColor: color }}
+            />
+          ))}
+        </div>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem className="text-xs" onSelect={onClear}>
+          {clearLabel}
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   )
 }
 
