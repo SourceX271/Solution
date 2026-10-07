@@ -580,7 +580,7 @@
     "codeLanguageAuto": "自动识别",
     "characters": "字符",
     "words": "词",
-    "htmlModeHint": "提示：编辑器不支持的标签（如 <section>、自定义 class）在切回富文本时会被规范化；样式请用工具栏或在 style 里写白名单内的属性，保存时按同一份白名单过滤。",
+    "htmlModeHint": "提示：编辑器不支持的标签（例如 section、aside 或自定义 class）在切回富文本时会被规范化；样式请用工具栏，或在 style 里写白名单内的属性——保存时按同一份白名单过滤。",
     "markdownModeHint": "提示：Markdown 无法表达的样式、公式、附件会以内联 HTML 原样保留，切回富文本不会丢失。",
     "fullscreen": "全屏编辑",
     "exitFullscreen": "退出全屏（Esc）"

@@ -67,6 +67,9 @@
 - 任何用户可见文案都必须走 `next-intl`：服务端 `getTranslations(ns)` / 客户端 `useTranslations(ns)`；
   **禁止**在 `src/` 里新增硬编码中文（唯一的白名单在 `scripts/check-i18n.mjs`，只允许既有 5 个文件）。
 - `messages/zh.json` 与 `messages/en.json` **同时增删同样的键**，命名空间沿用现有 24 个（新增子命名空间优先复用 `*Ui`）。
+- 词条**值**里不能裸写 `<标签>` 与 `{}`：ICU 语法会把 `<section>` 当未闭合富文本标签（`UNCLOSED_TAG`）、
+  把 `\frac{1}{2}` 当占位符（`MALFORMED_ARGUMENT`），且只在渲染那条词条时才炸。要可点击片段用成对的
+  `<link>…</link>` + `t.rich()`；`npm run i18n:check` 的 R4/R5 会拦住这两类写法。
 - API 的错误/提示消息用 `getApiT("api")`（消息语言由 `NEXT_LOCALE` cookie 决定）。
 - zod 校验消息用工厂形式 `getXSchema(t)`（`src/lib/validations.ts`），不要在 schema 里写死中文。
 - 通知消息存结构体 `{key, params}`（`createNotification`），渲染时才按读者语言翻译。

@@ -263,6 +263,38 @@ H1–H6、代码块语言（25 种）、字符与词计数（见 [frontend.md](.
 
 ---
 
+### 19. 词条里的 `<section>` 被 ICU 当成未闭合标签（2026-10-07）
+
+**发现**（用户在实际使用中触发）：打开 `solutions/new` 的 **HTML 源码模式**时报
+
+```
+INVALID_MESSAGE: UNCLOSED_TAG (提示：编辑器不支持的标签（如 <section>、自定义 class）…)
+    at RichEditor (src/components/client/RichEditor.tsx:644)
+```
+
+`next-intl` 用 ICU 解析每条词条，`<` 起一个**富文本标签**。我在新加的 `editor.htmlModeHint` 里为了举例写了
+`<section>`，于是这条词条只有配对的 `</link>` 式写法才能通过——裸标签直接抛错。英文词条同样中招。
+`help.step1..4` 用的是成对的 `<link>…</link>`（配 `t.rich`），所以一直没问题。
+
+这类错误有两个恶劣性质：**只在渲染那条词条时才炸**（要切到 HTML 模式才触发），而且发生在**客户端**渲染，
+抓 SSR HTML 的 `i18n:check:runtime` 看不到。
+
+**修复**：
+
+- 词条改成不写尖括号（「例如 section、aside 或自定义 class」），中英同步。
+- `scripts/check-i18n.mjs` 增加两条规则，从提交前拦住同类写法：
+  - **R4 ICU 尖括号**：值里的每个 `<`/`>` 必须属于一对配平、名字合法的标签，且成对；否则报
+    `unclosed rich-text tag <x>` / `literal '<' or '>'`；
+  - **R5 ICU 花括号**：逐字符扫 `{}`，必须成对且每组只能是 `{name}` / `{name, 格式}` / `{name, plural, …}`
+    这些占位符形式（挡 `\frac{1}{2}` 这类正文，它抛 `MALFORMED_ARGUMENT`）；
+  - 两条规则各带样本**自检**（`hint with <section> tag`、`formula \frac{1}{2} here` 必须被判为问题），
+    以后有人把脚本逻辑改坏会立刻报错。
+
+**验证**：修好后 `npm run i18n:check` 输出 `No i18n problems found.`（对旧词条则报 2 条问题，中英各一）；
+浏览器实测 `/solutions/new` 在 HTML 源码与 Markdown 源码两种模式下均无 console 报错，提示文案正常渲染。
+
+---
+
 ## 二、待处理
 按影响面排序，均未修改。
 

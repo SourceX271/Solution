@@ -7,6 +7,10 @@
  *    (including `getApiT("api")` keys and keys built by the schema factories).
  * 3. Reports hardcoded CJK left in `src/`, ignoring comments — useful to spot
  *    UI strings that were never moved into the catalog.
+ * 4. Rejects ICU hazards inside message *values*: a literal `<`/`>` (the ICU
+ *    parser reads it as a rich-text tag and throws `UNCLOSED_TAG` at render
+ *    time — `<section>` in a hint was exactly that) and braces that are not
+ *    placeholders (`\frac{1}{2}` throws `MALFORMED_ARGUMENT`).
  *
  * Run with `npm run i18n:check`. Exits non-zero on problems.
  */
@@ -32,6 +36,94 @@ const problems = [];
 
 for (const k of zhKeys) if (!enKeys.has(k)) problems.push(`messages/en.json is missing: ${k}`);
 for (const k of enKeys) if (!zhKeys.has(k)) problems.push(`messages/zh.json is missing: ${k}`);
+
+/* ── ICU value checks ──────────────────────────────────────────────────────
+   next-intl parses every message with an ICU parser before rendering. Two
+   characters are therefore hazardous inside a *value*:
+
+     - `<` / `>` open a rich-text tag and must be paired (`<link>…</link>`, read
+       back with `t.rich`). A bare `<section>` in a hint threw UNCLOSED_TAG.
+     - `{` / `}` open an argument. Only `{name}` / `{name, format}` /
+       `{name, plural, …}` are valid; prose like `\frac{1}{2}` threw
+       MALFORMED_ARGUMENT.
+   Both are silent until the message is actually rendered. */
+
+const TAG_RE = /<(\/?)([a-zA-Z][\w-]*)(\s*\/?)>/g;
+const ICU_ARG_RE = /^\{([a-zA-Z_$][\w$]*)(?:\s*,[^{}]*(?:\{[^{}]*\})*)?\}$/;
+
+function icuProblems(value) {
+  const found = [];
+
+  // Rich-text tags: every `<`/`>` must belong to a balanced, well-formed tag.
+  const stack = [];
+  let leftover = value;
+  for (const match of value.matchAll(TAG_RE)) {
+    const [whole, closing, name, selfClosing] = match;
+    leftover = leftover.replace(whole, "");
+    if (selfClosing) continue;
+    if (closing) {
+      if (stack.pop() !== name) found.push(`unbalanced rich-text tag </${name}>`);
+    } else {
+      stack.push(name);
+    }
+  }
+  if (stack.length) found.push(`unclosed rich-text tag <${stack[stack.length - 1]}>`);
+  if (/[<>]/.test(leftover)) {
+    found.push("literal '<' or '>' — ICU reads it as a rich-text tag (use full-width 〈〉 or a paired <link>…</link>)");
+  }
+
+  // Braces: walk the value and validate every top-level argument.
+  for (let i = 0; i < value.length; i++) {
+    if (value[i] !== "{") {
+      if (value[i] === "}") found.push("stray '}'");
+      continue;
+    }
+    let depth = 0;
+    let end = -1;
+    for (let j = i; j < value.length; j++) {
+      if (value[j] === "{") depth++;
+      else if (value[j] === "}") {
+        depth--;
+        if (depth === 0) {
+          end = j;
+          break;
+        }
+      }
+    }
+    if (end === -1) {
+      found.push("unclosed '{'");
+      break;
+    }
+    const group = value.slice(i, end + 1);
+    if (!ICU_ARG_RE.test(group)) {
+      found.push(`'{${group.slice(1, -1)}}' is not an ICU placeholder or format`);
+    }
+    i = end;
+  }
+
+  return found;
+}
+
+function walkValues(obj, prefix = "") {
+  for (const [key, value] of Object.entries(obj)) {
+    const path = prefix ? `${prefix}.${key}` : key;
+    if (value && typeof value === "object") walkValues(value, path);
+    else {
+      // Self-test: the guard must reject the two shapes that shipped as bugs.
+      for (const problem of icuProblems(String(value))) {
+        problems.push(`ICU in ${path}: ${problem}  <-  ${String(value).slice(0, 80)}`);
+      }
+    }
+  }
+}
+walkValues(zh);
+walkValues(en);
+
+for (const sample of ["hint with <section> tag", "formula \\frac{1}{2} here"]) {
+  if (icuProblems(sample).length === 0) {
+    problems.push(`checker self-test failed: '${sample}' should be rejected`);
+  }
+}
 
 function walk(dir) {
   return fs.readdirSync(dir, { withFileTypes: true }).flatMap((e) => {
