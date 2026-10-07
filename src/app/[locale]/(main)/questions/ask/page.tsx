@@ -1,152 +1,192 @@
 "use client"
 
-import { useState, useCallback } from "react"
-import { useRouter } from "next/navigation"
+import { useCallback, useState } from "react"
 import { useSession } from "next-auth/react"
 import { useTranslations } from "next-intl"
-import Link from "next/link"
+import { useRouter } from "@/i18n/routing"
+import { Send } from "lucide-react"
+import { toast } from "sonner"
+import { Input } from "@/components/ui/input"
 import { RichEditor } from "@/components/client/RichEditor"
 import { TagPicker } from "@/components/client/TagPicker"
-import { Loader2 } from "lucide-react"
+import {
+  DraftBanner,
+  Field,
+  PublishLoading,
+  PublishLoginRequired,
+  PublishShell,
+  SubmitButton,
+  TipsCard,
+} from "@/components/client/PublishShell"
+import { usePublishDraft } from "@/components/client/usePublishDraft"
+import { PUBLISH_LIMITS, PUBLISH_MIN, hasRichTextContent, plainTextLength } from "@/lib/publish"
+
+interface FormState {
+  title: string
+  content: string
+  tags: string[]
+}
+
+const EMPTY_FORM: FormState = { title: "", content: "", tags: [] }
+
+type FieldName = "title" | "content"
 
 export default function AskQuestionPage() {
   const t = useTranslations("questions")
   const tc = useTranslations("common")
+  const tp = useTranslations("publish")
+  const tv = useTranslations("validation")
   const router = useRouter()
   const { data: session, status } = useSession()
-  const [title, setTitle] = useState("")
-  const [tags, setTags] = useState<string[]>([])
-  const [content, setContent] = useState("")
+
+  const [form, setForm] = useState<FormState>(EMPTY_FORM)
+  const [errors, setErrors] = useState<Partial<Record<FieldName, string>>>({})
+  const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
-  const [error, setError] = useState("")
 
-  const handleSubmit = useCallback(async () => {
-    if (!title.trim()) {
-      setError(t("titleRequired"))
+  const draft = usePublishDraft<FormState>(
+    `publish:question:${session?.user?.id ?? "anon"}`,
+    form,
+    { enabled: !!session }
+  )
+
+  function update<K extends keyof FormState>(key: K, value: FormState[K]) {
+    setForm((current) => ({ ...current, [key]: value }))
+    setErrors((current) => (current[key as FieldName] ? { ...current, [key]: undefined } : current))
+  }
+
+  const validate = useCallback((): Partial<Record<FieldName, string>> => {
+    const next: Partial<Record<FieldName, string>> = {}
+    if (form.title.trim().length < PUBLISH_MIN.questionTitle) next.title = tv("titleMin5")
+    if (!hasRichTextContent(form.content, PUBLISH_MIN.questionContent)) next.content = tv("contentMin20")
+    return next
+  }, [form, tv])
+
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    const nextErrors = validate()
+    setErrors(nextErrors)
+    if (Object.keys(nextErrors).length > 0) {
+      setError(tp("fixErrors"))
+      document.getElementById(nextErrors.title ? "title" : "content")?.focus()
       return
     }
-    if (!content) {
-      setError(t("contentRequired"))
-      return
-    }
+
     setSaving(true)
-    setError("")
-
+    setError(null)
     try {
       const res = await fetch("/api/questions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          title: title.trim(),
-          content,
-          tags,
+          title: form.title.trim(),
+          content: form.content,
+          tags: form.tags,
         }),
       })
-
-      if (!res.ok) {
-        const data = await res.json()
-        throw new Error(data.error || tc("publishFailed"))
-      }
-
-      const question = await res.json()
-      router.push(`/questions/${question.slug}`)
-      router.refresh()
-    } catch (err: any) {
-      setError(err.message || tc("publishFailedRetry"))
+      const data = await res.json().catch(() => null)
+      if (!res.ok) throw new Error(data?.error || tc("publishFailed"))
+      draft.clear()
+      toast.success(tp("publishedToast"))
+      router.push(`/questions/${data.slug}`)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : tc("publishFailedRetry"))
     } finally {
       setSaving(false)
     }
-    // Translators are new function identities on every render, so they are
-    // deliberately kept out of the dependency list (adding them would only
-    // recreate the callback each render).
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [title, tags, content, router])
-
-  if (status === "loading") {
-    return (
-      <div className="container mx-auto flex min-h-[50vh] items-center justify-center px-4">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-      </div>
-    )
   }
 
-  if (!session) {
-    return (
-      <div className="container mx-auto px-4 py-16 text-center">
-        <h1 className="mb-4 text-2xl font-bold">{tc("loginRequiredTitle")}</h1>
-        <p className="mb-6 text-muted-foreground">{tc("loginRequiredQuestion")}</p>
-        <Link
-          href="/login"
-          className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground"
-        >
-          {tc("goToLogin")}
-        </Link>
-      </div>
-    )
-  }
+  if (status === "loading") return <PublishLoading />
+  if (!session) return <PublishLoginRequired message={tc("loginRequiredQuestion")} />
+
+  const prompt = draft.pendingDraft
 
   return (
-    <div className="container mx-auto max-w-3xl px-4 py-8">
-      <h1 className="mb-6 text-2xl font-bold">{t("askTitle")}</h1>
-
-      <div className="space-y-4">
-        {/* Title */}
-        <div>
-          <label className="mb-1.5 block text-sm font-medium">
-            {tc("titleLabel")} <span className="text-red-500">*</span>
-          </label>
-          <input
-            type="text"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder={t("titlePlaceholder")}
-            className="w-full rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-            maxLength={200}
+    <PublishShell
+      title={t("askTitle")}
+      description={t("askSubtitle")}
+      backHref="/questions"
+      backLabel={tc("back")}
+      error={error}
+      onSubmit={handleSubmit}
+      notice={
+        prompt ? (
+          <DraftBanner
+            onRestore={() => {
+              const restored = draft.restore()
+              if (restored) setForm(restored)
+            }}
+            onDiscard={draft.discard}
           />
-        </div>
+        ) : null
+      }
+      aside={
+        <TipsCard
+          title={tp("tipsTitle")}
+          items={[tp("tipQuestion1"), tp("tipQuestion2"), tp("tipQuestion3")]}
+        />
+      }
+      actions={
+        <SubmitButton
+          pending={saving}
+          label={t("publish")}
+          pendingLabel={tc("publishing")}
+          icon={<Send className="mr-2 h-4 w-4" aria-hidden="true" />}
+        />
+      }
+      footnote={
+        draft.savedAt ? (
+          <p className="text-[11px] text-muted-foreground">
+            {tp("draftSavedAt", { time: new Date(draft.savedAt).toLocaleTimeString() })}
+          </p>
+        ) : null
+      }
+    >
+      <Field
+        id="title"
+        label={tc("titleLabel")}
+        required
+        hint={t("titleHint")}
+        counter={`${form.title.length}/${PUBLISH_LIMITS.questionTitle}`}
+        error={errors.title}
+      >
+        <Input
+          type="text"
+          value={form.title}
+          onChange={(event) => update("title", event.target.value)}
+          placeholder={t("titlePlaceholder")}
+          maxLength={PUBLISH_LIMITS.questionTitle}
+          autoFocus
+        />
+      </Field>
 
-        {/* Content */}
-        <div>
-          <label className="mb-1.5 block text-sm font-medium">
-            {tc("content")} <span className="text-red-500">*</span>
-          </label>
-          <RichEditor
-            value={content}
-            onChange={setContent}
-            placeholder={t("contentPlaceholder")}
-            minHeight="250px"
-          />
-        </div>
+      <Field
+        id="content"
+        label={tc("content")}
+        required
+        hint={t("contentHint", { count: plainTextLength(form.content) })}
+        error={errors.content}
+      >
+        <RichEditor
+          id="content"
+          labelledBy="content-label"
+          describedBy={errors.content ? "content-error" : "content-hint"}
+          invalid={!!errors.content}
+          value={form.content}
+          onChange={(html) => update("content", html)}
+          placeholder={t("contentPlaceholder")}
+          minHeight="280px"
+        />
+      </Field>
 
-        {/* Tags */}
-        <div>
-          <label className="mb-1.5 block text-sm font-medium" htmlFor="tags">{tc("tags")}</label>
-          <TagPicker
-            id="tags"
-            value={tags}
-            onChange={setTags}
-            placeholder={tc("tagsPlaceholder")}
-          />
-        </div>
-
-        {/* Error */}
-        {error && (
-          <div className="rounded-md bg-destructive/10 px-4 py-2 text-sm text-destructive">
-            {error}
-          </div>
-        )}
-
-        {/* Submit */}
-        <button
-          type="button"
-          onClick={handleSubmit}
-          disabled={saving}
-          className="inline-flex items-center gap-2 rounded-md bg-primary px-6 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
-        >
-          {saving && <Loader2 className="h-4 w-4 animate-spin" />}
-          {saving ? tc("publishing") : t("publish")}
-        </button>
-      </div>
-    </div>
+      <Field id="tags" label={tc("tags")} hint={t("tagsHint")}>
+        <TagPicker
+          id="tags"
+          value={form.tags}
+          onChange={(next) => update("tags", next)}
+          placeholder={tc("tagsPlaceholder")}
+        />
+      </Field>
+    </PublishShell>
   )
 }

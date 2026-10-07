@@ -17,7 +17,7 @@
 |---|---|
 | **README.md**（本文） | 文档地图、项目速览、常用命令、排查指南 |
 | [architecture.md](./architecture.md) | 架构总览：技术栈、目录地图、三条主链路（读/写/采集）、关键设计决策、现存不一致 |
-| [frontend.md](./frontend.md) | 路由与页面清单、middleware 守卫矩阵、46 个组件、SEO 与元数据、已知行为差异 |
+| [frontend.md](./frontend.md) | 路由与页面清单、middleware 守卫矩阵、47 个组件、SEO 与元数据、已知行为差异 |
 
 ### 参考
 
@@ -25,7 +25,7 @@
 |---|---|
 | [data-model.md](./data-model.md) | 15 个 Prisma 模型、关系、状态机、多态关联、冗余计数、索引与操作约定 |
 | [api-reference.md](./api-reference.md) | 41 个路由文件的 66 个导出处理方法：鉴权、入参、响应、副作用、限流、已知坑 |
-| [i18n.md](./i18n.md) | 多语言接线、23 个命名空间 / 1009 键、两个校验脚本的规则、新增词条与语言的流程 |
+| [i18n.md](./i18n.md) | 多语言接线、24 个命名空间 / 1040 键、两个校验脚本的规则、新增词条与语言的流程 |
 | [admin-panel.md](./admin-panel.md) | 后台 8 个模块、三级鉴权、用户处置规则、19 类审计动作、缓存失效矩阵、开发约定 |
 | [crawler.md](./crawler.md) | Python 采集器：CLI、7 个数据源、请求行为、入库与去重、定时调度、合规风险 |
 
@@ -66,7 +66,7 @@
 | 语言 | TypeScript 5.4（strict） |
 | 数据库 | SQLite + Prisma 5（`prisma/schema.prisma`，**15 个模型**，只有 `db push`） |
 | 认证 | NextAuth v5 beta：GitHub OAuth + 邮箱密码（bcrypt 12 轮），纯 JWT 会话 |
-| 国际化 | next-intl 4（zh / en，`localePrefix: as-needed`，各 1009 键） |
+| 国际化 | next-intl 4（zh / en，`localePrefix: as-needed`，各 1040 键） |
 | UI | Tailwind CSS 3 + Radix（shadcn 风格）+ lucide-react + Tiptap 3 富文本 + sonner |
 | 爬虫 | Python 3 + httpx + BeautifulSoup/lxml（`crawler/`，7 个数据源） |
 | 部署 | Docker 多阶段构建 + Nginx + SQLite 数据卷 |
@@ -80,7 +80,7 @@
 src/app/[locale]/     前台页面（(main) 公开 / (auth) 登录注册 / admin 后台），共 33 个 page.tsx
 src/app/api/          REST 路由，41 个 route.ts / 66 个导出方法 → api-reference.md
 src/lib/              认证、守卫、审计、校验、限流、清洗、标签、缓存失效、采集入库
-src/components/       ui（Radix 封装）/ client（交互）/ layout / admin，共 46 个
+src/components/       ui（Radix 封装）/ client（交互）/ layout / admin，共 47 个
 crawler/              Python 爬虫（入口 crawler/main.py，必须 python -m crawler.main）
 prisma/               schema、seed、旧 slug 重定向脚本
 scripts/              check-i18n.mjs、check-i18n-runtime.mjs
@@ -143,6 +143,7 @@ python -m crawler.main --format jsonl             # 每行一条 JSON
 | `src/components/Logo.tsx` | logo 组件 | 尺寸用 `className` 控制（导航 `h-8`、页脚 `h-9`、登录/注册 `h-10`、后台 `h-7`） |
 | `docs/audit-report.txt` · `docs/npm-audit-after-fix.txt` | 依赖审计基线 | 分别为修复前 / 修复后的 `npm audit` 原始输出，供 [dependency-audit-2026-10.md](./dependency-audit-2026-10.md) 对照 |
 | `docs/assets/playwright/*.png` | 后台复核截图 | 8 张（含移动端），被归档的后台增强报告引用 |
+| `docs/assets/publish-*.png` | 发布页界面截图 | `/questions/ask` 与 `/solutions/new` 各 1 张（1440×1000），见 [frontend.md](./frontend.md) 第二节 |
 
 > ⚠️ 两个已知的资源缺口：`public/og-image.png` **不存在**，但根 layout 与 `[locale]/layout.tsx` 共引用 4 次
 > （社交分享图会 404）；`/favicon.ico` 同样没有（标签页图标靠 `icon.svg`，浏览器请求 `/favicon.ico` 会 404）。

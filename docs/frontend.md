@@ -39,19 +39,22 @@ src/app/
 | `/`、`/en` | 首页：Hero + 搜索 + 4 项统计 + 三类内容混合流 + 热门标签 | `article`/`question`/`software` `findMany`（各 8 条）+ `tag`（20）+ 4 个 `count` + `siteConfig` | 每类 8；标签展示 15 | ISR 300 | 公开 |
 | `/solutions` | 解决方案列表：分类侧栏 + 卡片网格 | `article`（published，可按 category/tag 过滤）+ `count` + `tag` | 12/页，`?page&category&tag` | ISR 60 | 公开 |
 | `/solutions/[slug]` | 详情：TOC、相关方案、正文（Markdown→HTML→高亮→净化）、投票/收藏/分享、评论 | `article` + 投票计数 + 用户投票 + 收藏 + 相关（同标签按浏览量 5 条） | 相关 5 | ISR 3600 | 阅读公开；编辑按钮仅作者/ADMIN |
-| `/solutions/new` | 发布方案（客户端表单） | `POST /api/articles` | — | — | middleware 保护 |
+| `/solutions/new` | 发布方案（客户端表单：草稿自动保存/恢复、字数统计、字段级校验、Ctrl/⌘+Enter 提交） | `POST /api/articles` | — | — | middleware 保护 |
 | `/questions` | 问答列表：状态 pill（全部/open/solved） | `question` + `count` + `tag` | 15/页，`?page&status&tag` | ISR 60 | 公开 |
 | `/questions/[slug]` | 问题详情 + 回答列表 + 答题框 + 相关问答 | `question` + `answer` + `vote.groupBy`（已避免 N+1）+ 收藏 + 相关（按票数 5 条） | 回答不分页；相关 5 | ISR 1800 | 阅读公开；编辑仅作者/ADMIN；采纳由提问者 |
-| `/questions/ask` | 提问（客户端表单） | `POST /api/questions` | — | — | middleware 保护 |
+| `/questions/ask` | 提问（同发布方案：草稿自动保存、正文计数、字段级校验、"发布须知"侧栏） | `POST /api/questions` | — | — | middleware 保护 |
 | `/software` | 软件推荐：6 个分类 pill + 评分卡片 | `software`（published，按 `rating desc, createdAt desc`）+ `count` + `tag` | 12/页，`?page&category&tag` | ISR 60 | 公开 |
 | `/software/[slug]` | 软件详情：星级评分、富文本介绍、信息侧栏、相关软件、评论 | `software` + 用户评分 + 收藏 + 相关（同分类按评分 5 条） | 相关 5 | ISR 3600 | 阅读公开；编辑仅作者/ADMIN |
-| `/software/new` | 提交软件（客户端表单） | `POST /api/software` | — | — | middleware 保护 |
+| `/software/new` | 提交软件（同发布方案：官网链接校验、简介计数、字段级校验） | `POST /api/software` | — | — | middleware 保护 |
 | `/tags/[slug]` | 标签聚合：三类内容各一段预览 + 相关标签（按共现） | `tag` + 三类 `findMany` + `count`（各取 100 个 id 算共现） | 每类 12；相关 10 | ISR 300 | 公开 |
 | `/search` | 全局搜索（文章/问答/软件三段） | 三类 `contains` 查询 | 每类 10，无分页 | ISR 60（实际按请求渲染） | 公开 |
 | `/profile` | 个人主页：资料、4 项统计、收藏、最近动态 | `GET /api/users/profile` | 接口返回（收藏 20、动态 10） | —（客户端） | middleware 保护 |
 | `/settings` | 账户设置（`SettingsForm`：昵称/头像/简介/改密） | `auth()` + `user.findUnique`；写 `PUT /api/users/me`、`/api/users/me/password`、`POST /api/upload` | — | —（因 `auth()` 实际动态） | 页面内 `redirect("/login")` + middleware |
 | `/notifications` | 通知中心：类型图标、未读数、全部已读 | `auth()` + `notification.findMany` | 50 条，无分页 | FD | 页面内 `redirect("/login")` + middleware |
 | `/about`、`/privacy`、`/contact`、`/help` | 静态信息页（`/contact` 读站点配置邮箱） | `siteConfig`（仅 contact） | — | — | 公开 |
+
+> 三个发布页的界面截图：[assets/publish-question.png](./assets/publish-question.png)（提问）、
+> [assets/publish-solution.png](./assets/publish-solution.png)（发布方案）。
 
 ### 认证页面（`(auth)`）
 
@@ -98,7 +101,7 @@ src/app/
 
 ---
 
-## 四、组件清单（46 个）
+## 四、组件清单（47 个）
 
 ### `components/ui/`（16，Radix 封装原语）
 
@@ -107,11 +110,12 @@ src/app/
 
 > `tabs.tsx` 与 `toast.tsx` **全站无引用**（实际用的是 sonner 的 `<Toaster>`），属死代码。
 
-### `components/client/`（20，全部 `"use client"`）
+### `components/client/`（21，全部 `"use client"`）
 
 | 组件 | 作用 | 主要接口 |
 |---|---|---|
-| `RichEditor` | Tiptap 3 富文本编辑器（所见即所得/源码/分屏），同文件另导出只读 `RichContent` | `POST /api/upload` |
+| `PublishShell` | 三个发布页共用的外壳：返回链接、标题与说明、页面级错误汇总、`Field`（label + 提示 + 计数器 + 字段错误，并用 `cloneElement` 把 `id`/`aria-*` 接到控件上）、草稿恢复横幅、`TipsCard`、粘性提交栏、Ctrl/⌘+Enter 提交 | — |
+| `RichEditor` | Tiptap 3 富文本编辑器（所见即所得/源码/分屏），同文件另导出只读 `RichContent`；可选的 `id`/`labelledBy`/`describedBy`/`invalid` 会写到可编辑区，供 `<Field>` 接上标签与错误 | `POST /api/upload` |
 | `CommentSection` | 评论区：列表、发表、回复、编辑、删除 | `/api/comments*` |
 | `AnswerForm` / `AnswerItem` / `AcceptButton` | 答题、展示（投票/采纳/编辑/删除）、采纳按钮 | `/api/questions/[id]/answers`、`/api/answers/[id]` |
 | `VoteButtons` / `RatingWidget` / `BookmarkButton` | 顶踩投票、1–5 星评分、收藏开关 | `POST /api/votes`、`POST /api/bookmarks` |
@@ -121,6 +125,10 @@ src/app/
 | `TableOfContents` / `ReadingProgress` / `BackToTop` / `ShareButton` | 目录与滚动高亮、阅读进度、回到顶部、分享 | — |
 | `ViewTracker` | 挂载后上报一次浏览 | `POST /api/views` |
 | `Pagination` / `CodeBlock` | **无引用**（死代码；列表页各自实现了分页 UI） | — |
+
+> 发布页的草稿自动保存（`localStorage`，键为 `publish:<类型>:<用户 id>`，7 天过期）与恢复横幅由
+> `client/usePublishDraft.ts` 提供，属于 hook 而非组件，未计入上表；它不做 `beforeunload` 拦截——
+> 内容已落盘，刷新最多丢失一个防抖窗口（800ms），回来时横幅可一键恢复。
 
 ### `components/layout/`（3）
 

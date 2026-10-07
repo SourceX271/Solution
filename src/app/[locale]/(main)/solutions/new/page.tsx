@@ -1,171 +1,261 @@
 "use client"
 
-import { useState } from "react"
-import { useRouter } from "next/navigation"
+import { useCallback, useMemo, useState } from "react"
 import { useSession } from "next-auth/react"
 import { useTranslations } from "next-intl"
-import Link from "next/link"
+import { useRouter } from "@/i18n/routing"
+import { Send } from "lucide-react"
+import { toast } from "sonner"
+import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
 import { RichEditor } from "@/components/client/RichEditor"
 import { TagPicker } from "@/components/client/TagPicker"
-import { Loader2, ArrowLeft } from "lucide-react"
+import {
+  DraftBanner,
+  Field,
+  PublishLoading,
+  PublishLoginRequired,
+  PublishShell,
+  SubmitButton,
+  TipsCard,
+} from "@/components/client/PublishShell"
+import { usePublishDraft } from "@/components/client/usePublishDraft"
+import { PUBLISH_LIMITS, PUBLISH_MIN, hasRichTextContent, plainTextLength } from "@/lib/publish"
 
-export default function NewDocPage() {
+interface FormState {
+  title: string
+  problem: string
+  category: string
+  tags: string[]
+  excerpt: string
+  content: string
+}
+
+const EMPTY_FORM: FormState = {
+  title: "",
+  problem: "",
+  category: "solution",
+  tags: [],
+  excerpt: "",
+  content: "",
+}
+
+type FieldName = "title" | "content" | "problem" | "excerpt"
+
+export default function NewSolutionPage() {
   const t = useTranslations("docs")
   const tc = useTranslations("common")
+  const tp = useTranslations("publish")
+  const tv = useTranslations("validation")
   const router = useRouter()
   const { data: session, status } = useSession()
-  const [title, setTitle] = useState("")
-  const [problem, setProblem] = useState("")
-  const [excerpt, setExcerpt] = useState("")
-  const [category, setCategory] = useState("solution")
-  const [tags, setTags] = useState<string[]>([])
-  const [content, setContent] = useState("")
+
+  const [form, setForm] = useState<FormState>(EMPTY_FORM)
+  const [errors, setErrors] = useState<Partial<Record<FieldName, string>>>({})
+  const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
-  const [error, setError] = useState("")
 
-  const CATEGORIES = [
-    { value: "solution", label: t("categorySolution") },
-    { value: "tutorial", label: t("categoryTutorial") },
-    { value: "guide", label: t("categoryGuide") },
-    { value: "reference", label: t("categoryReference") },
-    { value: "news", label: t("categoryNews") },
-  ]
+  const draft = usePublishDraft<FormState>(
+    `publish:solution:${session?.user?.id ?? "anon"}`,
+    form,
+    { enabled: !!session }
+  )
 
-  const handleSubmit = async () => {
-    if (!title.trim()) { setError(tc("titleRequired")); return }
-    if (!content) { setError(tc("contentRequired")); return }
-    setSaving(true); setError("")
+  const categories = useMemo(
+    () => [
+      { value: "solution", label: t("categorySolution") },
+      { value: "tutorial", label: t("categoryTutorial") },
+      { value: "guide", label: t("categoryGuide") },
+      { value: "reference", label: t("categoryReference") },
+      { value: "news", label: t("categoryNews") },
+    ],
+    [t]
+  )
+
+  function update<K extends keyof FormState>(key: K, value: FormState[K]) {
+    setForm((current) => ({ ...current, [key]: value }))
+    setErrors((current) => (current[key as FieldName] ? { ...current, [key]: undefined } : current))
+  }
+
+  const validate = useCallback((): Partial<Record<FieldName, string>> => {
+    const next: Partial<Record<FieldName, string>> = {}
+    if (form.title.trim().length < PUBLISH_MIN.solutionTitle) next.title = tv("titleMin2")
+    if (!hasRichTextContent(form.content, PUBLISH_MIN.solutionContent)) next.content = tv("contentMin10")
+    if (form.problem.length > PUBLISH_LIMITS.solutionProblem) next.problem = tv("problemMax2000")
+    return next
+  }, [form, tv])
+
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    const nextErrors = validate()
+    setErrors(nextErrors)
+    if (Object.keys(nextErrors).length > 0) {
+      setError(tp("fixErrors"))
+      document.getElementById(nextErrors.title ? "title" : "content")?.focus()
+      return
+    }
+
+    setSaving(true)
+    setError(null)
     try {
       const res = await fetch("/api/articles", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          title: title.trim(),
-          content,
-          excerpt: excerpt.trim() || undefined,
-          problem: problem.trim(),
-          category,
-          tags,
+          title: form.title.trim(),
+          content: form.content,
+          excerpt: form.excerpt.trim() || undefined,
+          problem: form.problem.trim() || undefined,
+          category: form.category,
+          tags: form.tags,
         }),
       })
-      if (!res.ok) {
-        const data = await res.json()
-        throw new Error(data.error || tc("publishFailed"))
-      }
-      const article = await res.json()
-      router.push(`/solutions/${article.slug}`)
-      router.refresh()
-    } catch (err: any) {
-      setError(err.message || tc("publishFailedRetry"))
+      const data = await res.json().catch(() => null)
+      if (!res.ok) throw new Error(data?.error || tc("publishFailed"))
+      draft.clear()
+      toast.success(tp("publishedToast"))
+      router.push(`/solutions/${data.slug}`)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : tc("publishFailedRetry"))
     } finally {
       setSaving(false)
     }
   }
 
-  if (status === "loading") {
-    return (
-      <div className="container mx-auto flex min-h-[50vh] items-center justify-center px-4">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    )
-  }
+  if (status === "loading") return <PublishLoading />
+  if (!session) return <PublishLoginRequired message={tc("loginRequiredDocs")} />
 
-  if (!session) {
-    return (
-      <div className="container mx-auto px-4 py-20 text-center animate-fade-in">
-        <h1 className="mb-4 text-2xl font-bold gradient-text">{tc("loginRequiredTitle")}</h1>
-        <p className="mb-6 text-muted-foreground">{tc("loginRequiredDocs")}</p>
-        <Link href="/login" className="btn-gradient inline-flex items-center gap-2 rounded-full px-6 py-2.5 text-sm font-medium shadow-lg shadow-primary/25">
-          {tc("goToLogin")}
-        </Link>
-      </div>
-    )
-  }
+  const prompt = draft.pendingDraft
 
   return (
-    <div className="container mx-auto max-w-3xl px-4 py-10 animate-fade-in">
-      <Link href="/solutions" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground mb-6 transition-colors">
-        <ArrowLeft className="h-4 w-4" /> {t("backToList")}
-      </Link>
-
-      <h1 className="text-3xl font-bold gradient-text mb-8">{t("publishTitle")}</h1>
-
-      <div className="space-y-5">
-        <div>
-          <label className="mb-1.5 block text-sm font-medium">{tc("titleLabel")} <span className="text-red-500">*</span></label>
-          <input
-            type="text" value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder={t("titlePlaceholder")}
-            className="w-full rounded-xl border bg-background px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/40 transition-all"
-            maxLength={200}
+    <PublishShell
+      title={t("publishTitle")}
+      description={t("publishSubtitle")}
+      backHref="/solutions"
+      backLabel={t("backToList")}
+      error={error}
+      onSubmit={handleSubmit}
+      notice={
+        prompt ? (
+          <DraftBanner
+            onRestore={() => {
+              const restored = draft.restore()
+              if (restored) setForm(restored)
+            }}
+            onDiscard={draft.discard}
           />
-        </div>
+        ) : null
+      }
+      aside={
+        <TipsCard
+          title={tp("tipsTitle")}
+          items={[tp("tipSolution1"), tp("tipSolution2"), tp("tipSolution3")]}
+        />
+      }
+      actions={
+        <SubmitButton
+          pending={saving}
+          label={t("publish")}
+          pendingLabel={tc("publishing")}
+          icon={<Send className="mr-2 h-4 w-4" aria-hidden="true" />}
+        />
+      }
+      footnote={
+        draft.savedAt ? (
+          <p className="text-[11px] text-muted-foreground">
+            {tp("draftSavedAt", { time: new Date(draft.savedAt).toLocaleTimeString() })}
+          </p>
+        ) : null
+      }
+    >
+      <Field
+        id="title"
+        label={tc("titleLabel")}
+        required
+        hint={t("titleHint")}
+        counter={`${form.title.length}/${PUBLISH_LIMITS.solutionTitle}`}
+        error={errors.title}
+      >
+        <Input
+          type="text"
+          value={form.title}
+          onChange={(event) => update("title", event.target.value)}
+          placeholder={t("titlePlaceholder")}
+          maxLength={PUBLISH_LIMITS.solutionTitle}
+          autoFocus
+        />
+      </Field>
 
-        <div>
-          <label className="mb-1.5 block text-sm font-medium">{t("problemTitle")}</label>
-          <input
-            type="text" value={problem}
-            onChange={(e) => setProblem(e.target.value)}
-            placeholder={t("problemPlaceholder")}
-            className="w-full rounded-xl border bg-background px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/40 transition-all"
+      <Field id="problem" label={t("problemTitle")} hint={t("problemHint")} error={errors.problem}>
+        <Input
+          type="text"
+          value={form.problem}
+          onChange={(event) => update("problem", event.target.value)}
+          placeholder={t("problemPlaceholder")}
+          maxLength={PUBLISH_LIMITS.solutionProblem}
+        />
+      </Field>
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Field id="category" label={tc("category")}>
+          <select
+            id="category"
+            value={form.category}
+            onChange={(event) => update("category", event.target.value)}
+            className="h-10 w-full rounded-xl border border-input bg-background px-3 text-sm transition-all focus:border-primary/40 focus:outline-none focus:ring-2 focus:ring-primary/20"
+          >
+            {categories.map((category) => (
+              <option key={category.value} value={category.value}>
+                {category.label}
+              </option>
+            ))}
+          </select>
+        </Field>
+
+        <Field id="tags" label={tc("tags")}>
+          <TagPicker
+            id="tags"
+            value={form.tags}
+            onChange={(next) => update("tags", next)}
+            placeholder={tc("tagsPlaceholder")}
           />
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div>
-            <label className="mb-1.5 block text-sm font-medium">{tc("category")}</label>
-            <select
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
-              className="w-full rounded-xl border bg-background px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/40 transition-all"
-            >
-              {CATEGORIES.map((c) => (
-                <option key={c.value} value={c.value}>{c.label}</option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="mb-1.5 block text-sm font-medium" htmlFor="tags">{tc("tags")}</label>
-            <TagPicker
-              id="tags"
-              value={tags}
-              onChange={setTags}
-              placeholder={tc("tagsPlaceholder")}
-            />
-          </div>
-        </div>
-
-        <div>
-          <label className="mb-1.5 block text-sm font-medium">{tc("excerpt")}</label>
-          <textarea
-            value={excerpt}
-            onChange={(e) => setExcerpt(e.target.value)}
-            placeholder={t("excerptPlaceholder")}
-            className="w-full rounded-xl border bg-background px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/40 transition-all resize-y min-h-[60px]"
-            maxLength={500}
-            rows={2}
-          />
-        </div>
-
-        <div>
-          <label className="mb-1.5 block text-sm font-medium">{tc("content")} <span className="text-red-500">*</span></label>
-          <RichEditor value={content} onChange={setContent} placeholder={t("contentPlaceholder")} minHeight="300px" />
-        </div>
-
-        {error && (
-          <div className="rounded-xl bg-destructive/10 px-4 py-3 text-sm text-destructive">{error}</div>
-        )}
-
-        <button
-          onClick={handleSubmit}
-          disabled={saving}
-          className="btn-gradient inline-flex items-center gap-2 rounded-xl px-6 py-2.5 text-sm font-medium shadow-lg shadow-primary/25 disabled:opacity-50 disabled:shadow-none"
-        >
-          {saving && <Loader2 className="h-4 w-4 animate-spin" />}
-          {saving ? tc("publishing") : t("publish")}
-        </button>
+        </Field>
       </div>
-    </div>
+
+      <Field
+        id="excerpt"
+        label={tc("excerpt")}
+        hint={t("excerptHint")}
+        counter={`${form.excerpt.length}/${PUBLISH_LIMITS.solutionExcerpt}`}
+        error={errors.excerpt}
+      >
+        <Textarea
+          value={form.excerpt}
+          onChange={(event) => update("excerpt", event.target.value)}
+          placeholder={t("excerptPlaceholder")}
+          maxLength={PUBLISH_LIMITS.solutionExcerpt}
+          rows={2}
+        />
+      </Field>
+
+      <Field
+        id="content"
+        label={tc("content")}
+        required
+        hint={t("contentHint", { count: plainTextLength(form.content) })}
+        error={errors.content}
+      >
+        <RichEditor
+          id="content"
+          labelledBy="content-label"
+          describedBy={errors.content ? "content-error" : "content-hint"}
+          invalid={!!errors.content}
+          value={form.content}
+          onChange={(html) => update("content", html)}
+          placeholder={t("contentPlaceholder")}
+          minHeight="320px"
+        />
+      </Field>
+    </PublishShell>
   )
 }

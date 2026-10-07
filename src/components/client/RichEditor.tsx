@@ -49,6 +49,14 @@ interface RichEditorProps {
   minHeight?: string;
   showToolbar?: boolean;
   readOnly?: boolean;
+  /** DOM id for the editable area, so a <label htmlFor> can point at it. */
+  id?: string;
+  /** Id of the element that labels this editor (used with `<Field>`). */
+  labelledBy?: string;
+  /** Id of the hint/error element describing this editor. */
+  describedBy?: string;
+  /** Marks the editor as invalid for assistive technology. */
+  invalid?: boolean;
 }
 
 export function RichEditor({
@@ -58,6 +66,10 @@ export function RichEditor({
   minHeight = "200px",
   showToolbar = true,
   readOnly = false,
+  id,
+  labelledBy,
+  describedBy,
+  invalid = false,
 }: RichEditorProps) {
   const tc = useTranslations("common");
   const te = useTranslations("editor");
@@ -94,9 +106,31 @@ export function RichEditor({
         class:
           "tiptap-editor p-4 rounded-md border border-input bg-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
         style: "min-height: " + minHeight,
+        // A contenteditable div needs an explicit textbox role to be announced
+        // as an input rather than as a generic region.
+        role: "textbox",
+        "aria-multiline": "true",
       },
     },
   });
+
+  /**
+   * Accessibility wiring for the editable area.
+   *
+   * The attributes are set on the ProseMirror DOM node directly: `useEditor`
+   * only reads its options on creation, so passing them there would leave a
+   * later-appearing error message unattached.
+   */
+  useEffect(() => {
+    const dom = editor?.view?.dom as HTMLElement | undefined;
+    if (!dom) return;
+    if (id) dom.id = id;
+    if (labelledBy) dom.setAttribute("aria-labelledby", labelledBy);
+    if (describedBy) dom.setAttribute("aria-describedby", describedBy);
+    else dom.removeAttribute("aria-describedby");
+    if (invalid) dom.setAttribute("aria-invalid", "true");
+    else dom.removeAttribute("aria-invalid");
+  }, [editor, id, labelledBy, describedBy, invalid]);
 
   // Sync external value changes into the editor (e.g., edit mode initialization)
   useEffect(() => {

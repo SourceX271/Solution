@@ -234,7 +234,12 @@
     "editSolution": "编辑方案",
     "editSolutionTitle": "编辑解决方案",
     "editContentPlaceholder": "编辑方案内容...",
-    "saveChanges": "保存修改"
+    "saveChanges": "保存修改",
+    "publishSubtitle": "记录你遇到的问题与解决过程，帮助遇到同样问题的人",
+    "titleHint": "一句话说明解决了什么问题，2–200 字",
+    "problemHint": "选填：描述当时的故障现象",
+    "excerptHint": "选填：列表与分享卡片上显示的摘要，最多 500 字",
+    "contentHint": "当前正文 {count} 字（至少 10 字）"
   },
   "questions": {
     "title": "问答社区",
@@ -271,7 +276,11 @@
     "updateAnswer": "更新回答",
     "submitAnswer": "提交回答",
     "answerUpdated": "回答更新成功！",
-    "answerPosted": "回答发布成功！"
+    "answerPosted": "回答发布成功！",
+    "askSubtitle": "描述清楚现象与已尝试的方法，更容易得到有效回答",
+    "titleHint": "一句话概括问题，至少 5 个字",
+    "contentHint": "当前正文 {count} 字（至少 20 字）",
+    "tagsHint": "最多 20 个标签，输入时会自动联想已有标签"
   },
   "software": {
     "title": "软件推荐",
@@ -313,7 +322,12 @@
     "editDescriptionPlaceholder": "编辑软件描述...",
     "nameRequired": "请输入软件名称",
     "descriptionRequired": "请输入软件描述",
-    "editDescriptionRequired": "请输入描述"
+    "editDescriptionRequired": "请输入描述",
+    "submitSubtitle": "推荐一款你实际用过的软件，并说明它解决了什么问题",
+    "nameHint": "软件名称，最多 100 字",
+    "urlHint": "选填：官网地址，需以 http(s):// 开头",
+    "descriptionHint": "当前简介 {count} 字（至少 10 字）",
+    "tagsHint": "最多 20 个标签，输入时会自动联想已有标签"
   },
   "comments": {
     "title": "评论",
@@ -1075,5 +1089,24 @@
     "newPasswordMax72": "新密码最多72位",
     "newPasswordLetter": "新密码需包含字母",
     "newPasswordDigit": "新密码需包含数字"
+  },
+  "publish": {
+    "draftFound": "检测到上次未提交的草稿",
+    "draftRestore": "恢复草稿",
+    "draftDiscard": "丢弃",
+    "draftSavedAt": "草稿已自动保存于 {time}",
+    "shortcutHint": "按 Ctrl/⌘ + Enter 可快速提交",
+    "fixErrors": "请先修正标出的问题",
+    "publishedToast": "发布成功",
+    "tipsTitle": "发布须知",
+    "tipSolution1": "标题写清「解决了什么问题」，便于他人检索",
+    "tipSolution2": "正文按「现象 → 原因 → 步骤」组织，关键步骤配图更佳",
+    "tipSolution3": "遇到问题请先搜索，避免重复发布同一方案",
+    "tipQuestion1": "标题用一句话概括问题，避免「求助」这类无效标题",
+    "tipQuestion2": "正文补充环境、版本、报错原文与已尝试的方法",
+    "tipQuestion3": "合适的标签能让懂行的人更快看到你的问题",
+    "tipSoftware1": "写清它解决什么问题、适合谁用",
+    "tipSoftware2": "尽量附上官方网站地址，避免失效的下载站链接",
+    "tipSoftware3": "补充平台、价格（免费/付费）与上手难度更有帮助"
   }
 }

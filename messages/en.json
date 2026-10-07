@@ -234,7 +234,12 @@
     "editSolution": "Edit solution",
     "editSolutionTitle": "Edit solution",
     "editContentPlaceholder": "Edit the solution content...",
-    "saveChanges": "Save changes"
+    "saveChanges": "Save changes",
+    "publishSubtitle": "Write down the problem and how you solved it, to help the next person",
+    "titleHint": "One line on what problem it solves, 2–200 characters",
+    "problemHint": "Optional: describe the symptoms you saw",
+    "excerptHint": "Optional: summary shown in lists and share cards, up to 500 characters",
+    "contentHint": "{count} characters so far (10 minimum)"
   },
   "questions": {
     "title": "Q&A",
@@ -271,7 +276,11 @@
     "updateAnswer": "Update answer",
     "submitAnswer": "Submit answer",
     "answerUpdated": "Answer updated!",
-    "answerPosted": "Answer posted!"
+    "answerPosted": "Answer posted!",
+    "askSubtitle": "Describe the symptoms and what you already tried to get better answers",
+    "titleHint": "Summarise the question in one line, at least 5 characters",
+    "contentHint": "{count} characters so far (20 minimum)",
+    "tagsHint": "Up to 20 tags; existing tags are suggested as you type"
   },
   "software": {
     "title": "Software",
@@ -313,7 +322,12 @@
     "editDescriptionPlaceholder": "Edit the software description...",
     "nameRequired": "Please enter the software name",
     "descriptionRequired": "Please enter a description",
-    "editDescriptionRequired": "Please enter a description"
+    "editDescriptionRequired": "Please enter a description",
+    "submitSubtitle": "Recommend a tool you have actually used and what it solved for you",
+    "nameHint": "Product name, up to 100 characters",
+    "urlHint": "Optional: official site, must start with http(s)://",
+    "descriptionHint": "{count} characters so far (10 minimum)",
+    "tagsHint": "Up to 20 tags; existing tags are suggested as you type"
   },
   "comments": {
     "title": "Comments",
@@ -508,7 +522,7 @@
     "totalCount": "{total} related items",
     "empty": "Nothing tagged with this yet",
     "remove": "Remove tag {name}",
-    "createOption": "Create \u201c{name}\u201d",
+    "createOption": "Create “{name}”",
     "related": "Related tags"
   },
   "admin": {
@@ -923,14 +937,14 @@
       "saveFailed": "Could not update the tag",
       "delete": "Delete",
       "deleteTitle": "Delete this tag?",
-      "deleteDesc": "\u201c{name}\u201d will be removed from every item. This cannot be undone.",
+      "deleteDesc": "“{name}” will be removed from every item. This cannot be undone.",
       "deleteBlocked": "This tag is still used by {count} item(s)",
       "forceDelete": "Delete anyway",
       "deleted": "Tag deleted",
       "deleteFailed": "Could not delete the tag",
       "merge": "Merge",
       "mergeTitle": "Merge tag",
-      "mergeDesc": "Move everything tagged \u201c{name}\u201d onto the target tag, then delete \u201c{name}\u201d.",
+      "mergeDesc": "Move everything tagged “{name}” onto the target tag, then delete “{name}”.",
       "mergeTargetLabel": "Merge into",
       "mergeSelectPlaceholder": "Pick a target tag",
       "mergeConfirm": "Merge",
@@ -1075,5 +1089,24 @@
     "newPasswordMax72": "New password must be at most 72 characters",
     "newPasswordLetter": "New password must contain a letter",
     "newPasswordDigit": "New password must contain a digit"
+  },
+  "publish": {
+    "draftFound": "An unsaved draft from last time was found",
+    "draftRestore": "Restore draft",
+    "draftDiscard": "Discard",
+    "draftSavedAt": "Draft autosaved at {time}",
+    "shortcutHint": "Press Ctrl/⌘ + Enter to submit",
+    "fixErrors": "Please fix the highlighted fields first",
+    "publishedToast": "Published",
+    "tipsTitle": "Before you publish",
+    "tipSolution1": "Make the title state the problem it solves so others can find it",
+    "tipSolution2": "Structure the body as symptom → cause → steps; screenshots help",
+    "tipSolution3": "Search first to avoid publishing a duplicate solution",
+    "tipQuestion1": "Summarise the problem in the title; avoid empty titles like “help”",
+    "tipQuestion2": "Include environment, versions, the exact error and what you already tried",
+    "tipQuestion3": "Good tags bring the right people to your question",
+    "tipSoftware1": "Explain what it solves and who it is for",
+    "tipSoftware2": "Link the official site rather than a third-party download page",
+    "tipSoftware3": "Mention platforms, pricing (free/paid) and how hard it is to pick up"
   }
 }
